@@ -9,7 +9,7 @@
 #   권한 설정에서 죽는다(hathor D-0120 과 같은 원인). 권한 보존을 끈다.
 set -euo pipefail
 
-DEST="${THOTH_EXT_DEST:-/mnt/f/data/thoth/ext-build}"
+DEST="${THOTH_EXT_DEST:-/mnt/f/projects/thoth/ext-build}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)/extension"
 
 [ -d "$SRC" ] || { echo "소스 없음 : $SRC" >&2; exit 1; }
