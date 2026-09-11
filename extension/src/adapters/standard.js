@@ -1,4 +1,5 @@
 // Layer 1 — ARIA · 폼 표준. 사이트 지식 0. group 을 채우는 것이 목적이다.
+if (!globalThis.ST.adapters.some((a) => a.name === "standard"))
 globalThis.ST.adapters.push({
   name: "standard",
   priority: 5,

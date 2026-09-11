@@ -1,6 +1,7 @@
 // Layer 0 — 사이트 지식 0. 항상 매치하는 폴백.
 (globalThis.ST ??= {}).adapters ??= [];
 
+if (!globalThis.ST.adapters.some((a) => a.name === "generic"))
 globalThis.ST.adapters.push({
   name: "generic",
   priority: 0,

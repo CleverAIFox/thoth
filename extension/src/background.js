@@ -18,8 +18,11 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 // 이미 승인된 사이트는 다음 방문부터 자동 주입.
+const ST_STATIC = [/(^|\.)udemy\.com$/];   // manifest content_scripts 가 이미 맡는 곳
+
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== "complete" || !tab.url?.startsWith("http")) return;
+  if (ST_STATIC.some((re) => re.test(new URL(tab.url).hostname))) return;
 
   const origin = new URL(tab.url).origin + "/*";
   if (!(await chrome.permissions.contains({ origins: [origin] }))) return;

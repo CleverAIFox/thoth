@@ -1,7 +1,8 @@
 // Layer 2 — Udemy. 채점 전후로 DOM 이 다르다. 계약은 MASTER 의 DOM 계약 절.
-const ST_UDEMY_RICH =
+globalThis.ST_UDEMY_RICH =
   "div[data-purpose='safely-set-inner-html:rich-text-viewer:html']";
 
+if (!globalThis.ST.adapters.some((a) => a.name === "udemy"))
 globalThis.ST.adapters.push({
   name: "udemy",
   priority: 10,
