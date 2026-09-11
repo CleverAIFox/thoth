@@ -42,7 +42,7 @@ globalThis.ST.adapters.push({
 
   decorate(node) {
     node.style.setProperty("width", "100%", "important");
-    node.style.setProperty("white-space", "normal", "important");
+    node.style.setProperty("white-space", "pre-wrap", "important");
     node.style.setProperty("overflow-wrap", "break-word", "important");
   },
 });

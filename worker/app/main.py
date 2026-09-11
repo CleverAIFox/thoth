@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from . import cache, engine, guard
 
 VERSION = "0.1.0"
-app = FastAPI(title="site-translate worker", version=VERSION)
+app = FastAPI(title="thoth worker", version=VERSION)
 
 # 콘텐츠 스크립트의 fetch 는 페이지 오리진을 쓴다. CORS 없으면 전부 막힌다.
 app.add_middleware(
@@ -22,18 +22,25 @@ class Req(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": VERSION, "engine": engine.ENGINE,
-            "cache": cache.MODE, "chars_used": guard.used()}
+    return {
+        "status": "ok",
+        "version": VERSION,
+        "engine": engine.ENGINE,
+        "cache": cache.MODE,
+        "chars_used": guard.used(),
+        "chars_remaining": guard.remaining(),
+    }
 
 
 @app.post("/translate")
 def translate(req: Req):
     hits = cache.get_many(req.texts)
-    misses = [t for t in req.texts if t not in hits]
+    # 중복 제거. 같은 배치에 같은 문장이 두 번 오면 한 번만 번역한다.
+    misses = list(dict.fromkeys(t for t in req.texts if t not in hits))
 
     if misses:
         try:
-            guard.check_and_add(misses)
+            guard.reserve(misses)          # 번역 '전에' 예약한다
         except guard.QuotaExceeded:
             return JSONResponse({"error": "quota_exceeded"}, status_code=429)
         except guard.TooLong:
@@ -43,8 +50,9 @@ def translate(req: Req):
         cache.put_many(dict(zip(misses, fresh)))
         hits.update(dict(zip(misses, fresh)))
 
+    missed = set(misses)
     return {
         "translations": [hits[t] for t in req.texts],
-        "cached": [t not in misses for t in req.texts],
+        "cached": [t not in missed for t in req.texts],
         "version": VERSION,
     }

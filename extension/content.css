@@ -7,4 +7,14 @@
   color: #1a1a2e;
   font-size: 0.95em;
   line-height: 1.5;
+  white-space: pre-wrap;   /* innerText 의 줄바꿈을 살린다 */
 }
+
+.st-translation a {
+  color: #2f6fdd;
+  text-decoration: underline;
+  margin-left: 6px;
+  word-break: break-all;
+}
+
+html.st-off .st-translation { display: none !important; }
