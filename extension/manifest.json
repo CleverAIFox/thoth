@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Site Translate — 한글 오버레이",
+  "version": "0.1.0",
+  "description": "영어 문항·본문을 화면에서 읽어 한글 번역을 겹쳐 보여준다. 사이트별 어댑터와 제네릭 폴백으로 동작한다.",
+
+  "permissions": ["storage", "scripting"],
+  "host_permissions": ["*://www.udemy.com/*"],
+  "optional_host_permissions": ["<all_urls>"],
+
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "action": { "default_title": "이 사이트에서 번역 켜기" },
+
+  "background": { "service_worker": "src/background.js" },
+
+  "content_scripts": [
+    {
+      "matches": ["*://www.udemy.com/*"],
+      "js": ["src/broker.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
