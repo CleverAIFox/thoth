@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Site Translate — 한글 오버레이",
+  "name": "Thoth — 한글 번역 오버레이",
   "version": "0.1.0",
   "description": "영어 문항·본문을 화면에서 읽어 한글 번역을 겹쳐 보여준다. 사이트별 어댑터와 제네릭 폴백으로 동작한다.",
   "permissions": [
