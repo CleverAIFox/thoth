@@ -79,6 +79,10 @@ DUP="$(grep -E "^\| *[0-9]+ *\| ⬛ \|" docs/PLAN.md 2>/dev/null | grep -cv "→
 EXEC="$(find docs -name "*.md" -perm -u+x 2>/dev/null | wc -l)"
 [ "$EXEC" = "0" ] && ok "문서에 실행 비트 없음" || no "실행 비트가 붙은 문서 ${EXEC}건"
 
+# 세션이 바뀌면 문맥이 초기화된다. 문체 규약은 사람의 기억이 아니라
+# 도구가 지킨다(DECISIONS §9).
+python3 tools/check_docs.py && ok "문서 서술 규약" || no "문서 서술 규약 위반"
+
 echo "== 워커 =="
 ( cd worker && uv run pytest -q >/dev/null 2>&1 ) && ok "테스트 통과" || no "테스트 실패"
 
