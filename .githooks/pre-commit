@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# 전역 ~/.githooks/pre-commit 이 자격증명 검사 후 이 파일을 불러준다.
+# 로컬 core.hooksPath 는 설정하지 않는다. 설정하면 전역 훅이 아예 돌지 않는다.
+#
+# 로컬 hooksPath 가 켜진 경우를 대비해 자격증명 검사를 직접 한 번 건다.
+# HOOK_CREDENTIAL_CHECKED 가드 덕에 어느 경로로 오든 정확히 한 번 돈다.
+set -uo pipefail
+fail=0
+[ -x "$HOME/.githooks/credential-check" ] && { "$HOME/.githooks/credential-check" || fail=1; }
+
+bash "$(git rev-parse --show-toplevel)/tools/doctor.sh" || fail=1
+exit "$fail"
