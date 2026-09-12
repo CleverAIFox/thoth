@@ -30,3 +30,25 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.13" }
       - run: python tools/check_docs.py
+
+  # 계약을 실제 HTTP 로 때린다. TestClient 는 미들웨어·포트·.env 로딩을
+  # 건너뛰므로 pytest 만으로는 서빙 경로가 검증되지 않는다.
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      ENGINE: echo
+      CACHE: file
+      CACHE_FILE: .cache/translations.json
+      QUOTA_FILE: .cache/quota.json
+      MAX_TEXT_LEN: "5000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: 워커 기동
+        run: |
+          uv run uvicorn app.main:app --port 8000 > /tmp/worker.log 2>&1 &
+          for _ in $(seq 30); do curl -sf localhost:8000/health && break; sleep 1; done
+        working-directory: worker
+      - run: bash tools/smoke.sh
+      - if: failure()
+        run: cat /tmp/worker.log
