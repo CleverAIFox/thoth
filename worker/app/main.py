@@ -11,6 +11,7 @@ from . import cache, engine, guard
 log = logging.getLogger("thoth")
 
 VERSION = "0.1.0"
+TARGETS = {"ko"}
 app = FastAPI(title="thoth worker", version=VERSION)
 
 # 콘텐츠 스크립트의 fetch 는 페이지 오리진을 쓴다. CORS 없으면 전부 막힌다.
@@ -24,20 +25,36 @@ class Req(BaseModel):
     target: str = "ko"
 
 
+def _err(code: int, name: str, **extra):
+    """계약 형태의 에러. 예외를 그대로 올리면 미들웨어를 건너뛰어 CORS 헤더가
+    빠지고 브라우저 콘솔에는 CORS 위반으로 보고된다(DECISIONS §2)."""
+    return JSONResponse({"error": name, **extra}, status_code=code)
+
+
 @app.get("/health")
 def health():
-    return {
+    body = {
         "status": "ok",
         "version": VERSION,
         "engine": engine.ENGINE,
         "cache": cache.MODE,
-        "chars_used": guard.used(),
-        "chars_remaining": guard.remaining(),
     }
+    # 카운터 저장소가 죽어도 /health 자체는 답한다. 무엇이 죽었는지 알려주는
+    # 것이 이 엔드포인트의 일이다.
+    try:
+        body["chars_used"] = guard.used()
+        body["chars_remaining"] = guard.remaining()
+    except guard.GuardUnavailable as e:
+        body["status"] = "degraded"
+        body["guard_error"] = str(e)
+    return body
 
 
 @app.post("/translate")
 def translate(req: Req):
+    if req.target not in TARGETS:
+        return _err(400, "unsupported_target", detail=req.target)
+
     hits = cache.get_many(req.texts)
     # 중복 제거. 같은 배치에 같은 문장이 두 번 오면 한 번만 번역한다.
     misses = list(dict.fromkeys(t for t in req.texts if t not in hits))
@@ -46,20 +63,26 @@ def translate(req: Req):
         try:
             guard.reserve(misses)          # 번역 '전에' 예약한다
         except guard.QuotaExceeded:
-            return JSONResponse({"error": "quota_exceeded"}, status_code=429)
+            return _err(429, "quota_exceeded")
         except guard.TooLong:
-            return JSONResponse({"error": "too_long"}, status_code=413)
+            return _err(413, "too_long")
+        except guard.GuardUnavailable as e:
+            # 세지 못하는 상태로 번역하면 상한이 없는 것과 같다. 닫는다.
+            log.error("guard unavailable: %s", e)
+            return _err(503, "guard_unavailable", detail=str(e))
 
         try:
             fresh = engine.translate_batch(misses)
         except Exception as e:
-            # 엔진 실패를 500 으로 흘리면 CORS 헤더가 빠져 브라우저에서
-            # 원인이 CORS 로 오인된다. 계약대로 에러를 돌려준다.
             log.exception("engine failed")
-            return JSONResponse(
-                {"error": "engine_failed", "detail": type(e).__name__},
-                status_code=502,
-            )
+            return _err(502, "engine_failed", detail=type(e).__name__)
+
+        # 엔진을 믿지 않는다. zip 은 짧은 쪽에 맞춰 조용히 자르고, 잘린 결과는
+        # 아래에서 KeyError 로 터져 500 이 된다. 여기서 계약으로 잡는다.
+        if len(fresh) != len(misses) or any(not isinstance(x, str) for x in fresh):
+            log.error("engine returned %d for %d inputs", len(fresh), len(misses))
+            return _err(502, "engine_failed", detail="length_mismatch")
+
         cache.put_many(dict(zip(misses, fresh)))
         hits.update(dict(zip(misses, fresh)))
 

@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# 저장소·환경 불변식 점검. 막지 않고 보여준다.
-#   bash tools/doctor.sh
+# 저장소·환경 불변식 점검.
+#   bash tools/doctor.sh          전부 본다. FAIL 이 있으면 1 로 끝난다
+#   bash tools/doctor.sh --repo   저장소 안의 불변식만 본다 (커밋 훅 · CI 용)
+#
+# ★ 기계 설정 검사(홈 규약 · 셸 오염 · 전역 훅 · SSD 경로)는 이 저장소의
+#   불변식이 아니라 한 작업 기계의 불변식이다. 커밋을 막는 자리에 두면
+#   다른 기계에서 관계없는 이유로 커밋이 막힌다. --repo 에서 뺀다.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 [ -f .env ] && { set -a; . ./.env; set +a; }
+SCOPE="${1:-all}"
 FAIL=0
+skip(){ printf '  \033[33mSKIP\033[0m %s\n' "$1"; }
 ok(){ printf '  \033[32mOK\033[0m   %s\n' "$1"; }
 no(){ printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; }
 
@@ -16,12 +23,19 @@ git ls-files | grep -qE '(^|/)\.env$|credential|\.pem$' \
   && no "추적 중인 비밀 파일" || ok "추적 중인 비밀 파일 없음"
 
 echo "== .env 키 정합 =="
+if [ ! -f .env ]; then skip ".env 가 없어 비교하지 않는다"; else
 # 키 목록의 정본은 .env.example 이다. 한쪽만 늘면 조용히 어긋난다.
 keys(){ grep -oE '^[A-Z_][A-Z0-9_]*=' "$1" 2>/dev/null | tr -d '=' | sort -u; }
 MISS="$(comm -23 <(keys .env.example) <(keys .env))"
 EXTRA="$(comm -13 <(keys .env.example) <(keys .env))"
 [ -z "$MISS" ]  && ok ".env 에 빠진 키 없음"         || no ".env 에 없는 키: $(echo $MISS)"
 [ -z "$EXTRA" ] && ok ".env.example 에 빠진 키 없음" || no ".env.example 에 없는 키: $(echo $EXTRA)"
+fi
+
+if [ "$SCOPE" = "--repo" ]; then
+  echo "== 기계 설정 =="
+  skip "셸 오염 · 훅 · 홈 규약 · 산출물 · 모델 (--repo 범위 밖)"
+else
 
 echo "== 셸 오염 (D-0066) =="
 # 프로젝트 설정을 셸에 export 하면 .env 가 조용히 무시된다.
@@ -37,8 +51,9 @@ echo "== 훅 =="
   && ok "전역 gitignore 있음" || no "전역 gitignore 없음"
 
 echo "== 홈 규약 =="
+# 저장소가 아니라 작업 기계의 규약이다. FAIL 로 올리지 않는다.
 OUT="$(ls ~ | grep -vE '^projects$' | tr '\n' ' ')"
-[ -z "$OUT" ] && ok "홈 바로 아래에 규약 밖 이름 없음" || no "규약 밖: $OUT"
+[ -z "$OUT" ] && ok "홈 바로 아래에 규약 밖 이름 없음" || skip "규약 밖: $OUT"
 
 echo "== 산출물 =="
 [ -d "${THOTH_SSD_ROOT:-}" ] && ok "SSD 프로젝트 폴더 있음" \
@@ -62,8 +77,10 @@ if command -v ollama >/dev/null 2>&1 && curl -sf "${OLLAMA_URL:-http://127.0.0.1
     && no "SSD 에 모델 잔재가 있다 (DrvFs 는 로딩이 느려 쓰지 않는다)" \
     || ok "SSD 모델 잔재 없음"
 else
-  echo "  SKIP ollama 서버 미기동"
+  skip "ollama 서버 미기동"
 fi
+
+fi   # SCOPE
 
 echo "== 문서 =="
 for f in docs/MASTER.md docs/PLAN.md docs/DECISIONS.md README.md; do
@@ -84,7 +101,11 @@ EXEC="$(find docs -name "*.md" -perm -u+x 2>/dev/null | wc -l)"
 python3 tools/check_docs.py && ok "문서 서술 규약" || no "문서 서술 규약 위반"
 
 echo "== 워커 =="
-( cd worker && uv run pytest -q >/dev/null 2>&1 ) && ok "테스트 통과" || no "테스트 실패"
+if command -v uv >/dev/null 2>&1; then
+  ( cd worker && uv run pytest -q >/dev/null 2>&1 ) && ok "테스트 통과" || no "테스트 실패"
+else
+  skip "uv 가 없어 테스트를 돌리지 못한다"
+fi
 
 echo
 [ "$FAIL" = "0" ] && echo "이상 없음" || echo "위 FAIL 항목을 확인한다"

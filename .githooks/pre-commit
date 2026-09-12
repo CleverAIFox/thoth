@@ -8,5 +8,6 @@ set -uo pipefail
 fail=0
 [ -x "$HOME/.githooks/credential-check" ] && { "$HOME/.githooks/credential-check" || fail=1; }
 
-bash "$(git rev-parse --show-toplevel)/tools/doctor.sh" || fail=1
+# 기계 설정 검사는 커밋을 막는 자리에 두지 않는다. 저장소 불변식만 본다.
+bash "$(git rev-parse --show-toplevel)/tools/doctor.sh" --repo || fail=1
 exit "$fail"

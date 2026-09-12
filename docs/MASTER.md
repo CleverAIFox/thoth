@@ -84,6 +84,11 @@
 ★ **Layer 0 이 항상 참이므로 어댑터가 없는 사이트에서도 번역이 동작한다.**
 어댑터는 동작 조건이 아니라 그룹핑과 레이아웃 정확도를 높이는 장치다.
 
+★ **선택은 배타적이다. 이긴 어댑터 하나만 돈다.** 따라서 상위 계층은 하위
+계층의 상위집합이어야 한다. `standard` 는 자기 몫(그룹 안의 보기)을 모은 뒤
+나머지를 `ST.genericCollect(root, {skip})` 로 Layer 0 에 위임한다. 이 규칙을
+어기면 상위 계층이 걸린 페이지에서 본문이 통째로 빠진다(DECISIONS §11).
+
 ---
 
 ## 3. Udemy DOM 계약
@@ -124,10 +129,22 @@ POST /translate
 req : { "texts": ["...", "..."], "target": "ko" }      texts 는 1~50개
 res : { "translations": [...], "cached": [bool, ...], "version": "0.1.0" }
 
+400 : { "error": "unsupported_target", "detail": "..." }   target 이 ko 가 아니다
 429 : { "error": "quota_exceeded" }    월 문자 상한 초과
 413 : { "error": "too_long" }          단일 텍스트가 상한 초과
 502 : { "error": "engine_failed", "detail": "..." }
+503 : { "error": "guard_unavailable", "detail": "..." }    카운터 저장소 불통
 ```
+
+★ **4xx 는 같은 입력으로 재시도해도 결과가 같다.** 확장이 이 경계로 영구
+실패와 일시 실패를 가른다. 5xx 와 네트워크 오류만 재시도한다(DECISIONS §12).
+
+★ **503 은 열지 않고 닫는 선택이다.** 카운터를 세지 못하는 상태로 번역하면
+상한이 없는 것과 같다(DECISIONS §10).
+
+★ **엔진 출력의 길이를 워커가 검사한다.** `zip` 은 짧은 쪽에 맞춰 조용히
+자르고, 잘린 결과는 1번 보기에 2번 번역을 붙인다. 학습 도구에서 이것은 없는
+것보다 나쁘다(DECISIONS §1). 길이가 어긋나면 502 다.
 
 ★ `translations` 의 길이는 항상 `texts` 와 같다. 확장이 이 불변식을 검사하고,
 어긋나면 삽입한 박스를 회수한다.
@@ -170,6 +187,15 @@ res : { "translations": [...], "cached": [bool, ...], "version": "0.1.0" }
 |---|---|---|
 | `MAX_CHARS_PER_MONTH` | 2000000 | 월 상한 |
 | `MAX_TEXT_LEN` | 5000 | 단일 텍스트 상한 |
+
+| `QUOTA_FILE` | `.cache/quota.json` | `CACHE=file` 일 때 카운터 위치 |
+
+★ **카운터 백엔드는 `CACHE=ddb` 일 때만 원격이다.** `memory` 가 아니면
+DynamoDB 로 가르면 `CACHE=file` 에서 카운터만 AWS 로 샌다(DECISIONS §10).
+
+★ **`file` 모드는 카운터도 파일에 남긴다.** 메모리에 두면 워커 재시작마다 월
+사용량이 0 이 되어 상한이 무의미하다. 캐시를 지워도 사용량은 남아야 하므로
+파일을 따로 둔다.
 
 ★ **카운터를 프로세스 메모리에 두면 Lambda 에서 무효다**(DECISIONS §2).
 `ddb` 모드에서는 `ConditionExpression` + `ADD` 로 조건부 원자 증가를 쓴다.
@@ -237,8 +263,15 @@ res : { "translations": [...], "cached": [bool, ...], "version": "0.1.0" }
 
 | 상수 | 값 | 뜻 |
 |---|---|---|
-| `MIN_HITS` | 2 | 이보다 적게 맞으면 용어집을 적용하지 않는다 |
+| `MIN_HITS` | 2 | 맞은 용어 수의 하한 |
+| `MIN_SCORE` | 5 | 가중 점수의 하한 |
+| `MULTIWORD_W` | 4 | 여러 낱말로 된 용어의 가중치 |
 | `MAX_TERMS` | 25 | 프롬프트에 실을 상한 |
+
+★ **맞은 개수만으로 판정하면 오탐이 난다.** `object` · `policy` · `role` ·
+`node` 는 등재어지만 평범한 영어 낱말이라 무관한 산문에서도 두어 개는 쉽게
+맞는다. 여러 낱말로 된 용어(`partition key`)는 우연히 맞을 수 없으므로 신호가
+강하다. 한 낱말 넷으로는 하한을 넘지 못한다(DECISIONS §10).
 
 ★ **맞은 용어만 프롬프트에 싣는다.** 전부 실으면 프롬프트가 길어져 느려지고,
 쓰이지 않을 항목이 모델의 주의를 나눠 가진다.
@@ -266,6 +299,13 @@ Udemy 는 `content_scripts` 로 자동 주입된다. 다른 사이트는 아이�
 해당 오리진 권한 요청 → 승인되면 주입하고, **그 사이트는 이후 방문부터 자동**
 으로 동작한다.
 
+★ **`permissions.request` 앞에 `await` 를 두지 않는다.** 대기 한 번에 사용자
+제스처 문맥이 끊겨 요청이 거부된다. 이미 가진 권한이면 `request` 가 창 없이
+참으로 해소되므로 `contains` 로 미리 물을 이유도 없다(DECISIONS §13).
+
+★ `ST_STATIC` 은 manifest 의 `content_scripts` 매치 패턴과 정확히 같은 범위여야
+한다. 넓으면 그쪽이 안 닿는 호스트를 건너뛰어 아무도 안 맡는 구멍이 생긴다.
+
 ★ `background.js` 의 `onUpdated` 리스너는 `ST_STATIC` 에 등록된 호스트를
 건너뛴다. Udemy 는 `host_permissions` 에 있어 `permissions.contains` 가 항상
 참이므로, 거르지 않으면 `content_scripts` 와 이중 주입된다.
@@ -279,7 +319,8 @@ Udemy 는 `content_scripts` 로 자동 주입된다. 다른 사이트는 아이�
 
 토글은 **DOM 요소를 두지 않는다.** 고정 위치 버튼은 사이트마다 남의 UI 를
 가린다. `Alt+K` 로 `html.st-off` 클래스를 전환하고 상태를 `chrome.storage.local`
-에 남긴다.
+에 남긴다. 판정은 `e.key` 가 아니라 `e.code` 로 한다. `e.key` 는 레이아웃과
+데드키에 흔들린다.
 
 `.st-translation` 은 `white-space: pre-wrap` 으로 원문의 줄바꿈을 살린다.
 어댑터의 `decorate` 가 인라인 `!important` 로 덮으므로 양쪽 값이 같아야 한다.
@@ -322,11 +363,20 @@ bash tools/sync_ext.sh                              # 확장을 SSD 로 내보�
 ### 11-3. 점검
 
 ```bash
-bash tools/doctor.sh
+bash tools/doctor.sh          # 전부
+bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범위)
 ```
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 미채택 모델 ·
-워커 테스트를 검사한다. `.githooks/pre-commit` 이 커밋마다 부른다.
+문서 규약 · 워커 테스트를 검사한다.
+
+★ **기계 설정 검사를 커밋을 막는 자리에 두지 않는다.** 홈 규약 · 셸 오염 ·
+SSD 경로 · 모델 목록은 이 저장소의 불변식이 아니라 한 작업 기계의 불변식이다.
+거기 두면 다른 기계에서 관계없는 이유로 커밋이 막힌다. `.githooks/pre-commit`
+은 `--repo` 로 부른다.
+
+★ **훅은 `--no-verify` 로 넘어간다.** 계약과 비용 가드, 문서 규약은 CI 에서도
+돈다.
 
 ★ **로컬 `core.hooksPath` 를 설정하지 않는다.** 설정하면 전역 훅이 아예 돌지
 않아 자격증명 검사가 꺼진다. 전역 `pre-commit` 이 저장소 훅을 찾아 불러준다.

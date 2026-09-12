@@ -13,3 +13,20 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 계약과 비용 가드는 로컬 훅에만 맡기지 않는다. 훅은 --no-verify 로 넘어간다.
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run pytest -q
+        working-directory: worker
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: python tools/check_docs.py

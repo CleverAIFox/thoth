@@ -1,7 +1,9 @@
 """번역 엔진. ENGINE 환경변수로 고른다.
 
 echo      과금 없음. DOM · 렌더링 작업용.
-translate AWS Translate. Custom Terminology 를 붙일 자리.
+translate AWS Translate. 비교 대상이다. Custom Terminology 는 쓰지 않는다
+          — AWS 전용이라 엔진을 바꾸면 이식되지 않는다(PLAN §4). TERMINOLOGY_NAME
+          은 비교 실험용 훅으로만 남긴다.
 local     Ollama. 로컬 GPU 추론이라 호출 비용이 0 이다.
 
 ★ temperature 0 + 고정 seed 를 쓴다. LLM 은 같은 입력에 다른 출력을 내는데,
