@@ -5,7 +5,8 @@
   globalThis.ST.__running = true;
 
   const CLS = "st-translation";
-  const MAX_BATCH = 20;
+  const MAX_BATCH = 2;   // 로컬 추론은 항목당 수 초다. 통짜로 묶으면 전부 끝날
+                         // 때까지 화면이 비어 있다. 쪼개서 점진적으로 채운다.
 
   // URL 은 번역 대상에서 뺀다. 번역기에 넣으면 경로가 깨지고, 깨진 채로
   // 캐시에 박제된다. 번역 후 클릭 가능한 링크로 따로 되붙인다.

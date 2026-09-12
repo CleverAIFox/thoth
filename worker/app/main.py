@@ -4,7 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+import logging
+
 from . import cache, engine, guard
+
+log = logging.getLogger("thoth")
 
 VERSION = "0.1.0"
 app = FastAPI(title="thoth worker", version=VERSION)
@@ -46,7 +50,16 @@ def translate(req: Req):
         except guard.TooLong:
             return JSONResponse({"error": "too_long"}, status_code=413)
 
-        fresh = engine.translate_batch(misses)
+        try:
+            fresh = engine.translate_batch(misses)
+        except Exception as e:
+            # 엔진 실패를 500 으로 흘리면 CORS 헤더가 빠져 브라우저에서
+            # 원인이 CORS 로 오인된다. 계약대로 에러를 돌려준다.
+            log.exception("engine failed")
+            return JSONResponse(
+                {"error": "engine_failed", "detail": type(e).__name__},
+                status_code=502,
+            )
         cache.put_many(dict(zip(misses, fresh)))
         hits.update(dict(zip(misses, fresh)))
 
