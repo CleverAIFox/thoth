@@ -94,6 +94,7 @@ Udemy 는 자동, 다른 사이트는 아이콘을 한 번 눌러 권한을 승�
 동작한다. `Alt+K` 로 번역 표시를 끄고 켠다.
 
 ```bash
+bash tools/smoke.sh           # 워커를 띄운 상태에서 계약을 실제로 때린다
 bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 문서 · 테스트
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
 ```
