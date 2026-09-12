@@ -41,7 +41,12 @@ OUT="$(ls ~ | grep -vE '^projects$' | tr '\n' ' ')"
 [ -z "$OUT" ] && ok "홈 바로 아래에 규약 밖 이름 없음" || no "규약 밖: $OUT"
 
 echo "== 산출물 =="
-[ -d /mnt/f/projects/thoth ] && ok "SSD 프로젝트 폴더 있음" || no "/mnt/f/projects/thoth 없음"
+[ -d "${THOTH_SSD_ROOT:-}" ] && ok "SSD 프로젝트 폴더 있음" \
+                             || no "THOTH_SSD_ROOT 가 없거나 가리키는 경로가 없다"
+# 경로는 .env 에만 산다. 스크립트가 기본값을 들면 두 곳이 조용히 어긋난다.
+HARD="$(grep -rn "/mnt/[cf]/" tools/ 2>/dev/null | grep -v "^tools/doctor.sh:.*grep -rn" | wc -l)"
+[ "$HARD" = "0" ] && ok "tools/ 에 하드코딩된 경로 없음" \
+                  || no "tools/ 에 하드코딩된 경로 ${HARD}건 (.env 로 옮긴다)"
 # 디렉터리가 아직 없으면 check-ignore 가 매칭하지 않는다. 경로로 검사한다.
 git check-ignore -q .cache/translations.json \
   && ok ".cache/ 무시됨" || no ".cache/ 가 추적될 수 있다"
@@ -53,12 +58,26 @@ if command -v ollama >/dev/null 2>&1 && curl -sf "${OLLAMA_URL:-http://127.0.0.1
   EXTRA_M="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v "^${KEEP}$" | tr '\n' ' ')"
   [ -z "$EXTRA_M" ] && ok "채택 모델만 남아 있음 ($KEEP)" \
                     || no "미채택 모델: $EXTRA_M (ollama rm 으로 정리)"
-  [ -d /mnt/f/projects/thoth/ollama-models ] \
+  [ -d "${THOTH_SSD_ROOT:-/nonexistent}/ollama-models" ] \
     && no "SSD 에 모델 잔재가 있다 (DrvFs 는 로딩이 느려 쓰지 않는다)" \
     || ok "SSD 모델 잔재 없음"
 else
   echo "  SKIP ollama 서버 미기동"
 fi
+
+echo "== 문서 =="
+for f in docs/MASTER.md docs/PLAN.md docs/DECISIONS.md README.md; do
+  [ -s "$f" ] && ok "$f" || no "$f 가 없거나 비어 있다"
+done
+# 해결된 PLAN 항목은 포인터만 남는다. 내용이 남으면 MASTER·DECISIONS 와
+# 같은 사실이 두 곳에 살게 되고, 한쪽만 고쳐질 때 정본을 알 수 없다.
+# 번호로 시작하는 행만 항목이다. 상태 표기 범례는 세지 않는다.
+DUP="$(grep -E "^\| *[0-9]+ *\| ⬛ \|" docs/PLAN.md 2>/dev/null | grep -cv "→")"
+[ "$DUP" = "0" ] && ok "완료 항목이 포인터만 남았다" \
+                 || no "PLAN 의 ⬛ 행 ${DUP}건이 내용을 들고 있다"
+# 문서는 실행 파일이 아니다. DrvFs 경유 복사에서 실행 비트가 붙는다.
+EXEC="$(find docs -name "*.md" -perm -u+x 2>/dev/null | wc -l)"
+[ "$EXEC" = "0" ] && ok "문서에 실행 비트 없음" || no "실행 비트가 붙은 문서 ${EXEC}건"
 
 echo "== 워커 =="
 ( cd worker && uv run pytest -q >/dev/null 2>&1 ) && ok "테스트 통과" || no "테스트 실패"
