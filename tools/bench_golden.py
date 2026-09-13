@@ -85,10 +85,17 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     if src.rstrip().endswith("?") and not ko.rstrip().endswith("?"):
         bad.append("물음표 소실")
 
-    # 4. 길이 비율. 출력이 과하게 길면 환각 신호다
+    # 4. 길이 비율.
+    #
+    # ★ 영한 번역의 정상 비율은 0.44~0.53 으로 좁다(2026-09-13 실측 18유닛).
+    #   한국어가 영어보다 짧다는 것을 모르고 처음에 상한을 2.0 으로 잡았는데,
+    #   그것은 정상의 네 배라 1.91 짜리 환각을 통과시켰다. 실측으로 다시
+    #   잡는다 — 기준선을 모르고 정한 임계값은 검사가 아니다.
     ratio = len(ko) / max(len(src), 1)
     if ratio > unit["ratio_max"]:
-        bad.append(f"길이 {ratio:.2f}배")
+        bad.append(f"길이 {ratio:.2f}배 (덧붙임)")
+    elif ratio < unit.get("ratio_min", 0):
+        bad.append(f"길이 {ratio:.2f}배 (누락)")
 
     # 5. 합니다체 (MASTER §7-2 규칙 3)
     if not POLITE.search(ko):
