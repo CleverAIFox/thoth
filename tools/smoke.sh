@@ -8,13 +8,18 @@ FAIL=0
 ok(){ printf '  \033[32mOK\033[0m   %s\n' "$1"; }
 no(){ printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; }
 
+# 토큰이 비면 헤더를 붙이지 않는다. 워커의 기본값과 같은 경로를 탄다.
+AUTH=()
+[ -n "${WORKER_TOKEN:-}" ] && AUTH=(-H "X-Thoth-Token: ${WORKER_TOKEN}")
+
 req(){ curl -s -o /tmp/smoke.body -w '%{http_code}' -X POST "$URL/translate" \
-       -H 'Content-Type: application/json' -H 'Origin: https://www.udemy.com' -d "$1"; }
+       -H 'Content-Type: application/json' -H 'Origin: https://www.udemy.com' \
+       "${AUTH[@]}" -d "$1"; }
 
 curl -sf "$URL/health" >/dev/null || { echo "워커가 안 떠 있다: $URL"; exit 1; }
 
 echo "== /health =="
-H="$(curl -s "$URL/health")"
+H="$(curl -s "${AUTH[@]}" "$URL/health")"
 echo "  $H"
 echo "$H" | grep -q '"status":"ok"' && ok "degraded 아님" || no "status 가 ok 가 아니다"
 echo "$H" | grep -q 'chars_used' && ok "카운터 조회됨" || no "카운터를 못 읽는다"
@@ -42,6 +47,20 @@ for t in '{"texts":["hello"],"target":"ja"}' '{"texts":["cors check ok"],"target
   grep -qi 'access-control-allow-origin' /tmp/smoke.h \
     && ok "CORS 헤더 있음 ($(echo "$t" | grep -o 'ja\|ko'))" || no "CORS 헤더 없음: $t"
 done
+
+echo "== 인증 =="
+# ★ 토큰을 끈 워커에서 '401 이 안 온다' 는 결함이 아니다. 설정에 따라 무엇을
+#   기대할지가 달라지므로 갈라서 본다. 뭉뚱그리면 맞는 상태를 FAIL 로 잡는다
+#   (DECISIONS §22).
+if [ -n "${WORKER_TOKEN:-}" ]; then
+  CODE="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/translate" \
+          -H 'Content-Type: application/json' -d '{"texts":["no token"],"target":"ko"}')"
+  [ "$CODE" = 401 ] && ok "토큰 없는 요청 401" || no "토큰이 설정됐는데 $CODE 로 통과한다"
+  [ "$(req '{"texts":["auth ok here"],"target":"ko"}')" = 200 ] \
+    && ok "토큰 있는 요청 200" || no "맞는 토큰이 거부된다"
+else
+  ok "토큰 미설정 — 로컬 전용 설정이다"
+fi
 
 echo "== 캐시 · 카운터 영속 =="
 for f in "${CACHE_FILE:-.cache/translations.json}" "${QUOTA_FILE:-.cache/quota.json}"; do

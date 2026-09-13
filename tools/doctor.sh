@@ -38,6 +38,20 @@ EXTRA="$(comm -13 <(keys .env.example) <(keys .env))"
 [ -z "$EXTRA" ] && ok ".env.example 에 빠진 키 없음" || no ".env.example 에 없는 키: $(echo $EXTRA)"
 fi
 
+echo "== 워커 노출 =="
+# ★ 토큰이 비면 엔드포인트를 주운 사람이 그대로 쓴다. 로컬 전용 설정에서는
+#   문제가 아니지만, 원격에 닿는 설정(과금 엔진 · DynamoDB)에서 무인증이면
+#   상한만이 유일한 방어가 되고 그 상한은 남이 태운다(MASTER §12).
+if [ "${SCOPE}" = "--repo" ] || [ ! -f .env ]; then
+  skip "토큰 검사 (기계 설정이다)"
+elif [ "${ENGINE:-echo}" = "bedrock" ] || [ "${ENGINE:-echo}" = "translate" ] \
+     || [ "${CACHE:-memory}" = "ddb" ]; then
+  [ -n "${WORKER_TOKEN:-}" ] && ok "원격 설정에 토큰이 있다" \
+                             || no "ENGINE=${ENGINE:-} CACHE=${CACHE:-} 인데 WORKER_TOKEN 이 비었다"
+else
+  ok "로컬 전용 설정 (토큰 없어도 된다)"
+fi
+
 if [ "$SCOPE" = "--repo" ]; then
   echo "== 기계 설정 =="
   skip "셸 오염 · 훅 · 홈 규약 · 산출물 · 모델 (--repo 범위 밖)"
