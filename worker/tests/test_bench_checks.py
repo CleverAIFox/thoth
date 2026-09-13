@@ -345,3 +345,24 @@ def test_환경_기록은_지문을_흔들지_않는다(monkeypatch):
     before = bench.prompt_fingerprint()
     monkeypatch.setattr(bench, "env_snapshot", lambda: {"vram_used": "9999"})
     assert bench.prompt_fingerprint() == before
+
+
+def test_컨텍스트도_함께_남긴다(monkeypatch):
+    # ★ VRAM 이 남아 있는데도 오프로딩되는 이유가 여기 있다. 가중치만이 아니라
+    #   KV 캐시와 컴퓨트 버퍼도 VRAM 을 쓴다(DECISIONS §36).
+    class R:
+        def __init__(self, out): self.stdout = out
+    monkeypatch.setattr(
+        bench.subprocess, "run",
+        lambda cmd, **kw: R("NAME  ID  SIZE  PROCESSOR  CONTEXT  UNTIL\n"
+                            "exaone  abc  6.0 GB  24%/76% CPU/GPU  4096  5m\n")
+        if cmd[0] == "ollama" else R(""))
+    assert bench.env_snapshot()["context"] == "4096"
+
+
+def test_기준선의_배치_조건을_읽는다():
+    # 러너가 이번 실행의 배치를 기준선과 대조한다. 조건이 없으면 빈 문자열이고
+    # 그때는 대조하지 않는다 — 없는 것을 틀렸다고 보고하면 안 된다.
+    cond = bench.baseline_condition()
+    assert isinstance(cond, str)
+    assert "GPU" in cond

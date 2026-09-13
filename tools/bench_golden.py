@@ -113,6 +113,15 @@ def warmup(url: str, timeout: int) -> float:
     return dt
 
 
+def baseline_condition() -> str:
+    """기준선이 어느 배치에서 나온 값인지. 없으면 빈 문자열."""
+    try:
+        d = json.loads((ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+        return d.get("violations", {}).get("condition", "")
+    except (OSError, ValueError):
+        return ""
+
+
 def env_snapshot() -> dict:
     """측정 **중**의 환경. 배치마다 찍어 결과와 함께 남긴다.
 
@@ -160,6 +169,12 @@ def env_snapshot() -> dict:
         # ★ 오프로딩 여부는 문자열이 아니라 불로 남긴다. 판마다 표기가 달라도
         #   기록을 읽는 쪽이 다시 파싱하지 않아야 한다.
         snap["offloaded"] = "CPU" in snap["processor"]
+        # ★ VRAM 이 남아 있는데도 오프로딩되는 이유가 여기 있다. ollama 는
+        #   가중치만이 아니라 KV 캐시와 컴퓨트 버퍼도 VRAM 에 넣는다.
+        #   컨텍스트를 함께 남기지 않으면 "왜 전부 안 올라갔나" 를 사후에
+        #   다시 추측하게 된다(DECISIONS §34 의 재발).
+        if len(cols) > i + 1 and cols[i + 1].isdigit():
+            snap["context"] = cols[i + 1]
     elif ps:
         snap["processor"] = "모델 없음"
 
@@ -307,17 +322,21 @@ def main() -> int:
     else:
         print(f"웜업 {warm:.1f}s (집계 제외)")
 
-    # ★ 오프로딩된 실행은 기준선에 쓰지 못한다. 속도만 떨어지는 것이 아니라
-    #   **번역 결과가 달라진다** — CPU 와 GPU 는 부동소수점 누적 순서가 달라
-    #   temperature 0 이어도 토큰 선택이 갈린다(DECISIONS §35).
-    if any(e.get("offloaded") for e in envs):
-        n = sum(1 for e in envs if e.get("offloaded"))
-        print(f"\n경고 : {n}/{len(envs)} 배치가 CPU 로 오프로딩됐다.")
-        print("       속도도 위반 수도 이 실행의 값으로 쓸 수 없다.")
-        print("       메모리를 비우고 다시 잰다 — GPU 가 아니라 시스템 RAM 을 본다.")
-        low = [e.get("mem_free_mb") for e in envs if e.get("mem_free_mb") is not None]
-        if low:
-            print(f"       실행 중 여유 메모리 {min(low)}~{max(low)}MB")
+    # ★ 오프로딩 자체는 결함이 아니다. VRAM 이 모델보다 작으면 그것이 이
+    #   기계의 정상 상태다. 문제는 **배치가 실행마다 달라지는 것**이다 —
+    #   비율이 달라지면 속도도 번역 결과도 달라진다(DECISIONS §36).
+    procs = {e["processor"] for e in envs if e.get("processor")}
+    if len(procs) > 1:
+        print(f"\n경고 : 실행 중에 배치가 바뀌었다 — {' · '.join(sorted(procs))}")
+        print("       한 실행 안에서 조건이 달라졌으므로 이 값은 쓸 수 없다.")
+    elif procs:
+        only = procs.pop()
+        base = baseline_condition()
+        if base and base != only:
+            print(f"\n경고 : 배치가 기준선과 다르다 — 이번 {only} · 기준선 {base}")
+            print("       속도도 위반 수도 이 값으로 기준선을 갱신하지 않는다.")
+        else:
+            print(f"\n배치 {only} · 기준선과 같다")
 
     tally: dict[str, int] = {}
     for r in fail:
