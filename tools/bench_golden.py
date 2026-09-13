@@ -13,6 +13,7 @@
 """
 import argparse
 import json
+import os
 import pathlib
 import re
 import sys
@@ -41,12 +42,18 @@ def load_terms() -> dict[str, str]:
 
 def translate(url: str, texts: list[str], timeout: int) -> tuple[list[str], float]:
     body = json.dumps({"texts": texts, "target": "ko"}).encode("utf-8")
-    req = urllib.request.Request(
-        url, data=body, headers={"Content-Type": "application/json"}
-    )
+    headers = {"Content-Type": "application/json"}
+    if token := os.environ.get("WORKER_TOKEN", ""):
+        headers["X-Thoth-Token"] = token
+    req = urllib.request.Request(url, data=body, headers=headers)
     t0 = time.monotonic()
     with urllib.request.urlopen(req, timeout=timeout) as r:
         data = json.loads(r.read())
+    # ★ 부분 응답에서 계속하면 안 된다. 캐시 히트만으로 잰 품질·처리율은
+    #   엔진의 값이 아니고, 그렇게 나온 수치가 baseline.json 에 들어가면
+    #   기준선이 조용히 오염된다(DECISIONS §19).
+    if data.get("partial"):
+        raise SystemExit(f"워커가 부분 응답을 냈다: {data['partial']} — 측정을 멈춘다")
     return data["translations"], time.monotonic() - t0
 
 

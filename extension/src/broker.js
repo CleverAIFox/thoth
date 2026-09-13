@@ -172,9 +172,13 @@
       for (const batch of chunk(list, MAX_BATCH)) {
         if (halted) { batch.forEach((u) => drop(u, true)); continue; }
         try {
-          const out = await ST.translate(batch.map((u) => u.body));
+          const { translations: out, partial } = await ST.translate(batch.map((u) => u.body));
           streak = 0;
           batch.forEach((u, i) => (out[i] ? finish(u, out[i]) : drop(u, true)));
+          // ★ 부분 응답은 200 이지만 사유는 재시도로 풀리지 않는다. 여기서
+          //   멈추지 않으면 캐시 히트만 계속 받으면서 1.5초마다 워커를 때린다
+          //   (DECISIONS §12). 받은 번역은 이미 위에서 채웠다.
+          if (partial) halt(partial);
         } catch (e) {
           const fatal = e?.fatal === true;
           console.warn("[st] 번역 실패", e?.message || e);

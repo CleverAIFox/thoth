@@ -21,17 +21,22 @@ globalThis.ST.WorkerError ??= class WorkerError extends Error {
 };
 
 globalThis.ST.translate = async function (texts) {
-  const { stEndpoint } = await chrome.storage.local.get("stEndpoint");
+  const { stEndpoint, stToken } = await chrome.storage.local.get(["stEndpoint", "stToken"]);
   const url = stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;
 
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), globalThis.ST.TIMEOUT_MS);
 
+  // ★ 토큰이 없으면 헤더를 아예 붙이지 않는다. 빈 값으로 보내면 토큰을 끈
+  //   로컬 워커에서도 preflight 가 도는데, 얻는 것 없이 왕복만 는다.
+  const headers = { "Content-Type": "application/json" };
+  if (stToken) headers["X-Thoth-Token"] = stToken;
+
   let res;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ texts, target: "ko" }),
       signal: ctl.signal,
     });
@@ -49,5 +54,8 @@ globalThis.ST.translate = async function (texts) {
   if (!Array.isArray(data.translations) || data.translations.length !== texts.length) {
     throw new globalThis.ST.WorkerError(502, "contract_violation");
   }
-  return data.translations;
+  // ★ 배열이 아니라 객체를 돌려준다. 부분 응답에서는 '무엇이 왔는가' 와
+  //   '왜 나머지가 없는가' 가 둘 다 필요하고, 배열 하나로는 후자를 실을 수
+  //   없다. 못 채운 자리는 null 이며 브로커가 그 자리만 회수한다.
+  return { translations: data.translations, partial: data.partial || "" };
 };
