@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>thoth</title>
+<link rel="stylesheet" href="popup.css">
+
+<!-- ★ 인라인 스크립트를 쓰지 않는다. MV3 의 기본 CSP 가 script-src 'self'
+     이므로 인라인은 실행되지 않고, 팝업이 통째로 조용히 죽는다. -->
+<main>
+  <section id="site" class="row">
+    <span id="site-state" class="state">…</span>
+    <button id="enable" hidden>이 사이트에서 켜기</button>
+  </section>
+
+  <section class="row">
+    <label class="toggle">
+      <input type="checkbox" id="show">
+      <span>번역 표시</span>
+    </label>
+    <kbd>Alt+K</kbd>
+  </section>
+
+  <section class="row">
+    <button id="check">연결 확인</button>
+    <span id="health" class="state"></span>
+  </section>
+
+  <details id="advanced">
+    <summary>고급</summary>
+    <label>엔드포인트
+      <input type="url" id="endpoint" placeholder="http://127.0.0.1:8000/translate">
+    </label>
+    <label>토큰
+      <input type="password" id="token" placeholder="워커가 요구할 때만">
+    </label>
+    <div class="row">
+      <button id="save">저장</button>
+      <span id="saved" class="state"></span>
+    </div>
+  </details>
+</main>
+
+<script type="module" src="src/popup.js"></script>

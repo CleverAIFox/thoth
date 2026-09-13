@@ -412,12 +412,23 @@ VRAM 이 1.4GB 남아 있어도 일부 레이어가 CPU 에 남는다. 볼 것�
 
 | 항목 | 값 |
 |---|---|
-| `permissions` | `storage`, `scripting` |
+| `permissions` | `storage`, `scripting`, `activeTab` |
 | `optional_host_permissions` | `<all_urls>` |
+| `action.default_popup` | `popup.html` |
 
 **사이트 목록을 코드에 들지 않는다.** `host_permissions` 도 `content_scripts`
-도 두지 않는다. 모든 사이트가 같은 경로를 탄다 — 아이콘 클릭 → 해당 오리진
-권한 요청 → 승인되면 주입하고, **그 사이트는 이후 방문부터 자동**으로 동작한다.
+도 두지 않는다. 모든 사이트가 같은 경로를 탄다 — 아이콘 클릭 → 팝업 → "이
+사이트에서 켜기" → 해당 오리진 권한 요청 → 승인되면 주입하고, **그 사이트는
+이후 방문부터 자동**으로 동작한다.
+
+★ **`default_popup` 이 있으면 `chrome.action.onClicked` 는 발화하지 않는다.**
+그래서 권한 요청과 주입이 `background.js` 에서 팝업으로 옮겨 왔다. 발화하지
+않는 리스너를 남기지 않는다 — 다음 사람이 그것이 도는 줄 안다(DECISIONS §38).
+
+★ **팝업의 버튼 클릭도 사용자 제스처다.** `permissions.request` 가 거기서
+성립한다. 다만 제약은 그대로여서, 요청 전에 `await` 가 하나라도 있으면 문맥을
+잃는다. **팝업이 열릴 때 탭과 권한 상태를 미리 조회해 두고**, 클릭 핸들러에서는
+콜백 형태로 요청만 한다(DECISIONS §13).
 
 ★ 전에는 Udemy 만 `content_scripts` 로 자동 주입하고 `background.js` 의 제외
 목록으로 걸렀다. 같은 사실이 `host_permissions` · `matches` · `ST_STATIC` 세
@@ -436,13 +447,19 @@ VRAM 이 1.4GB 남아 있어도 일부 레이어가 CPU 에 남는다. 볼 것�
 ★ 어댑터는 재주입에 대비해 같은 `name` 이 이미 등록되어 있으면 push 하지
 않는다. 최상위 `const` 도 쓰지 않는다. 재선언은 `SyntaxError` 다.
 
+★ **팝업과 `state.js` 는 그 규약의 대상이 아니다.** 주입되지 않으므로 재선언이
+일어나지 않는다. `doctor.sh` 가 `ST_FILES` 를 읽어 주입 파일만 검사한다
+(DECISIONS §22).
+
 ---
 
 ## 10. 표시 제어
 
-토글은 **DOM 요소를 두지 않는다.** 고정 위치 버튼은 사이트마다 남의 UI 를
-가린다. `Alt+K` 로 `html.st-off` 클래스를 전환하고 상태를 `chrome.storage.local`
-에 남긴다. 판정은 `e.key` 가 아니라 `e.code` 로 한다. `e.key` 는 레이아웃과
+토글은 **페이지에 DOM 요소를 두지 않는다.** 고정 위치 버튼은 사이트마다 남의
+UI 를 가린다. `Alt+K` 로 `html.st-off` 클래스를 전환하고 상태를
+`chrome.storage.local` 에 남긴다. 팝업에도 같은 토글을 두어 단축키를 모르는
+사용자가 끌 수 있게 한다 — 저장하는 값과 전환하는 클래스가 같으므로 경로는
+하나다. 판정은 `e.key` 가 아니라 `e.code` 로 한다. `e.key` 는 레이아웃과
 데드키에 흔들린다.
 
 `.st-translation` 은 `white-space: pre-wrap` 으로 원문의 줄바꿈을 살린다.

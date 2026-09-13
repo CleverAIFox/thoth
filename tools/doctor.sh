@@ -187,17 +187,49 @@ fi
 
 # manifest 와 실제 파일이 어긋나면 주입이 조용히 실패한다.
 python3 - <<'EOF' && ok "manifest 정합" || no "manifest 가 없는 파일을 가리킨다"
-import json, pathlib, sys
-m = json.loads(pathlib.Path("extension/manifest.json").read_text(encoding="utf-8"))
+import json, pathlib, re, sys
 root = pathlib.Path("extension")
-miss = [f for f in [m.get("background", {}).get("service_worker")] if f and not (root / f).exists()]
-bg = (root / m["background"]["service_worker"]).read_text(encoding="utf-8")
-import re
-for f in re.findall(r'"(src/[^"]+\.js)"', bg):
-    if not (root / f).exists():
-        miss.append(f)
+m = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+miss = []
+
+def need(rel):
+    if rel and not (root / rel).exists():
+        miss.append(rel)
+
+sw = m.get("background", {}).get("service_worker")
+need(sw)
+if sw and (root / sw).exists():
+    bg = (root / sw).read_text(encoding="utf-8")
+    for f in re.findall(r'"(src/[^"]+\.js)"', bg):
+        need(f)
+
+# ★ 팝업도 본다. `default_popup` 이 가리키는 파일과 그 안에서 부르는 자산이
+#   없으면 아이콘을 눌러도 빈 창이 뜬다 — 조용히 죽는 자리다.
+popup = m.get("action", {}).get("default_popup")
+need(popup)
+if popup and (root / popup).exists():
+    html = (root / popup).read_text(encoding="utf-8")
+    for f in re.findall(r'(?:src|href)="([^"#:]+)"', html):
+        need(f)
+for icon in (m.get("icons") or {}).values():
+    need(icon)
+
+if miss:
+    print("       " + " · ".join(sorted(set(miss))))
 sys.exit(1 if miss else 0)
 EOF
+
+# 확장의 동적 테스트. 정적 검사(문법 · 최상위 선언 · manifest)는 저장 로직이
+# 맞는지 보지 못한다. 판정을 순수 함수로 떼어 그 부분만이라도 기계가 본다.
+if command -v node >/dev/null 2>&1; then
+  if node --test "extension/tests/*.test.js" >/dev/null 2>&1; then
+    ok "확장 테스트 통과"
+  else
+    no "확장 테스트 실패 (node --test \"extension/tests/*.test.js\")"
+  fi
+else
+  skip "node 가 없어 확장 테스트를 돌리지 못한다"
+fi
 
 echo "== 워커 =="
 if command -v uv >/dev/null 2>&1; then

@@ -28,28 +28,19 @@ const inject = async (tabId) => {
   return true;
 };
 
-// ★ 리스너를 async 로 두지 않는다. permissions.request 는 유저 제스처
-//   안에서 불려야 하는데, async 함수 본문은 마이크로태스크로 넘어가 제스처
-//   문맥을 잃는다. 동기 리스너에서 콜백 형태로 부른다(DECISIONS §13).
-chrome.action.onClicked.addListener((tab) => {
-  if (!tab.id) return;
-  // activeTab 이 있어도 URL 이 비어 오는 경우가 있다. 그때는 조용히 죽지 말고
-  // 무엇이 없는지 남긴다. 이 한 줄이 없어서 원인 찾는 데 오래 걸렸다.
-  if (!tab.url) { console.warn("[st] tab.url 이 비었다 — 탭", tab.id); return; }
-  if (!tab.url.startsWith("http")) { console.warn("[st] http 아님 —", tab.url); return; }
+// ★ **아이콘 클릭 리스너를 두지 않는다.** `default_popup` 이 있으면
+//   `chrome.action.onClicked` 는 발화하지 않는다. 발화하지 않는 코드를
+//   남기면 다음 사람이 그것이 도는 줄 안다(DECISIONS §38).
+//
+//   권한 요청은 팝업의 버튼 클릭 핸들러로 옮겼다. 팝업의 클릭도 사용자
+//   제스처이므로 `permissions.request` 가 거기서 성립한다. 대기 한 번에
+//   문맥을 잃는다는 제약은 그대로다(DECISIONS §13).
 
-  let origin;
-  try {
-    origin = new URL(tab.url).origin + "/*";
-  } catch { return; }
-
-  chrome.permissions.request({ origins: [origin] }, (granted) => {
-    const err = chrome.runtime.lastError?.message;
-    if (err) { console.warn("[st] 권한 요청 실패 —", err); return; }
-    if (!granted) { console.warn("[st] 권한 거부 —", origin); return; }
-    console.log("[st] 권한 승인 —", origin);
-    inject(tab.id);
-  });
+// 팝업이 권한을 받아낸 뒤 주입을 맡긴다. 주입 자체는 제스처가 필요 없다.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type !== "inject" || !msg.tabId) return;
+  inject(msg.tabId).then(sendResponse);
+  return true;          // 비동기 응답을 쓰겠다는 표시. 없으면 채널이 먼저 닫힌다
 });
 
 // 이미 승인된 사이트는 다음 방문부터 자동 주입.
