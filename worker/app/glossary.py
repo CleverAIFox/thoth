@@ -74,11 +74,33 @@ def match(texts: list[str]) -> tuple[str | None, dict[str, str]]:
     return best_name, trimmed
 
 
+def is_keep(en: str, ko: str) -> bool:
+    """항등 항목인가. 표기가 같으면 '번역하지 말라' 는 뜻이다."""
+    return en.strip().lower() == ko.strip().lower()
+
+
 def as_prompt(terms: dict[str, str]) -> str:
-    if not terms:
-        return ""
-    lines = "\n".join(f"  {en} -> {ko}" for en, ko in terms.items())
-    return (
-        "\nUse these term translations consistently "
-        "(apply to every occurrence, including inflected forms):\n" + lines
-    )
+    """★ 항등 항목을 번역 목록에 섞지 않는다. `Data Catalog -> Data Catalog`
+    는 사람에게는 자명하나 모델에게는 번역 지시 형식 그대로라, 나머지 항목과
+    같은 자리에 놓이면 무엇을 하라는 것인지 흐려진다. 지시가 다르면 줄을
+    나눈다(DECISIONS §20).
+    """
+    keep = {en: ko for en, ko in terms.items() if is_keep(en, ko)}
+    trans = {en: ko for en, ko in terms.items() if not is_keep(en, ko)}
+    out = ""
+    if trans:
+        lines = "\n".join(f"  {en} -> {ko}" for en, ko in trans.items())
+        out += (
+            "\nUse these term translations consistently "
+            "(apply to every occurrence, including inflected forms):\n" + lines
+        )
+    if keep:
+        # ★ 규칙 1 의 예시가 아니라 데이터다. 예시는 모델이 목록으로 취급해
+        #   거기 없는 이름을 놓치는데(PLAN §2-2 #48), 이 목록은 원문에 실제로
+        #   나타난 것만 배치마다 새로 실린다. 늘어도 프롬프트가 자라지 않는다.
+        names = ", ".join(sorted(keep.values()))
+        out += (
+            "\nThese are proper names. Keep them in English exactly as written, "
+            "and attach Korean particles after them:\n  " + names
+        )
+    return out

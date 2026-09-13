@@ -12,6 +12,7 @@
   python3 tools/bench_golden.py --json out.json    # 비교용 기록
 """
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -23,6 +24,7 @@ import urllib.request
 import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "worker"))
 CASES = ROOT / "worker/tests/golden/cases.json"
 GLOSSARY = ROOT / "worker/app/glossary"
 
@@ -56,6 +58,26 @@ def translate(url: str, texts: list[str], timeout: int) -> tuple[list[str], floa
     if data.get("partial"):
         raise SystemExit(f"워커가 부분 응답을 냈다: {data['partial']} — 측정을 멈춘다")
     return data["translations"], time.monotonic() - t0
+
+
+def prompt_fingerprint() -> str:
+    """번역 결과를 정하는 입력의 지문.
+
+    ★ 기준선이 늙었는지를 사람이 기억해서 표시하게 두면, 표시하지 않은 날은
+      아무도 모른다. 프롬프트와 용어집이 바뀌면 위반 수가 바뀌므로, 그 둘을
+      해시해 기준선에 박아 둔다. 코드가 스스로 늙었다고 말하게 한다.
+
+    ★ 엔진 구현이 아니라 **모델이 보는 것**만 넣는다. 배치 파싱이나 후처리를
+      고쳐도 지문이 흔들리면 관계없는 재측정을 요구하게 된다(DECISIONS §22).
+    """
+    from app import engine, glossary
+
+    parts = [engine.SYSTEM, engine.BATCH_RULE]
+    for name in sorted(glossary._load()):
+        book = glossary._load()[name]
+        parts.append(name)
+        parts += [f"{en}={ko}" for en, ko in sorted(book.items())]
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
 def warmup(url: str, timeout: int) -> float:
@@ -99,7 +121,13 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     #   - keep 토큰에 포함된 용어. Data Catalog 를 영어로 유지하는 것이
     #     규칙 1 이고, 그때 catalog 검사가 실패한다. 규칙 1 이 이긴다
     #   - 원문에 없는 용어. 케이스의 terms 가 넉넉하게 적혀 있어도 된다
-    terms = [t for t in unit.get("terms", []) if t in low]
+    # ★ 원문에 용어가 있는지를 `t in low` 로 보면 단어 내부에 박힌 것까지
+    #   걸린다. `ProvisionedThroughputExceededException` 안의 throughput 이
+    #   그렇게 잡혀, 원문에 단독으로 나오지도 않는 용어의 표기를 요구했다.
+    #   같은 질문에 `glossary._hits` 는 굴절 패턴으로 답하고 여기는 부분
+    #   문자열로 답하고 있었다. 답이 둘이면 하나는 틀렸다(DECISIONS §28).
+    terms = [t for t in unit.get("terms", [])
+             if re.search(rf"\b{re.escape(t)}(s|es|ing|ed)?\b", low)]
     terms = [t for t in terms
              if not any(t != o and t in o for o in terms)]
     for en in terms:
@@ -116,7 +144,7 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
         if want not in ko:
             bad.append(f"term:{en}→{want}")
 
-    # 3. 물음표 보존. 원문이 물으면 번역도 물어야 한다 (PLAN §2-2 #14)
+    # 3. 물음표 보존. 원문이 물으면 번역도 물어야 한다 (MASTER §7-2 규칙 5)
     if src.rstrip().endswith("?") and not ko.rstrip().endswith("?"):
         bad.append("물음표 소실")
 
@@ -191,6 +219,7 @@ def main() -> int:
     fail = [r for r in rows if r["bad"]]
     print(f"\n{'=' * 60}\n유닛 {len(rows)} · 통과 {len(rows) - len(fail)} · 위반 {len(fail)}")
     print(f"총 {elapsed:.1f}s · {chars}자 · {chars / max(elapsed, 1e-9):.0f}자/초")
+    print(f"프롬프트 지문 {prompt_fingerprint()}")
     if warm is None:
         print("웜업 없음 — 이 처리율에는 모델 로딩이 섞여 있다")
     else:
@@ -215,6 +244,7 @@ def main() -> int:
         pathlib.Path(a.json).write_text(
             json.dumps({"units": len(rows), "fail": len(fail),
                         "seconds": round(elapsed, 1), "chars": chars,
+                        "prompt_fingerprint": prompt_fingerprint(),
                         "warmup": warm is not None,
                         "warmup_seconds": None if warm is None else round(warm, 1),
                         "rows": rows}, ensure_ascii=False, indent=1),

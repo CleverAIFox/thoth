@@ -9,7 +9,7 @@
   const CLS = "st-translation";
   // 배치 크기는 엔진에 달렸다. 로컬 추론은 항목당 수 초라 통짜로 묶으면 전부
   // 끝날 때까지 화면이 비어 있고, 호스팅·echo 는 묶을수록 왕복이 줄고 모델이
-  // 문제·보기·해설을 함께 보아 용어가 맞는다(PLAN §2-2 #13).
+  // 문제·보기·해설을 함께 보아 용어가 맞는다(PLAN §2-2 #45).
   // 코드에 박지 않고 chrome.storage 의 stBatch 로 둔다. 기본값은 안전한 쪽.
   let MAX_BATCH = 2;
   const MAX_BATCH_CAP = 50;   // 워커 계약의 texts 상한

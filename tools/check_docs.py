@@ -123,6 +123,44 @@ def check_decisions(path: Path, fails: list):
         fails.append(f"DECISIONS 절 번호가 연속이 아니다: {nums}")
 
 
+def check_refs(root: Path, fails: list):
+    """코드와 부속 문서가 가리키는 PLAN 번호가 실재하는지 본다.
+
+    ★ PLAN 은 해결된 항목을 행째로 지우고 번호를 재사용하지 않는다(§18).
+      그러면 그 번호를 인용해 둔 코드 주석은 영영 빈 곳을 가리킨다.
+      `check_plan` 은 PLAN 안의 전건만 보므로 바깥에서 들어오는 참조는
+      아무도 보지 않았고, 실제로 `#13` 을 지운 뒤 `broker.js` 와
+      `udemy.js` 가 깨진 채로 남아 있었다(DECISIONS §29).
+
+    ★ 절 참조(`PLAN §4`)는 검사하지 않는다. 절은 주제로 나뉘어 안정적이고,
+      번호가 사라지는 것은 항목뿐이다. 대상을 뭉뚱그리면 맞는 것을 위반으로
+      잡는다(§22).
+    """
+    plan = (root / "docs/PLAN.md").read_text(encoding="utf-8").splitlines()
+    nums = {int(m.group(1)) for line in plan if (m := ROW.match(line))}
+
+    targets = ["README.md"]
+    for d in ("worker", "tools", "extension"):
+        for p in sorted((root / d).rglob("*")):
+            if p.is_file() and p.suffix in {".py", ".js", ".sh", ".md", ".json"} \
+               and "__pycache__" not in p.parts and ".cache" not in p.parts:
+                targets.append(str(p.relative_to(root)))
+
+    ref = re.compile(r"PLAN\s+§[\d-]+\s*#\s*(\d+)")
+    for rel in targets:
+        p = root / rel
+        if not p.exists():
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for n, line in enumerate(text.splitlines(), 1):
+            for m in ref.finditer(line):
+                if int(m.group(1)) not in nums:
+                    fails.append(f"{rel}:{n} 가 없는 PLAN #{m.group(1)} 을 가리킨다")
+
+
 def main() -> int:
     fails: list[str] = []
     for rel in DOCS:
@@ -132,6 +170,7 @@ def main() -> int:
             continue
         check_style(p, fails)
     check_plan(ROOT / "docs/PLAN.md", fails)
+    check_refs(ROOT, fails)
     check_master(ROOT / "docs/MASTER.md", fails)
     d = ROOT / "docs/DECISIONS.md"
     if d.exists():

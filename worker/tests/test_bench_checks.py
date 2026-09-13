@@ -188,22 +188,76 @@ def test_비율_경계가_모든_유닛에_있다():
 
 
 def test_기준선이_골든셋과_같은_규모를_가리킨다():
-    """★ 숫자를 두 곳에 적으면 한쪽만 늙는다. PLAN 의 실측 요약이 기준선과
-    어긋난 채로 남아 있던 것을 사람이 대조해서야 찾았다(DECISIONS §27).
-    같은 일이 기준선과 골든셋 사이에서 일어나면 비교 자체가 무효가 된다.
+    """★ 숫자를 두 곳에 적으면 한쪽만 늙는다(DECISIONS §27).
 
-    ★ `stale` 은 재측정 대기를 뜻한다. 문항을 늘린 커밋과 재측정 커밋은
-      나뉠 수밖에 없으므로 — 측정은 기계 앞에서만 된다 — 그 사이 상태를
-      거짓이 아니라 '표시된 불일치' 로 둔다. 값을 채우고 그 키를 지우는 것이
-      재측정이 끝났다는 신호다.
+    ★ `stale` 은 재측정 대기를 뜻한다. 처음에는 '골든셋 규모가 달라진 경우'
+      로 좁게 정의했는데, 프롬프트나 후처리가 바뀌어도 기준선의 위반 수는
+      그대로 무효가 된다. **규모가 같아도 값이 늙을 수 있다** — 정의가
+      좁았다. 측정은 기계 앞에서만 되므로 코드를 고친 커밋과 재측정 커밋은
+      나뉠 수밖에 없고, 그 사이를 거짓이 아니라 표시된 불일치로 둔다.
+
+    ★ 사유를 필수로 둔다. 플래그만 있으면 왜 세웠는지 잊히고, 잊히면 지울
+      수 없어 영영 남는다. 그때 이 검사는 조용히 아무것도 하지 않는다(§21).
     """
     base = _json.loads(
         (_pathlib.Path(bench.__file__).resolve().parents[1]
          / "docs/bench/baseline.json").read_text(encoding="utf-8"))
     if base.get("stale"):
-        assert base["golden"]["units"] != len(_UNITS), \
-            "stale 인데 규모가 맞는다. 재측정이 끝났으면 stale 을 지운다"
+        assert base.get("_stale_note"), "stale 인데 사유가 없다"
         return
     assert base["golden"]["cases"] == len(_CASES)
     assert base["golden"]["units"] == len(_UNITS)
     assert base["golden"]["chars"] == sum(len(u["text"]) for u in _UNITS)
+
+
+def test_단어_내부에_박힌_용어는_보지_않는다():
+    # ★ ProvisionedThroughputExceededException 안의 throughput 이 잡혀서
+    #   원문에 단독으로 나오지도 않는 용어의 표기를 요구했다(DECISIONS §28).
+    u = unit("The client receives ProvisionedThroughputExceededException here.",
+             keep=[], terms=["throughput"])
+    assert bench.check(u, "클라이언트가 여기서 예외를 받습니다.",
+                       {"throughput": "처리량"}) == []
+
+
+def test_복수형과_굴절형은_계속_본다():
+    # 단어 경계만 걸면 records 가 record 에 안 걸려 검사가 조용히 약해진다.
+    # 용어집(glossary._hits)과 같은 굴절 패턴을 쓴다.
+    book = {"record": "레코드", "catalog": "카탈로그"}
+    u = unit("The stream stores records for the configured window of time here.",
+             keep=[], terms=["record"])
+    assert bench.check(u, "스트림은 설정된 기간 동안 기록을 저장합니다.", book) \
+        == ["term:record→레코드"]
+
+    u = unit("The crawler is cataloging every partition of the bucket tonight.",
+             keep=[], terms=["catalog"])
+    assert bench.check(u, "크롤러가 오늘 밤 모든 파티션을 목록화합니다.", book) \
+        == ["term:catalog→카탈로그"]
+
+
+def test_프롬프트가_바뀌면_기준선이_stale_이어야_한다():
+    """★ 앞 검사는 사람이 `stale` 을 세워야만 돈다. 세우지 않은 날은 아무도
+    모르고, 그때 검사는 조용히 아무것도 하지 않는다(DECISIONS §21).
+
+    ★ 프롬프트와 용어집의 해시를 기준선에 박아 두면 코드가 스스로 늙었다고
+      말한다. 사람의 성실성에 기대지 않는 유일한 방법이다.
+    """
+    base = _json.loads(
+        (_pathlib.Path(bench.__file__).resolve().parents[1]
+         / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+    if base.get("prompt_fingerprint") != bench.prompt_fingerprint():
+        assert base.get("stale"), (
+            "프롬프트·용어집이 기준선을 뜬 때와 다르다. 재측정하고 값을 채우거나 "
+            "stale 로 표시한다")
+
+
+def test_지문은_모델이_보는_것만_담는다(monkeypatch):
+    # 후처리나 배치 파싱을 고쳐도 흔들리면 관계없는 재측정을 요구하게 된다.
+    from app import engine
+
+    before = bench.prompt_fingerprint()
+    monkeypatch.setattr(engine, "_ENDINGS", [])
+    monkeypatch.setattr(engine, "BATCH_MARK", "#")
+    assert bench.prompt_fingerprint() == before
+
+    monkeypatch.setattr(engine, "SYSTEM", engine.SYSTEM + "\n7. Extra rule.")
+    assert bench.prompt_fingerprint() != before

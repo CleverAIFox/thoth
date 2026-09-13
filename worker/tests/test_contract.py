@@ -329,3 +329,61 @@ def test_모르는_엔진은_조용히_넘어가지_않는다(monkeypatch):
     monkeypatch.setattr(engine, "ENGINE", "gpt5")
     with pytest.raises(NotImplementedError):
         engine._raw_batch(["hello"])
+
+
+# ---------- 항등 용어(영어 유지) ----------
+
+def test_항등_항목은_번역_목록에_섞이지_않는다():
+    # ★ `Data Catalog -> Data Catalog` 는 번역 지시 형식 그대로라, 나머지와
+    #   같은 자리에 놓이면 무엇을 하라는 것인지 흐려진다(DECISIONS §30).
+    from app import glossary
+
+    p = glossary.as_prompt({"catalog": "카탈로그", "data catalog": "Data Catalog"})
+    assert "catalog -> 카탈로그" in p
+    assert "Data Catalog -> Data Catalog" not in p
+    assert "data catalog -> Data Catalog" not in p
+    assert "Data Catalog" in p.split("proper names")[1]
+
+
+def test_항등_판정은_대소문자를_무시한다():
+    from app import glossary
+
+    assert glossary.is_keep("data catalog", "Data Catalog")
+    assert glossary.is_keep("EMR", "emr")
+    assert not glossary.is_keep("catalog", "카탈로그")
+
+
+def test_항등_항목만_있어도_번역_절은_나오지_않는다():
+    from app import glossary
+
+    p = glossary.as_prompt({"data catalog": "Data Catalog"})
+    assert "Use these term translations" not in p
+    assert "proper names" in p
+
+
+def test_용어가_없으면_빈_프롬프트다():
+    from app import glossary
+
+    assert glossary.as_prompt({}) == ""
+
+
+def test_고유명사가_원문에_있으면_프롬프트에_실린다():
+    # 규칙 1 의 예시는 모델이 목록으로 취급해 거기 없는 이름을 놓친다.
+    # 예시가 아니라 데이터로 싣는다.
+    from app import glossary
+
+    _, terms = glossary.match([
+        "The Glue crawler updates the Data Catalog with every new partition "
+        "of the bucket so that the schema stays current for each object."])
+    assert terms.get("data catalog") == "Data Catalog"
+    assert "Data Catalog" in glossary.as_prompt(terms)
+
+
+def test_용어집_키는_소문자다():
+    # ★ _hits 가 blob.lower() 에서 찾는다. 대문자 키는 영영 매치되지 않으므로
+    #   등재해도 조용히 아무것도 하지 않는다(DECISIONS §21).
+    from app import glossary
+
+    for book in glossary._load().values():
+        for en in book:
+            assert en == en.lower(), en

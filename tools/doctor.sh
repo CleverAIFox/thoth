@@ -102,6 +102,16 @@ fi
 
 fi   # SCOPE
 
+echo "== 기준선 =="
+# ★ stale 은 재측정 대기다. FAIL 로 올리지 않는다 — 코드를 고친 커밋과
+#   재측정 커밋은 나뉠 수밖에 없고, 그 사이 커밋을 막을 이유가 없다.
+#   다만 조용히 지나가면 플래그가 영영 남는다(DECISIONS §21).
+if python3 -c "import json,sys; sys.exit(0 if json.load(open('docs/bench/baseline.json')).get('stale') else 1)" 2>/dev/null; then
+  skip "기준선이 stale 이다 — 재측정 후 값을 채우고 플래그를 지운다"
+else
+  ok "기준선이 현재 코드와 맞는다"
+fi
+
 echo "== 문서 =="
 for f in docs/MASTER.md docs/PLAN.md docs/DECISIONS.md README.md; do
   [ -s "$f" ] && ok "$f" || no "$f 가 없거나 비어 있다"

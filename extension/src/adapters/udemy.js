@@ -29,7 +29,7 @@ globalThis.ST.adapters.push({
         anchor: this.anchorFor(el),
         group: "quiz",   // 같은 묶음으로 둔다. 실제로 한 요청에 함께
                          // 실리는 것은 브로커의 MAX_BATCH 를 되돌린 뒤다
-                         // (PLAN §2-2 #13)
+                         // (PLAN §2-2 #45)
       }));
   },
 

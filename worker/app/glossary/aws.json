@@ -33,5 +33,7 @@
   "role": "역할",
   "permission": "권한",
   "quota": "할당량",
-  "throttling": "제한"
+  "throttling": "제한",
+  "data catalog": "Data Catalog",
+  "dynamodb streams": "DynamoDB Streams"
 }
