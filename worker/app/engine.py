@@ -5,6 +5,8 @@ translate AWS Translate. 비교 대상이다. Custom Terminology 는 쓰지 않�
           — AWS 전용이라 엔진을 바꾸면 이식되지 않는다(PLAN §4). TERMINOLOGY_NAME
           은 비교 실험용 훅으로만 남긴다.
 local     Ollama. 로컬 GPU 추론이라 호출 비용이 0 이다.
+bedrock   Bedrock Converse. 배포본 후보다. 로컬과 같은 프롬프트·후처리를
+          타므로 골든셋으로 `docs/bench/baseline.json` 과 직접 비교된다.
 
 ★ temperature 0 + 고정 seed 를 쓴다. LLM 은 같은 입력에 다른 출력을 내는데,
   캐시가 최초 결과를 영구 고정하므로 흔들린 결과가 그대로 박제된다.
@@ -31,6 +33,13 @@ REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 TERMINOLOGY = os.environ.get("TERMINOLOGY_NAME", "")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "exaone3.5:7.8b")
+
+# ★ 리전을 AWS_REGION 과 따로 둔다. Bedrock 은 모델마다 제공 리전이 다르고,
+#   ap-northeast-2 에 없는 모델을 골랐다는 이유로 캐시·카운터까지 다른 리전으로
+#   옮기게 되면 안 된다.
+BEDROCK_REGION = os.environ.get("BEDROCK_REGION", REGION)
+BEDROCK_MODEL = os.environ.get("BEDROCK_MODEL", "apac.amazon.nova-lite-v1:0")
+BEDROCK_MAX_TOKENS = int(os.environ.get("BEDROCK_MAX_TOKENS", "2048"))
 
 # 용어 보존을 학습이 아니라 지시로 한다. Custom Terminology 와 달리
 # 이 프롬프트는 어느 모델에나 그대로 옮겨간다.
@@ -201,6 +210,65 @@ def _ollama(text: str, system: str) -> str:
         return json.loads(r.read())["response"].strip()
 
 
+_bedrock = None
+
+
+def _bedrock_client():
+    global _bedrock
+    if _bedrock is None:
+        import boto3
+        _bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+    return _bedrock
+
+
+def _converse(text: str, system: str) -> str:
+    """Bedrock Converse API.
+
+    ★ `invoke_model` 을 쓰지 않는다. 요청 본문 스키마가 모델마다 달라
+      모델을 바꾸면 이 함수를 다시 쓰게 된다. Converse 는 그 차이를 감추므로
+      #35 에서 모델을 바꿔도 `BEDROCK_MODEL` 값만 바뀐다.
+
+    ★ seed 를 넘기지 않는다. Converse 의 공통 필드가 아니고 모델마다 지원이
+      갈린다. 결정성은 temperature 0 에 기댄다.
+    """
+    r = _bedrock_client().converse(
+        modelId=BEDROCK_MODEL,
+        system=[{"text": system}],
+        messages=[{"role": "user", "content": [{"text": text}]}],
+        inferenceConfig={"temperature": 0, "maxTokens": BEDROCK_MAX_TOKENS},
+    )
+    return r["output"]["message"]["content"][0]["text"].strip()
+
+
+def _llm_batch(texts: list[str], call) -> list[str]:
+    """LLM 공통 배치 경로. 엔진은 '한 프롬프트를 처리하는 함수' 만 다르다.
+
+    ★ 이 경로를 엔진 분기 안에 두면 엔진을 추가할 때마다 용어집 선택 · 배치
+      규약 · 폴백이 복제된다. 그것들은 엔진의 성질이 아니라 이 도구의 성질이다.
+    """
+    # 배치 전체로 용어집을 고른다. 항목별로 고르면 같은 페이지 안에서
+    # 서로 다른 용어집이 걸려 표기가 갈린다.
+    _, terms = glossary.match(texts)
+    system = SYSTEM + glossary.as_prompt(terms)
+
+    if len(texts) > 1:
+        # ★ 용어집을 배치 규칙 뒤에 다시 둔다. 프롬프트가 길어지면 중간에
+        #   놓인 지시가 묻힌다. 실측에서 배치 전환 후 term 위반이 2 → 4 로
+        #   늘었고, 일관성은 생겼으나 용어집과 다른 표기로 통일됐다.
+        batch_system = SYSTEM + BATCH_RULE + glossary.as_prompt(terms)
+        try:
+            out = _split(call(_join(texts), batch_system), len(texts))
+        except Exception:
+            out = None
+        if out is not None:
+            return out
+        log.warning("배치 파싱 실패 — 개별 호출로 되돌린다 (n=%d)", len(texts))
+
+    # ★ 개별 폴백은 과금 엔진에서 호출 수가 n 배가 된다. 로컬에서는 시간만
+    #   잃지만 호스팅에서는 그대로 돈이므로 경고로 남겨 빈도를 보게 한다.
+    return [call(t, system) for t in texts]
+
+
 def translate_batch(texts: list[str]) -> list[str]:
     return [postprocess(src, ko) for src, ko in zip(texts, _raw_batch(texts))]
 
@@ -210,27 +278,12 @@ def _raw_batch(texts: list[str]) -> list[str]:
         return [f"[KO] {t}" for t in texts]
 
     if ENGINE == "local":
-        # 배치 전체로 용어집을 고른다. 항목별로 고르면 같은 페이지 안에서
-        # 서로 다른 용어집이 걸려 표기가 갈린다.
-        _, terms = glossary.match(texts)
-        system = SYSTEM + glossary.as_prompt(terms)
-
-        if len(texts) > 1:
-            # ★ 용어집을 배치 규칙 뒤에 다시 둔다. 프롬프트가 길어지면 중간에
-            #   놓인 지시가 묻힌다. 실측에서 배치 전환 후 term 위반이 2 → 4 로
-            #   늘었고, 일관성은 생겼으나 용어집과 다른 표기로 통일됐다.
-            batch_system = SYSTEM + BATCH_RULE + glossary.as_prompt(terms)
-            try:
-                out = _split(_ollama(_join(texts), batch_system), len(texts))
-            except Exception:
-                out = None
-            if out is not None:
-                return out
-            log.warning("배치 파싱 실패 — 개별 호출로 되돌린다 (n=%d)", len(texts))
-
-        # 개별 호출. ollama 는 슬롯 하나로 직렬 처리하므로 병렬화해도
+        # ollama 는 슬롯 하나로 직렬 처리하므로 개별 폴백을 병렬화해도
         # GPU 에서 다시 줄을 선다.
-        return [_ollama(t, system) for t in texts]
+        return _llm_batch(texts, _ollama)
+
+    if ENGINE == "bedrock":
+        return _llm_batch(texts, _converse)
 
     if ENGINE == "translate":
         c = _translate_client()

@@ -127,14 +127,41 @@ HTML 위반이지만 Udemy 가 그렇게 한다. `getElementById` 는 첫 개만
 ```
 POST /translate
 req : { "texts": ["...", "..."], "target": "ko" }      texts 는 1~50개
+hdr : X-Thoth-Token: <값>                              WORKER_TOKEN 이 설정된 경우만
 res : { "translations": [...], "cached": [bool, ...], "version": "0.1.0" }
 
 400 : { "error": "unsupported_target", "detail": "..." }   target 이 ko 가 아니다
+401 : { "error": "unauthorized" }      토큰 불일치 (§12)
 429 : { "error": "quota_exceeded" }    월 문자 상한 초과
 413 : { "error": "too_long" }          단일 텍스트가 상한 초과
 502 : { "error": "engine_failed", "detail": "..." }
 503 : { "error": "guard_unavailable", "detail": "..." }    카운터 저장소 불통
 ```
+
+### 4-0. 부분 응답
+
+가드 실패(429 · 413 · 503)에서 **캐시 히트가 하나라도 있으면 200 으로 내린다.**
+
+```
+res : { "translations": ["번역", null], "cached": [true, false],
+        "version": "0.1.0", "partial": "quota_exceeded" }
+```
+
+★ **캐시 히트는 과금이 0 이므로 상한과 관계가 없다.** 가드가 지키는 것은
+요청이 아니라 번역 호출이다. 관계없는 것을 같은 판정에 묶으면 보여줄 수
+있는 것까지 감춘다(DECISIONS §24).
+
+★ 히트가 하나도 없으면 종전대로 상태 코드로 끝난다. 돌려줄 것이 없는데
+200 을 쓰지 않는다.
+
+★ **엔진 실패(502)는 부분 응답을 타지 않는다.** 가드 실패는 재시도로 풀리지
+않지만 엔진 실패는 일시적이다. 200 으로 내리면 확장이 재시도 근거를 잃고 그
+자리를 영구 실패로 버린다.
+
+★ `partial` 이 실린 응답을 받으면 브로커가 순회를 멈춘다. 사유가 영구적인데
+멈추지 않으면 캐시 히트만 계속 받으면서 워커를 때린다(DECISIONS §12).
+
+★ `partial` 키는 부분 응답에만 있다. 전량이 채워진 응답에는 없다.
 
 ★ **4xx 는 같은 입력으로 재시도해도 결과가 같다.** 확장이 이 경계로 영구
 실패와 일시 실패를 가른다. 5xx 와 네트워크 오류만 재시도한다(DECISIONS §12).
@@ -235,6 +262,25 @@ DynamoDB 로 가르면 `CACHE=file` 에서 카운터만 AWS 로 샌다(DECISIONS
 | `echo` | `[KO] 원문` | 0 | DOM · 렌더링 작업용 |
 | `local` | Ollama · `exaone3.5:7.8b` | 0 | 현재 값 |
 | `translate` | AWS Translate | $15/100만 자 | 구현됨. 미사용 |
+| `bedrock` | Bedrock Converse · `BEDROCK_MODEL` | 모델별 토큰 과금 | 구현됨. 실호출 미검증 |
+
+★ **`local` 과 `bedrock` 은 같은 배치 경로를 탄다.** 용어집 선택 · 배치 규약 ·
+파싱 실패 시 개별 폴백은 엔진의 성질이 아니라 이 도구의 성질이므로 `_llm_batch`
+하나에 있고, 엔진은 "한 프롬프트를 처리하는 함수" 만 다르다. 후처리도 공통이다.
+그래서 두 엔진의 골든셋 결과가 같은 기준으로 비교된다.
+
+★ **`bedrock` 은 `invoke_model` 이 아니라 Converse API 를 쓴다.** 요청 본문
+스키마가 모델마다 다르므로 `invoke_model` 에서는 모델을 바꾸면 호출 코드를
+다시 쓴다. Converse 는 그 차이를 감추므로 `BEDROCK_MODEL` 값만 바뀐다.
+
+★ **`BEDROCK_REGION` 을 `AWS_REGION` 과 따로 둔다.** Bedrock 은 모델마다 제공
+리전이 다르다. 모델 하나 때문에 캐시 · 카운터까지 다른 리전으로 옮기지 않는다.
+
+★ Converse 에 seed 를 넘기지 않는다. 공통 필드가 아니고 모델마다 지원이
+갈린다. 결정성은 `temperature 0` 에 기댄다.
+
+★ **코드만 있고 실행된 적 없는 계층이다**(DECISIONS §17). 계정 · IAM 이 붙고
+골든셋을 `docs/bench/baseline.json` 과 재야 검증이 된다(PLAN §2-2 #12).
 
 ### 7-1. 로컬 엔진 실측 (GTX 1660 Ti, 6GB)
 
@@ -449,7 +495,7 @@ python3 tools/bench_golden.py --json out.json
 `worker/tests/golden/README.md` 에 있다.
 
 ★ 기준선은 `docs/bench/baseline.json` 이다. 엔진을 바꿀 때 같은 러너로 재고
-그 값과 비교한다(PLAN §3 #35).
+그 값과 비교한다(PLAN §0).
 
 ### 11-5. 모델 관리
 
@@ -458,3 +504,67 @@ python3 tools/bench_golden.py --json out.json
 
 ★ 모델을 `/mnt/f` 에 두지 않는다. DrvFs 라 2.4GB 로딩에 2분이 걸린다
 (DECISIONS §3).
+
+### 11-6. 패치 적용
+
+작업 산출물은 윈도우 다운로드 폴더로 받는다. 경로의 정본은 `.env` 의
+`WIN_DOWNLOADS` 이고 스크립트는 그 값을 읽는다.
+
+```bash
+bash tools/apply_patch.sh              # 가장 최근 thoth-*.patch
+bash tools/apply_patch.sh --check      # 붙는지만 본다
+bash tools/apply_patch.sh 이름.patch    # 특정 파일
+```
+
+★ **브라우저를 거친 패치는 줄끝이 CRLF 다.** 저장소는 전부 LF 이므로 그대로
+적용하면 문맥이 한 줄도 맞지 않아 `patch does not apply` 로 죽는다. 오류
+메시지가 내용 불일치처럼 보여 원인을 가리므로 스크립트가 먼저 벗긴다
+(DECISIONS §26).
+
+★ **DrvFs 위의 파일을 직접 적용하지 않는다.** 사본을 `/tmp` 에 두고 거기서
+줄끝을 정리한다. 원본을 건드리지 않아야 다시 받을 필요가 없다.
+
+★ **역적용이 되면 이미 붙은 패치다.** 스크립트가 이것을 "저장소가 어긋났다"
+와 가른다. 둘은 대응이 정반대이므로 같은 오류로 보고하면 안 된다.
+
+★ 적용 뒤 `.env` 와 `.env.example` 의 키를 비교해 보고한다. 패치는 `.env` 를
+담지 못하므로 키가 늘어난 경우 손으로 넣는다.
+
+---
+
+## 12. 접근 토큰
+
+`WORKER_TOKEN` 이 비면 워커가 열린다. 채우면 `X-Thoth-Token` 헤더를 요구하고
+불일치하면 401 이다. 확장은 `chrome.storage.local` 의 `stToken` 에서 읽어
+같은 헤더에 싣는다.
+
+| 설정 | `/translate` | `/health` |
+|---|---|---|
+| 토큰 없음 | 열림 | 전부 응답 |
+| 토큰 있음 · 헤더 맞음 | 통과 | 전부 응답 |
+| 토큰 있음 · 헤더 없음·틀림 | 401 | 기동 정보만. 잔여 문자는 빠진다 |
+
+★ **월 상한은 비용을 막지 남용을 막지 않는다.** 지출은 상한에서 멈추지만
+그 상한을 누가 태우는지는 상한이 정하지 않는다. 남이 태우면 지출은 0 원 늘지
+않은 채 정당한 사용자가 429 를 받는다(DECISIONS §25).
+
+★ **확장에 심는 토큰은 비밀이 아니다.** 사용자가 꺼내볼 수 있으므로 작정한
+공격자를 막지 못한다. 막는 대상은 엔드포인트를 주운 사람이고, 그것이 실제
+위험의 대부분이다. 완전하지 않다는 이유로 아무것도 두지 않는 쪽이 더 나쁘다.
+
+★ **비교는 `secrets.compare_digest` 로 한다.** 문자열 `==` 는 앞에서부터
+끊어 길이와 접두사가 새어 나간다.
+
+★ **401 도 CORS 헤더를 달고 나간다.** 인증 실패가 브라우저 콘솔에 CORS 위반으로
+보이면 원인을 찾지 못한다(DECISIONS §2).
+
+★ **`/health` 는 토큰 없이도 답한다.** 기동 여부를 묻는 데 비밀이 필요하면
+헬스체크가 비밀을 들고 다닌다. 다만 `chars_used` · `chars_remaining` 은 인증된
+호출에만 실린다 — 남의 상한이 얼마나 닳았는지는 공개할 정보가 아니다.
+
+★ `doctor.sh` 가 원격 설정(`ENGINE=bedrock|translate` 또는 `CACHE=ddb`)에서
+토큰이 비면 FAIL 한다. 로컬 전용 설정에서는 OK 로 가른다. 검사 대상을
+뭉뚱그리면 맞는 상태를 위반으로 잡는다(DECISIONS §22).
+
+★ 토큰이 없을 때 확장은 헤더를 아예 붙이지 않는다. 빈 값으로 보내면 단순
+요청이 아니게 되어 preflight 가 도는데, 얻는 것 없이 왕복만 는다.

@@ -14,7 +14,7 @@ os.environ["CACHE"] = "memory"
 import pytest
 from fastapi.testclient import TestClient
 
-from app import cache, engine, guard
+from app import cache, engine, guard, main
 from app.main import app
 
 client = TestClient(app)
@@ -174,3 +174,158 @@ def test_맞은_용어만_프롬프트에_실린다():
     prompt = glossary.as_prompt(terms)
     assert "레코드" in prompt
     assert "장애 조치" not in prompt      # failover 는 원문에 없다
+
+
+# ---------- 접근 토큰 ----------
+
+def test_토큰이_비면_열린다():
+    # 로컬 개발의 기본값이다. 토큰을 강제하면 워커를 띄울 때마다 값이 필요하다.
+    assert main.TOKEN == ""
+    assert post(["hello world"]).status_code == 200
+
+
+def test_토큰이_설정되면_없는_요청은_401(monkeypatch):
+    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    r = post(["hello world"])
+    assert r.status_code == 401 and r.json()["error"] == "unauthorized"
+
+
+def test_틀린_토큰도_401(monkeypatch):
+    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    r = client.post(
+        "/translate",
+        json={"texts": ["hello world"], "target": "ko"},
+        headers={"X-Thoth-Token": "wrong"},
+    )
+    assert r.status_code == 401
+
+
+def test_맞는_토큰은_통과한다(monkeypatch):
+    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    r = client.post(
+        "/translate",
+        json={"texts": ["hello world"], "target": "ko"},
+        headers={"X-Thoth-Token": "s3cret"},
+    )
+    assert r.status_code == 200
+
+
+def test_401_에도_CORS_헤더가_있다(monkeypatch):
+    # 인증 실패가 브라우저 콘솔에 CORS 위반으로 보이면 원인을 찾지 못한다.
+    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    r = client.post(
+        "/translate",
+        json={"texts": ["hello world"], "target": "ko"},
+        headers={"Origin": "https://www.udemy.com"},
+    )
+    assert r.status_code == 401
+    assert r.headers.get("access-control-allow-origin")
+
+
+def test_인증_없는_health_는_잔여를_싣지_않는다(monkeypatch):
+    # 기동 여부는 누구에게나 답한다. 남의 상한이 얼마나 닳았는지는 아니다.
+    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    body = client.get("/health").json()
+    assert body["status"] == "ok" and body["auth"] is True
+    assert "chars_used" not in body and "chars_remaining" not in body
+
+    body = client.get("/health", headers={"X-Thoth-Token": "s3cret"}).json()
+    assert "chars_used" in body
+
+
+# ---------- 부분 응답 ----------
+
+def test_상한을_넘어도_캐시_히트는_돌려준다(monkeypatch):
+    # 히트는 이미 손에 있고 과금이 0 이다. 상한에 걸렸다고 감출 이유가 없다.
+    post(["cached text here"])
+    monkeypatch.setattr(guard, "MAX_CHARS", 1)
+    r = post(["cached text here", "brand new text here"])
+    assert r.status_code == 200
+    body = r.json()
+    assert body["partial"] == "quota_exceeded"
+    assert body["translations"][0] is not None
+    assert body["translations"][1] is None
+    assert body["cached"] == [True, False]
+
+
+def test_히트가_하나도_없으면_부분_응답이_아니라_429(monkeypatch):
+    # 돌려줄 것이 없으면 200 으로 내릴 이유가 없다. 확장이 사유를 상태 코드로
+    # 읽는 경로가 그대로 살아 있어야 한다.
+    monkeypatch.setattr(guard, "MAX_CHARS", 1)
+    assert post(["brand new text here"]).status_code == 429
+
+
+def test_카운터가_죽어도_캐시_히트는_돌려준다(monkeypatch):
+    post(["cached text here"])
+
+    def dead(texts):
+        raise guard.GuardUnavailable("NoCredentialsError")
+    monkeypatch.setattr(guard, "reserve", dead)
+    r = post(["cached text here", "brand new text here"])
+    assert r.status_code == 200 and r.json()["partial"] == "guard_unavailable"
+
+
+def test_너무_긴_텍스트도_부분_응답을_탄다(monkeypatch):
+    post(["cached text here"])
+    monkeypatch.setattr(guard, "MAX_TEXT", 10)
+    r = post(["cached text here", "w" * 50])
+    assert r.status_code == 200 and r.json()["partial"] == "too_long"
+
+
+def test_엔진_실패는_부분_응답이_아니다(monkeypatch):
+    # 엔진 실패는 일시적이라 재시도가 맞다. 200 으로 내리면 확장이 그 자리를
+    # 영구 실패로 버린다. 가드 실패와 반대 방향이다.
+    post(["cached text here"])
+
+    def boom(ts):
+        raise RuntimeError("nope")
+    monkeypatch.setattr(engine, "translate_batch", boom)
+    r = post(["cached text here", "brand new text here"])
+    assert r.status_code == 502
+
+
+def test_전부_히트면_partial_키가_없다():
+    post(["cached text here"])
+    assert "partial" not in post(["cached text here"]).json()
+
+
+# ---------- 엔진 분기 ----------
+
+def test_llm_배치는_엔진마다_다시_만들지_않는다(monkeypatch):
+    # 용어집 선택 · 배치 규약 · 폴백은 이 도구의 성질이지 엔진의 성질이 아니다.
+    # local 과 bedrock 이 같은 경로를 타는지 본다.
+    seen = []
+
+    def fake(text, system):
+        seen.append(system)
+        return "\n\n".join(f"§ {i}\n번역{i}" for i in range(2))
+
+    for name, fn in (("local", "_ollama"), ("bedrock", "_converse")):
+        seen.clear()
+        monkeypatch.setattr(engine, "ENGINE", name)
+        monkeypatch.setattr(engine, fn, fake)
+        out = engine._raw_batch(["A shard stores records.", "The partition key differs."])
+        assert out == ["번역0", "번역1"], name
+        assert len(seen) == 1, name            # 배치 한 번. 개별 폴백이 아니다
+        assert "레코드" in seen[0], name        # 용어집이 실렸다
+
+
+def test_배치_파싱이_깨지면_개별_호출로_되돌린다(monkeypatch):
+    # 1번 보기에 2번 번역을 붙이는 것은 없는 것보다 나쁘다(DECISIONS §1).
+    calls = []
+
+    def broken(text, system):
+        calls.append(text)
+        return "번호가 없는 응답" if len(calls) == 1 else "개별 번역"
+
+    monkeypatch.setattr(engine, "ENGINE", "bedrock")
+    monkeypatch.setattr(engine, "_converse", broken)
+    out = engine._raw_batch(["first text", "second text"])
+    assert out == ["개별 번역", "개별 번역"]
+    assert len(calls) == 3                     # 배치 1 + 개별 2
+
+
+def test_모르는_엔진은_조용히_넘어가지_않는다(monkeypatch):
+    monkeypatch.setattr(engine, "ENGINE", "gpt5")
+    with pytest.raises(NotImplementedError):
+        engine._raw_batch(["hello"])
