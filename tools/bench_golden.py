@@ -25,7 +25,11 @@ CASES = ROOT / "worker/tests/golden/cases.json"
 GLOSSARY = ROOT / "worker/app/glossary"
 
 HANGUL = re.compile(r"[가-힣]")
-POLITE = re.compile(r"(니다|입니다|합니다|됩니다)[.!?)\"']*\s*$")
+# ★ 합니다체에는 의문형이 있다. 평서형(-니다)만 넣고 의문형(-니까)을 빠뜨려,
+#   '무엇입니까?' 로 올바르게 끝난 문장을 위반으로 잡았다. 후처리가 만들어
+#   내는 형태(인가요 → 입니까)를 검사가 위반으로 세고 있었다.
+#   검사가 틀렸는데 숫자만 보고 모델 탓을 하던 것이다(DECISIONS §19 와 같다).
+POLITE = re.compile(r"(니다|니까)[.!?)\"']*\s*$")
 
 
 def load_terms() -> dict[str, str]:

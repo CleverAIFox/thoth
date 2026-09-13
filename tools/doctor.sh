@@ -92,12 +92,32 @@ DONE="$(grep -cE "⬛" docs/PLAN.md 2>/dev/null)"
 [ "$DONE" = "0" ] && ok "PLAN 에 해결 표시가 없다" \
                   || no "PLAN 에 ⬛ ${DONE}건. 해결된 항목은 행째로 지운다"
 # 문서는 실행 파일이 아니다. DrvFs 경유 복사에서 실행 비트가 붙는다.
-EXEC="$(find docs -name "*.md" -perm -u+x 2>/dev/null | wc -l)"
+EXEC="$(find docs README.md -name "*.md" -perm -u+x 2>/dev/null | wc -l)"
 [ "$EXEC" = "0" ] && ok "문서에 실행 비트 없음" || no "실행 비트가 붙은 문서 ${EXEC}건"
 
 # 세션이 바뀌면 문맥이 초기화된다. 문체 규약은 사람의 기억이 아니라
 # 도구가 지킨다(DECISIONS §9).
-python3 tools/check_docs.py && ok "문서 서술 규약" || no "문서 서술 규약 위반"
+# ★ 도구가 죽은 것과 위반이 있는 것을 구분한다. 전에는 traceback 이 나도
+#   FAIL 한 줄로만 보였다. 더 위험한 쪽은 반대다 — 검사가 조용히 아무것도
+#   하지 않고 0 으로 끝나면 통과로 보인다(DECISIONS §21).
+DOC_OUT="$(python3 tools/check_docs.py 2>&1)"; DOC_RC=$?
+case "$DOC_RC" in
+  0) ok "문서 서술 규약" ;;
+  1) no "문서 서술 규약 위반"; printf '%s\n' "$DOC_OUT" | sed 's/^/       /' ;;
+  *) no "check_docs.py 가 죽었다 (exit $DOC_RC)"
+     printf '%s\n' "$DOC_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
+
+# DECISIONS 는 추가만 한다. 이미 적힌 절을 고치면 그때 무엇을 몰랐는지가
+# 사라진다(DECISIONS §3). 기존 절의 수정을 커밋 전에 잡는다.
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  CUT="$(git show HEAD:docs/DECISIONS.md 2>/dev/null | wc -l)"
+  if [ -n "$CUT" ] && [ "$CUT" -gt 0 ]; then
+    DIFF="$(git diff HEAD -- docs/DECISIONS.md | grep -c "^-[^-]" || true)"
+    [ "${DIFF:-0}" = "0" ] && ok "DECISIONS 가 추가만 되었다" \
+                           || no "DECISIONS 의 기존 줄 ${DIFF}건이 수정·삭제됐다"
+  fi
+fi
 
 echo "== 워커 =="
 if command -v uv >/dev/null 2>&1; then
