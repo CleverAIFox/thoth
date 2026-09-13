@@ -415,3 +415,11 @@ def test_용어집_키는_소문자다():
     for book in glossary._load().values():
         for en in book:
             assert en == en.lower(), en
+
+
+def test_ollama_타임아웃이_실측보다_길다():
+    # ★ 실측 배치가 335초까지 갔다. 상한이 그보다 짧으면 느린 날에 번역이
+    #   아니라 타임아웃이 결과가 된다.
+    from app import engine
+
+    assert engine.OLLAMA_TIMEOUT >= 700

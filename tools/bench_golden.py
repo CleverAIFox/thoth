@@ -113,6 +113,31 @@ def warmup(url: str, timeout: int) -> float:
     return dt
 
 
+def explain_failure(e: Exception) -> str:
+    """실패의 원인을 가려 안내한다.
+
+    ★ `HTTPError` 는 `URLError` 의 하위 클래스라 같은 `except` 에 걸린다.
+      둘을 뭉뚱그리면 워커가 502 를 돌려준 경우에도 "워커에 닿지 못했다" 가
+      나가고, 시킨 대로 워커를 다시 띄우면 502 가 또 난다. **메시지가 증상을
+      말하는 데 그치지 않고 틀린 원인을 단정해 사람을 엉뚱한 곳으로 보낸다**
+      (DECISIONS §37).
+    """
+    if isinstance(e, urllib.error.HTTPError):
+        code = ""
+        try:
+            code = json.loads(e.read()).get("error", "")
+        except Exception:
+            pass
+        if e.code == 502:
+            return (f"워커가 엔진 호출에 실패했다 (502 {code}).\n"
+                    "  워커는 살아 있다. 엔진 쪽을 본다 —\n"
+                    "  ENGINE=local 이면 bash tools/run_ollama.sh & 로 띄운다")
+        if e.code == 401:
+            return "워커가 토큰을 거부했다 (401). .env 의 WORKER_TOKEN 을 확인한다"
+        return f"워커가 {e.code} 를 돌려줬다 ({code})"
+    return f"워커에 닿지 못했다: {e}\n  bash tools/run_worker.sh & 로 띄운다"
+
+
 def baseline_condition() -> str:
     """기준선이 어느 배치에서 나온 값인지. 없으면 빈 문자열."""
     try:
@@ -282,7 +307,7 @@ def main() -> int:
         try:
             warm = warmup(a.url, a.timeout)
         except urllib.error.URLError as e:
-            print(f"워커에 닿지 못했다: {e}\n  bash tools/run_worker.sh & 로 띄운다")
+            print(explain_failure(e))
             return 1
         print(f"  웜업 {warm:6.1f}s  (집계 제외)", flush=True)
 
@@ -292,7 +317,7 @@ def main() -> int:
         try:
             out, dt = translate(a.url, [u["text"] for u in chunk], a.timeout)
         except urllib.error.URLError as e:
-            print(f"워커에 닿지 못했다: {e}\n  bash tools/run_worker.sh & 로 띄운다")
+            print(explain_failure(e))
             return 1
         elapsed += dt
         for u, ko in zip(chunk, out):

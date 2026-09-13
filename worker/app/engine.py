@@ -33,6 +33,9 @@ REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 TERMINOLOGY = os.environ.get("TERMINOLOGY_NAME", "")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "exaone3.5:7.8b")
+# ★ 실측 배치가 335초까지 갔다(45유닛, 오프로딩 상태). 180초는 그보다 짧아
+#   느린 날에 번역이 아니라 타임아웃이 결과가 된다. 실측 최대의 두 배로 둔다.
+OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "700"))
 
 # ★ 리전을 AWS_REGION 과 따로 둔다. Bedrock 은 모델마다 제공 리전이 다르고,
 #   ap-northeast-2 에 없는 모델을 골랐다는 이유로 캐시·카운터까지 다른 리전으로
@@ -206,7 +209,7 @@ def _ollama(text: str, system: str) -> str:
         data=body,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=180) as r:
+    with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT) as r:
         return json.loads(r.read())["response"].strip()
 
 

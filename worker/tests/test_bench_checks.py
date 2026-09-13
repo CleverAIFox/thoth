@@ -366,3 +366,48 @@ def test_기준선의_배치_조건을_읽는다():
     cond = bench.baseline_condition()
     assert isinstance(cond, str)
     assert "GPU" in cond
+
+
+# ---------- 실패 안내 ----------
+
+def test_502_는_워커가_아니라_엔진을_가리킨다():
+    """★ HTTPError 는 URLError 의 하위 클래스라 같은 except 에 걸린다. 둘을
+    뭉뚱그리면 502 에도 "워커에 닿지 못했다" 가 나가고, 시킨 대로 워커를 다시
+    띄우면 502 가 또 난다(DECISIONS §37).
+    """
+    import io
+    import urllib.error
+
+    e = urllib.error.HTTPError(
+        "http://x", 502, "Bad Gateway", {},
+        io.BytesIO(b'{"error":"engine_failed","detail":"URLError"}'))
+    msg = bench.explain_failure(e)
+    assert "워커는 살아 있다" in msg
+    assert "run_ollama.sh" in msg
+    assert "run_worker.sh" not in msg
+
+
+def test_401_은_토큰을_가리킨다():
+    import io
+    import urllib.error
+
+    e = urllib.error.HTTPError("http://x", 401, "Unauthorized", {},
+                               io.BytesIO(b'{"error":"unauthorized"}'))
+    assert "WORKER_TOKEN" in bench.explain_failure(e)
+
+
+def test_닿지_못한_경우에만_워커를_가리킨다():
+    import urllib.error
+
+    msg = bench.explain_failure(urllib.error.URLError("Connection refused"))
+    assert "run_worker.sh" in msg
+    assert "run_ollama.sh" not in msg
+
+
+def test_본문이_깨져도_안내가_나간다():
+    import io
+    import urllib.error
+
+    e = urllib.error.HTTPError("http://x", 502, "Bad Gateway", {},
+                               io.BytesIO(b"<html>not json</html>"))
+    assert "502" in bench.explain_failure(e)

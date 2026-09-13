@@ -97,7 +97,15 @@ if command -v ollama >/dev/null 2>&1 && curl -sf "${OLLAMA_URL:-http://127.0.0.1
     && no "SSD 에 모델 잔재가 있다 (DrvFs 는 로딩이 느려 쓰지 않는다)" \
     || ok "SSD 모델 잔재 없음"
 else
-  skip "ollama 서버 미기동"
+  # ★ ENGINE=local 이면 ollama 가 없는 것은 건너뛸 일이 아니라 고장이다.
+  #   2026-09-13 에 doctor 가 SKIP 으로 넘어가 "이상 없음" 을 냈고, 곧바로
+  #   벤치가 502 로 죽었다. 검사가 무엇을 건너뛸지는 설정이 정한다
+  #   (DECISIONS §22 · §37).
+  if [ "${ENGINE:-echo}" = "local" ]; then
+    no "ENGINE=local 인데 ollama 가 응답하지 않는다 (bash tools/run_ollama.sh &)"
+  else
+    skip "ollama 서버 미기동 (ENGINE=${ENGINE:-echo} 라 필요 없다)"
+  fi
 fi
 
 fi   # SCOPE

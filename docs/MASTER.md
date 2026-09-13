@@ -260,7 +260,7 @@ DynamoDB 로 가르면 `CACHE=file` 에서 카운터만 AWS 로 샌다(DECISIONS
 | `ENGINE` | 대상 | 비용 | 상태 |
 |---|---|---|---|
 | `echo` | `[KO] 원문` | 0 | DOM · 렌더링 작업용 |
-| `local` | Ollama · `exaone3.5:7.8b` | 0 | 현재 값 |
+| `local` | Ollama · `exaone3.5:7.8b` | 0 | 현재 값. 상한 `OLLAMA_TIMEOUT`(700s) |
 | `translate` | AWS Translate | $15/100만 자 | 구현됨. 미사용 |
 | `bedrock` | Bedrock Converse · `BEDROCK_MODEL` | 모델별 토큰 과금 | 구현됨. 실호출 미검증 |
 

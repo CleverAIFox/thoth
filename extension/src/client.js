@@ -1,6 +1,9 @@
 // 워커 계약 : POST /translate {texts[], target} -> {translations[], cached[], version}
 globalThis.ST.DEFAULT_ENDPOINT = "http://127.0.0.1:8000/translate";
-globalThis.ST.TIMEOUT_MS = 200000;   // 로컬 엔진의 ollama 타임아웃(180s)보다 길게
+// ★ 워커의 OLLAMA_TIMEOUT(700s)보다 짧다. 일부러다 — 이것은 **사용자가
+//   기다리는 시간**이고, 브라우저에서 10분을 기다리게 할 수는 없다. 확장은
+//   MAX_BATCH 가 작아 한 요청이 짧으므로 이 상한에 먼저 닿지 않는다.
+globalThis.ST.TIMEOUT_MS = 200000;
 
 // 상태 코드를 실어 던진다. 브로커가 영구 실패와 일시 실패를 갈라야 하는데
 // 문자열 메시지만 주면 갈 수 없다.
