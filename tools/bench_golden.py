@@ -69,6 +69,12 @@ def prompt_fingerprint() -> str:
 
     ★ 엔진 구현이 아니라 **모델이 보는 것**만 넣는다. 배치 파싱이나 후처리를
       고쳐도 지문이 흔들리면 관계없는 재측정을 요구하게 된다(DECISIONS §22).
+
+    ★ **데이터만 넣으면 조립 로직의 변경을 놓친다.** `as_prompt` 가 용어를
+      어떻게 배치하는지도 모델이 보는 것의 일부인데, 2026-09-13 에 그 로직을
+      고쳤을 때 지문이 흔들리지 않았다. 고정 표본을 한 번 조립해 그 결과를
+      함께 해시한다 — 로직이 바뀌면 출력이 바뀌고, 무관한 수정에는 흔들리지
+      않는다(DECISIONS §33).
     """
     from app import engine, glossary
 
@@ -77,6 +83,9 @@ def prompt_fingerprint() -> str:
         book = glossary._load()[name]
         parts.append(name)
         parts += [f"{en}={ko}" for en, ko in sorted(book.items())]
+    # 조립 로직의 지문. 값이 아니라 형태를 본다.
+    parts.append(glossary.as_prompt(
+        {"record": "레코드", "catalog": "카탈로그", "data catalog": "Data Catalog"}))
     return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
 
 

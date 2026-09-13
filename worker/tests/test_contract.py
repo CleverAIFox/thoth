@@ -338,11 +338,39 @@ def test_항등_항목은_번역_목록에_섞이지_않는다():
     #   같은 자리에 놓이면 무엇을 하라는 것인지 흐려진다(DECISIONS §30).
     from app import glossary
 
-    p = glossary.as_prompt({"catalog": "카탈로그", "data catalog": "Data Catalog"})
-    assert "catalog -> 카탈로그" in p
+    p = glossary.as_prompt({"bucket": "버킷", "data catalog": "Data Catalog"})
+    assert "bucket -> 버킷" in p
     assert "Data Catalog -> Data Catalog" not in p
     assert "data catalog -> Data Catalog" not in p
     assert "Data Catalog" in p.split("proper names")[1]
+
+
+def test_항등_항목에_포함된_용어는_번역_목록에서_빠진다():
+    """★ `catalog -> 카탈로그` 와 `Data Catalog 유지` 를 나란히 실으면
+    프롬프트 자체가 모순이고 모델은 둘 중 하나를 고른다. 2026-09-13 실측에서
+    `DynamoDB Streams` 는 이겼고 `Data Catalog` 는 졌다 — 같은 모순인데
+    결과가 갈렸으므로 남겨 두면 어느 쪽이 나올지 정할 수 없다(DECISIONS §32).
+
+    ★ `check()` 가 이미 같은 일을 한다. 검사만 그렇게 하고 프롬프트는 그러지
+      않았다. 같은 질문에 두 답이 있으면 하나는 틀렸다(§28 · §30 의 재발).
+    """
+    from app import glossary
+
+    p = glossary.as_prompt({"catalog": "카탈로그", "bucket": "버킷",
+                            "data catalog": "Data Catalog"})
+    assert "catalog -> 카탈로그" not in p     # 항등 항목 안에 들어 있다
+    assert "bucket -> 버킷" in p              # 관계없는 용어는 남는다
+    assert "Data Catalog" in p
+
+
+def test_복수형_항등_항목도_짧은_용어를_덮는다():
+    # DynamoDB Streams 의 stream. 굴절형을 보지 않으면 모순이 남는다(§28).
+    from app import glossary
+
+    p = glossary.as_prompt({"stream": "스트림", "record": "레코드",
+                            "dynamodb streams": "DynamoDB Streams"})
+    assert "stream -> 스트림" not in p
+    assert "record -> 레코드" in p
 
 
 def test_항등_판정은_대소문자를_무시한다():

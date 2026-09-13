@@ -261,3 +261,17 @@ def test_지문은_모델이_보는_것만_담는다(monkeypatch):
 
     monkeypatch.setattr(engine, "SYSTEM", engine.SYSTEM + "\n7. Extra rule.")
     assert bench.prompt_fingerprint() != before
+
+
+def test_지문은_프롬프트_조립_로직도_본다(monkeypatch):
+    """★ 데이터만 해시하면 `as_prompt` 의 변경을 놓친다. 2026-09-13 에 항등
+    항목이 짧은 용어를 덮도록 로직을 고쳤는데 지문이 흔들리지 않았다
+    (DECISIONS §33). 모델이 보는 것에는 값뿐 아니라 배치도 들어간다.
+    """
+    from app import glossary
+
+    before = bench.prompt_fingerprint()
+    real = glossary.as_prompt
+    monkeypatch.setattr(glossary, "as_prompt",
+                        lambda terms: real(terms) + "\nExtra line.")
+    assert bench.prompt_fingerprint() != before

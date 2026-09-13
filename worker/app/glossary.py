@@ -87,6 +87,20 @@ def as_prompt(terms: dict[str, str]) -> str:
     """
     keep = {en: ko for en, ko in terms.items() if is_keep(en, ko)}
     trans = {en: ko for en, ko in terms.items() if not is_keep(en, ko)}
+
+    # ★ 항등 항목 안에 들어 있는 짧은 용어는 번역 목록에서 뺀다.
+    #   `catalog -> 카탈로그` 와 `Data Catalog 유지` 를 나란히 실으면 프롬프트
+    #   자체가 모순이고, 모델은 둘 중 하나를 고른다. 2026-09-13 실측에서
+    #   `DynamoDB Streams` 는 이겼고 `Data Catalog` 는 졌다 — 같은 모순인데
+    #   결과가 갈렸으므로 모순을 남겨 두면 어느 쪽이 나올지 정할 수 없다.
+    #
+    # ★ `check()` 는 이미 같은 일을 한다("긴 용어에 포함된 짧은 용어는 빼고
+    #   본다"). 검사만 그렇게 하고 프롬프트는 그러지 않았다. 같은 질문에 두
+    #   답이 있으면 하나는 틀렸다(DECISIONS §28 · §30 의 재발).
+    if keep:
+        blob = " ".join(keep).lower()
+        trans = {en: ko for en, ko in trans.items()
+                 if not re.search(rf"\b{re.escape(en.lower())}(s|es)?\b", blob)}
     out = ""
     if trans:
         lines = "\n".join(f"  {en} -> {ko}" for en, ko in trans.items())
