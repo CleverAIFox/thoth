@@ -158,6 +158,23 @@ res : { "translations": [...], "cached": [bool, ...], "version": "0.1.0" }
 
 ---
 
+### 4-1. 무엇을 번역하지 않는가
+
+**대상 언어와 같은 문자로 쓰인 텍스트는 워커로 보내지 않는다.** 브로커가
+수집 단계에서 거른다. 글자 중 한글 비율이 `KO_RATIO`(0.3) 이상이면 건너뛴다.
+
+★ **언어 감지를 하지 않는다.** 감지는 짧은 문장에서 자주 틀리고, 외부 API 를
+쓰면 항목마다 왕복이 는다. 대신 제외만 한다 — 이미 한국어인 것을 번역해도
+얻을 것이 없다는 것은 판정이 아니라 확정적 사실이다.
+
+★ **언어는 사이트나 페이지 단위로 정할 수 없다.** 한 페이지 안에 섞인다.
+구글 폼은 안내문이 한글이고 보기가 섞여 있으며, Udemy 는 UI 가 한글이고
+문항만 영어다. 그래서 유닛마다 본다.
+
+★ 걸러진 유닛은 워커로 가지 않으므로 캐시도 카운터도 건드리지 않는다.
+
+---
+
 ## 5. 캐시
 
 키는 `sha256(원문)` 이다. **사이트를 키에 섞지 않는다.** 같은 문장이 여러
@@ -292,23 +309,25 @@ DynamoDB 로 가르면 `CACHE=file` 에서 카운터만 AWS 로 샌다(DECISIONS
 | 항목 | 값 |
 |---|---|
 | `permissions` | `storage`, `scripting` |
-| `host_permissions` | `*://www.udemy.com/*` |
 | `optional_host_permissions` | `<all_urls>` |
 
-Udemy 는 `content_scripts` 로 자동 주입된다. 다른 사이트는 아이콘 클릭 →
-해당 오리진 권한 요청 → 승인되면 주입하고, **그 사이트는 이후 방문부터 자동**
-으로 동작한다.
+**사이트 목록을 코드에 들지 않는다.** `host_permissions` 도 `content_scripts`
+도 두지 않는다. 모든 사이트가 같은 경로를 탄다 — 아이콘 클릭 → 해당 오리진
+권한 요청 → 승인되면 주입하고, **그 사이트는 이후 방문부터 자동**으로 동작한다.
+
+★ 전에는 Udemy 만 `content_scripts` 로 자동 주입하고 `background.js` 의 제외
+목록으로 걸렀다. 같은 사실이 `host_permissions` · `matches` · `ST_STATIC` 세
+곳에 서로 다른 문법으로 살았고, 한쪽만 고치면 조용히 어긋났다. 특별대우를
+없애니 세 곳이 모두 사라졌다(DECISIONS §14).
+
+★ **승인 클릭은 사이트당 두 번이다.** 크롬의 확장 권한 확인과 오리진 부여가
+따로 뜬다. `host_permissions` 에 `<all_urls>` 를 박으면 설치 시 한 번으로
+줄지만, 설치할 때 모든 사이트 접근을 요구하는 확장이 된다. 사이트당 1회성
+비용을 택하고 최소 권한을 유지한다.
 
 ★ **`permissions.request` 앞에 `await` 를 두지 않는다.** 대기 한 번에 사용자
 제스처 문맥이 끊겨 요청이 거부된다. 이미 가진 권한이면 `request` 가 창 없이
 참으로 해소되므로 `contains` 로 미리 물을 이유도 없다(DECISIONS §13).
-
-★ `ST_STATIC` 은 manifest 의 `content_scripts` 매치 패턴과 정확히 같은 범위여야
-한다. 넓으면 그쪽이 안 닿는 호스트를 건너뛰어 아무도 안 맡는 구멍이 생긴다.
-
-★ `background.js` 의 `onUpdated` 리스너는 `ST_STATIC` 에 등록된 호스트를
-건너뛴다. Udemy 는 `host_permissions` 에 있어 `permissions.contains` 가 항상
-참이므로, 거르지 않으면 `content_scripts` 와 이중 주입된다.
 
 ★ 어댑터는 재주입에 대비해 같은 `name` 이 이미 등록되어 있으면 push 하지
 않는다. 최상위 `const` 도 쓰지 않는다. 재선언은 `SyntaxError` 다.

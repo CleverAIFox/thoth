@@ -7,11 +7,31 @@
   ST.__running = true;
 
   const CLS = "st-translation";
-  const MAX_BATCH = 2;   // 로컬 추론은 항목당 수 초다. 통짜로 묶으면 전부 끝날
-                         // 때까지 화면이 비어 있다. 쪼개서 점진적으로 채운다.
-                         // 호스팅 엔진으로 옮기면 되돌린다(PLAN §2-2 #13).
+  // 배치 크기는 엔진에 달렸다. 로컬 추론은 항목당 수 초라 통짜로 묶으면 전부
+  // 끝날 때까지 화면이 비어 있고, 호스팅·echo 는 묶을수록 왕복이 줄고 모델이
+  // 문제·보기·해설을 함께 보아 용어가 맞는다(PLAN §2-2 #13).
+  // 코드에 박지 않고 chrome.storage 의 stBatch 로 둔다. 기본값은 안전한 쪽.
+  let MAX_BATCH = 2;
+  const MAX_BATCH_CAP = 50;   // 워커 계약의 texts 상한
   const POLL_MS = 1500;
   const MAX_RETRY = 2;   // 일시 실패의 재시도 횟수. 무한이면 워커를 때린다
+
+  // ★ 대상 언어와 같은 문자로 쓰인 텍스트는 번역 대상이 아니다. 한 페이지
+  //   안에 언어가 섞이므로(구글 폼의 안내문 · Udemy 의 UI) 사이트나 페이지
+  //   단위로 정할 수 없고, 유닛마다 본다.
+  //
+  //   언어 '감지' 를 하지 않는다. 감지는 짧은 문장에서 자주 틀리고 API 를
+  //   쓰면 항목마다 왕복이 는다. 대신 '제외' 만 한다 — 한글 비율이 높으면
+  //   번역해도 얻을 것이 없다는 확정적 사실이라 판정이 필요 없다.
+  const HANGUL = /[가-힣ㄱ-ㅎㅏ-ㅣ]/g;
+  const LETTER = /[\p{L}]/gu;
+  const KO_RATIO = 0.3;        // 이 이상이 한글이면 번역하지 않는다
+
+  const alreadyKorean = (text) => {
+    const letters = (text.match(LETTER) || []).length;
+    if (!letters) return true;              // 숫자·기호뿐이면 번역할 것이 없다
+    return (text.match(HANGUL) || []).length / letters >= KO_RATIO;
+  };
 
   // URL 은 번역 대상에서 뺀다. 번역기에 넣으면 경로가 깨지고, 깨진 채로
   // 캐시에 박제된다. 번역 후 클릭 가능한 링크로 따로 되붙인다.
@@ -57,19 +77,22 @@
       delete u.el.dataset.stDone;
       return;
     }
-    u.retry = (u.retry || 0) + 1;
-    if (u.retry >= MAX_RETRY) {
-      u.el.dataset.stFail = "1";
-      delete u.el.dataset.stDone;
-    } else {
-      delete u.el.dataset.stDone;      // 다음 순회에서 한 번 더 본다
-    }
+    // ★ 재시도 횟수를 유닛 객체에 두면 안 된다. 유닛은 순회마다 collect 가
+    //   새로 만들므로 카운터가 매번 0 으로 리셋되고, 상한이 영영 안 걸린다.
+    //   §12 에서 "실패를 잊는 재시도는 폭주" 라 적고 횟수를 잊는 코드를
+    //   남겼다. 상태는 순회를 넘겨 사는 곳 — DOM 요소 — 에 둔다.
+    const n = (Number(u.el.dataset.stRetry) || 0) + 1;
+    u.el.dataset.stRetry = String(n);
+    delete u.el.dataset.stDone;
+    if (n >= MAX_RETRY) u.el.dataset.stFail = "1";
   };
 
   // 상한에 걸렸거나 엔드포인트가 틀린 상태에서 순회를 계속하는 것은 의미가 없다.
   let halted = "";
   let observer = null;
   let poll = 0;
+  let streak = 0;          // 연속 실패. 워커가 꺼져 있으면 계속 때릴 이유가 없다
+  const MAX_STREAK = 3;
   const halt = (why) => {
     halted = why;
     clearInterval(poll);
@@ -109,6 +132,7 @@
       const { body, urls } = splitUrls(u.text);
       u.el.dataset.stDone = "1";
       if (!body) continue;          // URL 만 있는 노드는 건너뛴다
+      if (alreadyKorean(body)) continue;   // 이미 한국어다
       u.body = body;
       u.urls = urls;
       u.node = document.createElement("div");
@@ -135,6 +159,7 @@
         if (halted) { batch.forEach((u) => drop(u, true)); continue; }
         try {
           const out = await ST.translate(batch.map((u) => u.body));
+          streak = 0;
           batch.forEach((u, i) => (out[i] ? finish(u, out[i]) : drop(u, true)));
         } catch (e) {
           const fatal = e?.fatal === true;
@@ -143,6 +168,9 @@
           // 상한 초과는 페이지를 새로 열어도 안 풀린다. 순회를 멈춘다.
           if (e?.code === "quota_exceeded" || e?.code === "guard_unavailable") {
             halt(e.code);
+          } else if (++streak >= MAX_STREAK) {
+            // 워커 미기동 · 엔드포인트 오류. 페이지를 새로 열기 전에는 안 풀린다.
+            halt("worker_unreachable");
           }
         }
       }
@@ -151,8 +179,10 @@
 
   // 토글은 DOM 요소를 두지 않는다. 고정 위치 버튼은 사이트마다 남의 UI 를 가린다.
   const KEY = "stOff";
-  chrome.storage.local.get(KEY).then(({ stOff }) => {
+  chrome.storage.local.get([KEY, "stBatch"]).then(({ stOff, stBatch }) => {
     document.documentElement.classList.toggle("st-off", !!stOff);
+    const n = Number(stBatch);
+    if (Number.isInteger(n) && n >= 1) MAX_BATCH = Math.min(n, MAX_BATCH_CAP);
   });
 
   document.addEventListener("keydown", (e) => {

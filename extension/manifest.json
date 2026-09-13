@@ -5,10 +5,8 @@
   "description": "영어 문항·본문을 화면에서 읽어 한글 번역을 겹쳐 보여준다. 사이트별 어댑터와 제네릭 폴백으로 동작한다.",
   "permissions": [
     "storage",
-    "scripting"
-  ],
-  "host_permissions": [
-    "*://www.udemy.com/*"
+    "scripting",
+    "activeTab"
   ],
   "optional_host_permissions": [
     "<all_urls>"
@@ -19,27 +17,9 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "이 사이트에서 번역 켜기"
+    "default_title": "이 사이트에서 번역 켜기 (한 번만)"
   },
   "background": {
     "service_worker": "src/background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "*://www.udemy.com/*"
-      ],
-      "js": [
-        "src/adapters/generic.js",
-        "src/adapters/standard.js",
-        "src/adapters/udemy.js",
-        "src/client.js",
-        "src/broker.js"
-      ],
-      "css": [
-        "content.css"
-      ],
-      "run_at": "document_idle"
-    }
-  ]
+  }
 }
