@@ -18,7 +18,13 @@ no(){ printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; }
 
 echo "== 비밀값 =="
 git check-ignore -q .env && ok ".env 가 무시된다" || no ".env 가 추적될 수 있다"
-[ -f .env ] || no ".env 가 없다 (.env.example 을 복사한다)"
+# ★ .env 존재는 기계 설정이지 저장소 불변식이 아니다. .env 는 커밋되지
+#   않으므로 CI 에는 언제나 없고, 없다고 저장소가 틀린 것이 아니다.
+#   검사가 무엇을 금지하는지만 정하고 어디에 적용되는지를 정하지 않으면
+#   맞는 상태를 위반으로 잡는다(DECISIONS §22).
+[ "$SCOPE" = "--repo" ] && skip ".env 존재 (기계 설정이다)" \
+                        || { [ -f .env ] && ok ".env 가 있다" \
+                                         || no ".env 가 없다 (.env.example 을 복사한다)"; }
 git ls-files | grep -qE '(^|/)\.env$|credential|\.pem$' \
   && no "추적 중인 비밀 파일" || ok "추적 중인 비밀 파일 없음"
 
