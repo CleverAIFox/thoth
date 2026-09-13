@@ -86,12 +86,11 @@ echo "== 문서 =="
 for f in docs/MASTER.md docs/PLAN.md docs/DECISIONS.md README.md; do
   [ -s "$f" ] && ok "$f" || no "$f 가 없거나 비어 있다"
 done
-# 해결된 PLAN 항목은 포인터만 남는다. 내용이 남으면 MASTER·DECISIONS 와
-# 같은 사실이 두 곳에 살게 되고, 한쪽만 고쳐질 때 정본을 알 수 없다.
-# 번호로 시작하는 행만 항목이다. 상태 표기 범례는 세지 않는다.
-DUP="$(grep -E "^\| *[0-9]+ *\| ⬛ \|" docs/PLAN.md 2>/dev/null | grep -cv "→")"
-[ "$DUP" = "0" ] && ok "완료 항목이 포인터만 남았다" \
-                 || no "PLAN 의 ⬛ 행 ${DUP}건이 내용을 들고 있다"
+# 해결된 항목은 PLAN 에서 행째로 지운다. 포인터조차 남기지 않는다 —
+# DECISIONS 를 읽으면 알 수 있는 사실의 복제이기 때문이다(DECISIONS §18).
+DONE="$(grep -cE "⬛" docs/PLAN.md 2>/dev/null)"
+[ "$DONE" = "0" ] && ok "PLAN 에 해결 표시가 없다" \
+                  || no "PLAN 에 ⬛ ${DONE}건. 해결된 항목은 행째로 지운다"
 # 문서는 실행 파일이 아니다. DrvFs 경유 복사에서 실행 비트가 붙는다.
 EXEC="$(find docs -name "*.md" -perm -u+x 2>/dev/null | wc -l)"
 [ "$EXEC" = "0" ] && ok "문서에 실행 비트 없음" || no "실행 비트가 붙은 문서 ${EXEC}건"

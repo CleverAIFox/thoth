@@ -14,6 +14,7 @@
   let MAX_BATCH = 2;
   const MAX_BATCH_CAP = 50;   // 워커 계약의 texts 상한
   const POLL_MS = 1500;
+  const POLL_MAX = 12000;   // 새 유닛이 없으면 여기까지 늘린다
   const MAX_RETRY = 2;   // 일시 실패의 재시도 횟수. 무한이면 워커를 때린다
 
   // ★ 대상 언어와 같은 문자로 쓰인 텍스트는 번역 대상이 아니다. 한 페이지
@@ -93,6 +94,8 @@
   let poll = 0;
   let streak = 0;          // 연속 실패. 워커가 꺼져 있으면 계속 때릴 이유가 없다
   const MAX_STREAK = 3;
+  let idle = 0;            // 연속으로 아무것도 못 찾은 순회 수
+  let relaxed = false;     // 주기를 이미 늘렸는가
   const halt = (why) => {
     halted = why;
     clearInterval(poll);
@@ -116,6 +119,16 @@
     const ad = pickAdapter();
     if (!ad) return;
 
+    // ★ 수집이 계속 비면 주기를 늘린다. 정적인 페이지에서 1.5초마다 DOM 을
+    //   훑을 이유가 없다. MutationObserver 가 변화를 놓치지 않으므로 주기는
+    //   style·class 로만 나타나는 영역에 대한 보험일 뿐이다.
+    if (idle >= 4 && poll && !relaxed) {
+      clearInterval(poll);
+      poll = setInterval(run, POLL_MAX);
+      relaxed = true;
+      console.debug("[st] 순회 주기 완화 —", POLL_MAX, "ms");
+    }
+
     let units;
     try {
       units = ad.collect(document) || [];
@@ -123,7 +136,8 @@
       console.warn("[st] collect 실패", ad.name, e);
       return;
     }
-    if (!units.length) return;
+    if (!units.length) { idle++; return; }
+    idle = 0;
 
     // await 이전에 동기적으로 자리를 선점한다.
     const live = [];
@@ -200,7 +214,15 @@
 
   // style·class 변경만으로 나타나는 영역 대비. run 은 stDone 으로 멱등하다.
   // halt() 가 이 둘을 참조하므로 첫 run() 보다 먼저 세운다.
-  observer = new MutationObserver(debounce(run, 250));
+  observer = new MutationObserver(debounce(() => {
+    if (poll && relaxed) {
+      clearInterval(poll);
+      poll = setInterval(run, POLL_MS);
+      relaxed = false;
+    }
+    idle = 0;
+    run();
+  }, 250));
   observer.observe(document.body, { childList: true, subtree: true });
   poll = setInterval(run, POLL_MS);
   run();
