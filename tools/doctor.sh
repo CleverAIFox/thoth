@@ -119,6 +119,45 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   fi
 fi
 
+echo "== 확장 =="
+# 콘텐츠 스크립트는 재주입 시 전부 다시 평가된다. 최상위 let · const · class
+# 는 재선언이 SyntaxError 이고, 한 번 터지면 그 파일이 통째로 죽는다
+# (DECISIONS §16). MASTER §9 의 규약을 도구가 지킨다.
+# ★ background.js 는 대상이 아니다. 서비스 워커는 한 번만 평가되고
+#   재주입되지 않으므로 최상위 const 가 문제되지 않는다. 주입되는 파일만
+#   본다 — 대상을 뭉뚱그리면 검사가 맞는 코드를 위반으로 잡는다(§21).
+CS="$(grep -oE '"src/[^"]+\.js"' extension/src/background.js | tr -d '"' | sed 's|^|extension/|')"
+TOPLINES="$(grep -nE "^(let|const|class|function) " $CS 2>/dev/null || true)"
+TOP="$(printf '%s' "$TOPLINES" | grep -c . || true)"
+[ "${TOP:-0}" = "0" ] && ok "콘텐츠 스크립트에 최상위 선언 없음" \
+                     || { no "최상위 선언 ${TOP}건 — 재주입 시 SyntaxError"
+                          printf '%s\n' "$TOPLINES" | sed 's/^/       /'; }
+
+# 문법 오류는 크롬에 넣어 보기 전에 잡는다.
+if command -v node >/dev/null 2>&1; then
+  JSBAD=0
+  for f in extension/src/*.js extension/src/adapters/*.js; do
+    node --check "$f" >/dev/null 2>&1 || { no "문법 오류: $f"; JSBAD=1; }
+  done
+  [ "$JSBAD" = "0" ] && ok "확장 JS 문법"
+else
+  skip "node 가 없어 JS 문법을 보지 못한다"
+fi
+
+# manifest 와 실제 파일이 어긋나면 주입이 조용히 실패한다.
+python3 - <<'EOF' && ok "manifest 정합" || no "manifest 가 없는 파일을 가리킨다"
+import json, pathlib, sys
+m = json.loads(pathlib.Path("extension/manifest.json").read_text(encoding="utf-8"))
+root = pathlib.Path("extension")
+miss = [f for f in [m.get("background", {}).get("service_worker")] if f and not (root / f).exists()]
+bg = (root / m["background"]["service_worker"]).read_text(encoding="utf-8")
+import re
+for f in re.findall(r'"(src/[^"]+\.js)"', bg):
+    if not (root / f).exists():
+        miss.append(f)
+sys.exit(1 if miss else 0)
+EOF
+
 echo "== 워커 =="
 if command -v uv >/dev/null 2>&1; then
   ( cd worker && uv run pytest -q >/dev/null 2>&1 ) && ok "테스트 통과" || no "테스트 실패"
