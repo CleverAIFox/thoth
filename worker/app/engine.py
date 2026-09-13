@@ -25,7 +25,6 @@ from . import glossary
 
 log = logging.getLogger("thoth")
 
-log = logging.getLogger("thoth")
 
 ENGINE = os.environ.get("ENGINE", "echo")
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
@@ -124,53 +123,6 @@ def postprocess(src: str, ko: str) -> str:
     ko = _strip_markdown(src, ko.strip())
     ko = _truncate_after_question(src, ko)
     return _fix_endings(ko)
-
-
-# ─── 배치 ─────────────────────────────────────────────────────────────
-#
-# ★ 항목마다 따로 호출하면 모델이 앞 항목을 보지 못해 같은 용어가 갈린다.
-#   한 페이지 안에서 Data Catalog 를 유지한 항목과 번역한 항목이 섞였고,
-#   producer 가 한 곳에서만 오타로 나왔다(PLAN §2-2 #14 실측).
-#
-# ★ 묶으면 정렬이 깨질 위험이 생긴다. 1번 보기 자리에 2번 번역이 붙는 것은
-#   없는 것보다 나쁘다(DECISIONS §1). 그래서 번호를 붙여 보내고, 파싱이
-#   어긋나면 개별 호출로 되돌린다. 느려지는 것이 틀리는 것보다 낫다.
-
-BATCH_MARK = "§"          # 원문에 나타나지 않는 문자를 구분자로 쓴다
-_MARK_RE = re.compile(rf"^\s*{BATCH_MARK}\s*(\d+)\s*$", re.M)
-
-BATCH_RULE = (
-    "\n\nThe input contains multiple numbered segments. Each segment starts "
-    f"with a line containing only {BATCH_MARK} followed by its number.\n"
-    f"Output the same markers in the same order, each on its own line, "
-    "followed by the translation of that segment.\n"
-    "Translate every segment. Do not merge, reorder, or skip any segment.\n"
-    "Use consistent terminology across all segments."
-)
-
-
-def _join(texts: list[str]) -> str:
-    return "\n\n".join(f"{BATCH_MARK} {i}\n{t}" for i, t in enumerate(texts))
-
-
-def _split(raw: str, n: int) -> list[str] | None:
-    """번호 표시로 되쪼갠다. 하나라도 어긋나면 None — 호출자가 되돌린다."""
-    parts: dict[int, str] = {}
-    marks = list(_MARK_RE.finditer(raw))
-    if len(marks) != n:
-        return None
-    for i, m in enumerate(marks):
-        end = marks[i + 1].start() if i + 1 < len(marks) else len(raw)
-        idx = int(m.group(1))
-        if idx in parts:
-            return None                 # 번호 중복
-        body = raw[m.end():end].strip()
-        if not body:
-            return None                 # 빈 조각
-        parts[idx] = body
-    if set(parts) != set(range(n)):
-        return None                     # 번호 누락
-    return [parts[i] for i in range(n)]
 
 
 # ─── 배치 ─────────────────────────────────────────────────────────────
