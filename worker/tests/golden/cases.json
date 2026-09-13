@@ -1,0 +1,272 @@
+[
+ {
+  "qid": "q1",
+  "units": [
+   {
+    "id": "q1-p",
+    "kind": "prompt",
+    "ratio_max": 0.75,
+    "text": "A healthcare analytics organization operates a Kinesis Data Streams stream that currently retains records for 168 hours. Following a quarterly infrastructure cost review, the platform engineering team intends to shorten the configured retention period to 72 hours. Several downstream consumer applications read from this stream on an hourly schedule, and one of those applications has been failing intermittently. Before calling DecreaseStreamRetentionPeriod, which condition must be confirmed?",
+    "keep": [
+     "Kinesis Data Streams",
+     "DecreaseStreamRetentionPeriod"
+    ],
+    "terms": [
+     "retention period",
+     "record",
+     "consumer application",
+     "stream"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-a1",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "Every consumer application has already checkpointed beyond records older than the proposed retention window, leaving no unprocessed record outside the shortened period.",
+    "keep": [],
+    "terms": [
+     "consumer application",
+     "record",
+     "retention period"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-a2",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "The stream has been resharded beforehand so that the shard count corresponds to expected throughput after the retention period drops to 72 hours.",
+    "keep": [],
+    "terms": [
+     "stream",
+     "shard",
+     "throughput",
+     "retention period"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-a3",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "A snapshot of stream contents has been written to durable object storage, letting affected records be restored whenever a consumer reports missing data.",
+    "keep": [],
+    "terms": [
+     "snapshot",
+     "stream",
+     "record",
+     "consumer"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-a4",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "The producer application has been reconfigured to write records using a partition key that distributes write load evenly across the remaining shards.",
+    "keep": [],
+    "terms": [
+     "producer",
+     "record",
+     "partition key",
+     "shard",
+     "stream"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-e1",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Correct. Reducing the configured retention period makes records older than the new window inaccessible almost immediately after the operation completes. Any consumer application that has not checkpointed beyond those records loses them permanently, and the intermittently failing application described here is precisely that risk. Confirm checkpoint positions for every registered consumer before proceeding, because the change applies to the entire stream and cannot be reversed afterward.",
+    "keep": [],
+    "terms": [
+     "retention period",
+     "record",
+     "consumer application",
+     "stream"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-e2",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Incorrect. Resharding redistributes available throughput across individual shards, but has no effect whatsoever on how long records remain readable within the stream. The retention period and the shard count are independent configuration settings, so adjusting one provides no protection whatsoever for data that the other governs. Unprocessed records would still become inaccessible immediately.",
+    "keep": [],
+    "terms": [
+     "shard",
+     "throughput",
+     "record",
+     "retention period"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-e3",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Incorrect. The service does not provide any snapshot mechanism for stream contents, so there is nothing available to restore from once the retention period has been shortened. Teams that require a durable archival copy must write each record to object storage as it is consumed, which is an architectural decision made long before this particular operation is attempted.",
+    "keep": [],
+    "terms": [
+     "snapshot",
+     "stream",
+     "retention period",
+     "record",
+     "object"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q1-e4",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Incorrect. The partition key determines which shard receives each incoming record, affecting write distribution rather than the lifetime of previously stored data. Reconfiguring the producer application accomplishes nothing for records already residing within the stream that are about to fall outside the newly shortened retention window once the configuration change takes effect.",
+    "keep": [],
+    "terms": [
+     "partition key",
+     "shard",
+     "record",
+     "producer",
+     "stream",
+     "retention period"
+    ],
+    "ratio_min": 0.3
+   }
+  ]
+ },
+ {
+  "qid": "q2",
+  "units": [
+   {
+    "id": "q2-p",
+    "kind": "prompt",
+    "ratio_max": 0.75,
+    "text": "An analytics team stores several years of clickstream data as objects in an S3 bucket, partitioned by year, month, day, and hour. A Glue crawler populates the Data Catalog nightly. After the partition count grew past one million, interactive queries scanning a single day began taking minutes to start, although scanned data volume was unchanged. Which change reduces query latency with the least operational effort?",
+    "keep": [
+     "S3",
+     "Glue",
+     "Data Catalog"
+    ],
+    "terms": [
+     "object",
+     "bucket",
+     "crawler",
+     "catalog",
+     "partition",
+     "latency"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-a1",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "Enable partition projection so the query engine derives partition locations from a declared path pattern instead of enumerating entries from the Data Catalog.",
+    "keep": [],
+    "terms": [
+     "partition",
+     "catalog"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-a2",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "Attach an IAM policy granting the crawler permission to read every object prefix in the bucket, so scheduled catalog updates complete considerably faster.",
+    "keep": [
+     "IAM"
+    ],
+    "terms": [
+     "policy",
+     "crawler",
+     "permission",
+     "bucket",
+     "catalog"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-a3",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "Increase the crawler schedule to run hourly rather than nightly, keeping the Data Catalog substantially closer to the current state of the bucket.",
+    "keep": [
+     "Data Catalog"
+    ],
+    "terms": [
+     "crawler",
+     "catalog",
+     "bucket"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-a4",
+    "kind": "choice",
+    "ratio_max": 0.75,
+    "text": "Convert stored objects into a columnar format and rewrite the partitioning scheme so each partition holds a full month of clickstream data.",
+    "keep": [],
+    "terms": [
+     "object",
+     "partition"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-e1",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Correct. Partition projection lets the query engine compute partition locations from a declared pattern, so it never asks the Data Catalog to enumerate a million separate entries. Query planning time consequently drops sharply while the underlying data layout remains completely untouched, which is precisely why this option requires the least operational effort. Metadata growth stops participating in the query path.",
+    "keep": [],
+    "terms": [
+     "partition",
+     "catalog"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-e2",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Incorrect. The crawler already holds sufficient read access, and the reported delay appears during query planning rather than during the cataloging phase. Granting broader permission does not reduce the number of partitions that the query engine must enumerate, so measured query latency remains unchanged. An actual authorization failure would surface as an explicit error rather than as a slow start.",
+    "keep": [],
+    "terms": [
+     "crawler",
+     "catalog",
+     "permission",
+     "partition",
+     "latency"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-e3",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Incorrect. Running the crawler more frequently keeps partition metadata fresher but makes the Data Catalog no smaller, and the cost of enumerating every partition during planning stays exactly the same. This option also increases crawler charges without addressing the reported symptom, which is planning latency rather than stale partition information in the catalog.",
+    "keep": [],
+    "terms": [
+     "crawler",
+     "catalog",
+     "partition"
+    ],
+    "ratio_min": 0.3
+   },
+   {
+    "id": "q2-e4",
+    "kind": "explain",
+    "ratio_max": 0.75,
+    "text": "Incorrect. Coarser partitions would reduce the overall entry count, but rewriting several years of accumulated objects represents a substantial migration effort, and it forces every single-day query to scan an entire month of clickstream data. The stated requirement explicitly asks for the least operational effort, so this option merely exchanges one performance problem for another.",
+    "keep": [],
+    "terms": [
+     "partition",
+     "object"
+    ],
+    "ratio_min": 0.3
+   }
+  ]
+ }
+]

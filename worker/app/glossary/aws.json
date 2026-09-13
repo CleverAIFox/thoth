@@ -4,7 +4,7 @@
   "retention period": "보존 기간",
   "throughput": "처리량",
   "partition key": "파티션 키",
-  "consumer application": "소비자 애플리케이션",
+  "consumer application": "컨슈머 애플리케이션",
   "producer": "프로듀서",
   "consumer": "컨슈머",
   "bucket": "버킷",

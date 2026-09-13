@@ -1,0 +1,31 @@
+{
+  "_note": "#35 에서 다른 엔진을 같은 러너로 재고 이 표와 비교한다.",
+  "date": "2026-09-13",
+  "engine": "local",
+  "model": "exaone3.5:7.8b",
+  "config": {
+    "batch": 9,
+    "postprocess": true,
+    "glossary": "aws"
+  },
+  "golden": {
+    "cases": 2,
+    "units": 18,
+    "chars": 5332
+  },
+  "speed": {
+    "_note": "캐시를 비운 실행에서 잰다. 캐시 히트 실행의 초는 번역 시간이 아니다(DECISIONS §6).",
+    "seconds": 177.8,
+    "chars_per_sec": 30.0,
+    "sec_per_question": 88.9
+  },
+  "violations": {
+    "_note": "검사를 고친 뒤의 판정이다. 검사가 다섯 번 틀렸다(DECISIONS §19·§21·§22).",
+    "total": 4,
+    "by_kind": {
+      "term": 2,
+      "keep": 2
+    },
+    "hallucination": 0
+  }
+}
