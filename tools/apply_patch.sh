@@ -103,3 +103,4 @@ fi
 
 echo
 echo "다음 : bash tools/doctor.sh"
+echo "       커밋 · 푸시 뒤에는 python3 tools/sweep.py"

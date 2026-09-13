@@ -132,6 +132,14 @@ else
   ok "기준선이 현재 코드와 맞는다"
 fi
 
+echo "== 위생 =="
+# ★ FAIL 로 올리지 않는다. 잔재가 쌓인 것은 커밋을 막을 일이 아니고, 막으면
+#   급할 때 --no-verify 로 넘기는 버릇이 든다. 조용히 지나가지도 않는다 —
+#   그러면 아무도 치우지 않는다(DECISIONS §41).
+SWEEP_N="$(python3 tools/sweep.py --brief 2>/dev/null || true)"
+[ -n "$SWEEP_N" ] && skip "$SWEEP_N — python3 tools/sweep.py" \
+                  || skip "위생을 재지 못했다"
+
 echo "== 문서 =="
 for f in docs/MASTER.md docs/PLAN.md docs/DECISIONS.md README.md; do
   [ -s "$f" ] && ok "$f" || no "$f 가 없거나 비어 있다"

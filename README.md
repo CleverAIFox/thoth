@@ -111,6 +111,7 @@ bash tools/smoke.sh           # 워커를 띄운 상태에서 계약을 실제�
 python3 tools/bench_golden.py # 골든셋 — 번역 품질 불변식
 bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 문서 · 테스트
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
+python3 tools/sweep.py        # 위생 — 저장소 밖에 남긴 흔적
 node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정
 ```
 
