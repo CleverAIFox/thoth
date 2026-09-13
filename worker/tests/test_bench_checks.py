@@ -311,8 +311,24 @@ def test_오프로딩이_기록에_남는다(monkeypatch):
 
     monkeypatch.setattr(bench.subprocess, "run", fake)
     snap = bench.env_snapshot()
-    assert "CPU/GPU" in snap["processor"]
+    # ★ 비율은 PROCESSOR 앞 칸에 따로 있다. 칸 하나만 집으면 `38%/62%` 를
+    #   잃고 `CPU/GPU` 만 남는다. 2026-09-13 실측에서 실제로 그랬다.
+    assert snap["processor"] == "38%/62% CPU/GPU"
+    assert snap["offloaded"] is True
     assert snap["vram_used"] == "512" and snap["vram_total"] == "6144"
+
+
+def test_온전히_GPU_면_오프로딩이_아니다(monkeypatch):
+    class R:
+        def __init__(self, out): self.stdout = out
+    monkeypatch.setattr(
+        bench.subprocess, "run",
+        lambda cmd, **kw: R("NAME  ID  SIZE  PROCESSOR  CONTEXT  UNTIL\n"
+                            "exaone  abc  6.0 GB  100% GPU  4096  5m\n")
+        if cmd[0] == "ollama" else R(""))
+    snap = bench.env_snapshot()
+    assert snap["processor"] == "100% GPU"
+    assert snap["offloaded"] is False
 
 
 def test_모델이_안_올라가_있으면_그것도_기록한다(monkeypatch):

@@ -147,9 +147,19 @@ def env_snapshot() -> dict:
     ps = run(["ollama", "ps"]).splitlines()
     if len(ps) > 1:
         # NAME ID SIZE PROCESSOR CONTEXT UNTIL — 열 위치가 판마다 흔들리므로
-        # CPU/GPU 가 든 칸을 찾는다. 없으면 그것 자체가 기록할 사실이다.
+        # CPU/GPU 가 든 칸을 찾는다. 비율은 **그 앞 칸**에 따로 있어서,
+        # 칸 하나만 집으면 `38%/62%` 를 잃고 `CPU/GPU` 만 남는다.
         cols = ps[1].split()
-        snap["processor"] = next((c for c in cols if "GPU" in c or "CPU" in c), "?")
+        i = next((k for k, c in enumerate(cols) if "GPU" in c or "CPU" in c), None)
+        if i is None:
+            snap["processor"] = "?"
+        elif i > 0 and "%" in cols[i - 1]:
+            snap["processor"] = f"{cols[i - 1]} {cols[i]}"
+        else:
+            snap["processor"] = cols[i]
+        # ★ 오프로딩 여부는 문자열이 아니라 불로 남긴다. 판마다 표기가 달라도
+        #   기록을 읽는 쪽이 다시 파싱하지 않아야 한다.
+        snap["offloaded"] = "CPU" in snap["processor"]
     elif ps:
         snap["processor"] = "모델 없음"
 
@@ -277,7 +287,9 @@ def main() -> int:
         env = env_snapshot()
         envs.append(env)
         tail = ""
-        if env.get("processor") and "100% GPU" not in env.get("processor", ""):
+        if env.get("offloaded"):
+            tail += f"  [{env['processor']} — 오프로딩]"
+        elif env.get("processor") and env["processor"] != "모델 없음":
             tail += f"  [{env['processor']}]"
         if env.get("vram_used"):
             tail += f"  VRAM {env['vram_used']}/{env['vram_total']}"
@@ -294,6 +306,18 @@ def main() -> int:
         print("웜업 없음 — 이 처리율에는 모델 로딩이 섞여 있다")
     else:
         print(f"웜업 {warm:.1f}s (집계 제외)")
+
+    # ★ 오프로딩된 실행은 기준선에 쓰지 못한다. 속도만 떨어지는 것이 아니라
+    #   **번역 결과가 달라진다** — CPU 와 GPU 는 부동소수점 누적 순서가 달라
+    #   temperature 0 이어도 토큰 선택이 갈린다(DECISIONS §35).
+    if any(e.get("offloaded") for e in envs):
+        n = sum(1 for e in envs if e.get("offloaded"))
+        print(f"\n경고 : {n}/{len(envs)} 배치가 CPU 로 오프로딩됐다.")
+        print("       속도도 위반 수도 이 실행의 값으로 쓸 수 없다.")
+        print("       메모리를 비우고 다시 잰다 — GPU 가 아니라 시스템 RAM 을 본다.")
+        low = [e.get("mem_free_mb") for e in envs if e.get("mem_free_mb") is not None]
+        if low:
+            print(f"       실행 중 여유 메모리 {min(low)}~{max(low)}MB")
 
     tally: dict[str, int] = {}
     for r in fail:
