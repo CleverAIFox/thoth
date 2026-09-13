@@ -17,6 +17,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 import time
 import urllib.error
@@ -110,6 +111,57 @@ def warmup(url: str, timeout: int) -> float:
             f"This sentence is not part of the golden set. Nonce {nonce}.")
     _, dt = translate(url, [text], timeout)
     return dt
+
+
+def env_snapshot() -> dict:
+    """측정 **중**의 환경. 배치마다 찍어 결과와 함께 남긴다.
+
+    ★ 2026-09-13 에 처리율이 32 → 16자/초로 떨어졌을 때, 원인을 보려고
+      측정이 끝난 뒤에 `nvidia-smi` 와 `ollama ps` 를 쳤다. 모델은 이미
+      언로드되어 있었고 VRAM 은 비어 있었다. **끝난 뒤의 환경은 측정 중
+      환경이 아니다** — 그 진단으로는 아무것도 결론지을 수 없었다(§34).
+
+    ★ 사람이 기억해서 재는 것이 아니라 러너가 같이 남긴다. 이상이 다시
+      나타나도 사후 추측이 필요 없다(§31 과 같은 이유).
+
+    ★ 도구가 없으면 조용히 건너뛴다. 이 기록은 측정을 돕는 부속이지
+      측정의 전제가 아니다.
+    """
+    def run(cmd: list[str]) -> str:
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            return r.stdout.strip()
+        except Exception:
+            return ""
+
+    snap: dict = {}
+    gpu = run(["nvidia-smi",
+               "--query-gpu=memory.used,memory.total,temperature.gpu,clocks.sm",
+               "--format=csv,noheader,nounits"])
+    if gpu:
+        f = [x.strip() for x in gpu.splitlines()[0].split(",")]
+        if len(f) == 4:
+            snap["vram_used"], snap["vram_total"] = f[0], f[1]
+            snap["gpu_temp"], snap["gpu_clock"] = f[2], f[3]
+
+    ps = run(["ollama", "ps"]).splitlines()
+    if len(ps) > 1:
+        # NAME ID SIZE PROCESSOR CONTEXT UNTIL — 열 위치가 판마다 흔들리므로
+        # CPU/GPU 가 든 칸을 찾는다. 없으면 그것 자체가 기록할 사실이다.
+        cols = ps[1].split()
+        snap["processor"] = next((c for c in cols if "GPU" in c or "CPU" in c), "?")
+    elif ps:
+        snap["processor"] = "모델 없음"
+
+    try:
+        info = pathlib.Path("/proc/meminfo").read_text(encoding="utf-8")
+        vals = {k: int(v.split()[0]) for k, v in
+                (l.split(":", 1) for l in info.splitlines() if ":" in l)}
+        snap["mem_free_mb"] = (vals.get("MemAvailable", 0)) // 1024
+        snap["swap_used_mb"] = (vals.get("SwapTotal", 0) - vals.get("SwapFree", 0)) // 1024
+    except (OSError, ValueError):
+        pass
+    return snap
 
 
 def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
@@ -209,7 +261,7 @@ def main() -> int:
             return 1
         print(f"  웜업 {warm:6.1f}s  (집계 제외)", flush=True)
 
-    rows, elapsed, chars = [], 0.0, 0
+    rows, elapsed, chars, envs = [], 0.0, 0, []
     for i in range(0, len(units), a.batch):
         chunk = units[i:i + a.batch]
         try:
@@ -222,7 +274,16 @@ def main() -> int:
             chars += len(u["text"])
             rows.append({"id": u["id"], "kind": u["kind"], "ko": ko,
                          "bad": check(u, ko, book)})
-        print(f"  {i + len(chunk):>3}/{len(units)}  {dt:6.1f}s", flush=True)
+        env = env_snapshot()
+        envs.append(env)
+        tail = ""
+        if env.get("processor") and "100% GPU" not in env.get("processor", ""):
+            tail += f"  [{env['processor']}]"
+        if env.get("vram_used"):
+            tail += f"  VRAM {env['vram_used']}/{env['vram_total']}"
+        if env.get("swap_used_mb", 0) > 0:
+            tail += f"  swap {env['swap_used_mb']}MB"
+        print(f"  {i + len(chunk):>3}/{len(units)}  {dt:6.1f}s{tail}", flush=True)
 
     # ---- 보고 ----
     fail = [r for r in rows if r["bad"]]
@@ -254,6 +315,7 @@ def main() -> int:
             json.dumps({"units": len(rows), "fail": len(fail),
                         "seconds": round(elapsed, 1), "chars": chars,
                         "prompt_fingerprint": prompt_fingerprint(),
+                        "env": envs,
                         "warmup": warm is not None,
                         "warmup_seconds": None if warm is None else round(warm, 1),
                         "rows": rows}, ensure_ascii=False, indent=1),

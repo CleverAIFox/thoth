@@ -275,3 +275,57 @@ def test_지문은_프롬프트_조립_로직도_본다(monkeypatch):
     monkeypatch.setattr(glossary, "as_prompt",
                         lambda terms: real(terms) + "\nExtra line.")
     assert bench.prompt_fingerprint() != before
+
+
+# ---------- 환경 스냅샷 ----------
+
+def test_도구가_없어도_측정이_죽지_않는다(monkeypatch):
+    # ★ 이 기록은 측정을 돕는 부속이지 측정의 전제가 아니다. nvidia-smi 가
+    #   없는 기계에서 벤치가 못 돌면 부속이 본체를 막는 것이다.
+    def missing(*a, **kw):
+        raise FileNotFoundError("nvidia-smi")
+    monkeypatch.setattr(bench.subprocess, "run", missing)
+    snap = bench.env_snapshot()
+    assert isinstance(snap, dict)
+    assert "vram_used" not in snap
+
+
+def test_명령이_실패해도_측정이_죽지_않는다(monkeypatch):
+    import subprocess as sp
+    monkeypatch.setattr(bench.subprocess, "run",
+                        lambda *a, **kw: (_ for _ in ()).throw(sp.TimeoutExpired("x", 5)))
+    assert isinstance(bench.env_snapshot(), dict)
+
+
+def test_오프로딩이_기록에_남는다(monkeypatch):
+    # ★ 측정이 끝난 뒤에 재면 모델이 이미 언로드되어 있다. 그때의 환경은
+    #   측정 중 환경이 아니다(DECISIONS §34). 배치마다 찍어 남긴다.
+    class R:
+        def __init__(self, out): self.stdout = out
+
+    def fake(cmd, **kw):
+        if cmd[0] == "ollama":
+            return R("NAME  ID  SIZE  PROCESSOR  CONTEXT  UNTIL\n"
+                     "exaone  abc  4.6GB  38%/62% CPU/GPU  4096  5m\n")
+        return R("512, 6144, 51, 1455\n")
+
+    monkeypatch.setattr(bench.subprocess, "run", fake)
+    snap = bench.env_snapshot()
+    assert "CPU/GPU" in snap["processor"]
+    assert snap["vram_used"] == "512" and snap["vram_total"] == "6144"
+
+
+def test_모델이_안_올라가_있으면_그것도_기록한다(monkeypatch):
+    class R:
+        def __init__(self, out): self.stdout = out
+    monkeypatch.setattr(bench.subprocess, "run",
+                        lambda cmd, **kw: R("NAME  ID  SIZE  PROCESSOR\n")
+                        if cmd[0] == "ollama" else R(""))
+    assert bench.env_snapshot()["processor"] == "모델 없음"
+
+
+def test_환경_기록은_지문을_흔들지_않는다(monkeypatch):
+    # 모델이 보는 것이 아니므로 재측정을 요구해서는 안 된다(DECISIONS §22).
+    before = bench.prompt_fingerprint()
+    monkeypatch.setattr(bench, "env_snapshot", lambda: {"vram_used": "9999"})
+    assert bench.prompt_fingerprint() == before

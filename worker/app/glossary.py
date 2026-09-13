@@ -110,7 +110,7 @@ def as_prompt(terms: dict[str, str]) -> str:
         )
     if keep:
         # ★ 규칙 1 의 예시가 아니라 데이터다. 예시는 모델이 목록으로 취급해
-        #   거기 없는 이름을 놓치는데(PLAN §2-2 #48), 이 목록은 원문에 실제로
+        #   거기 없는 이름을 놓치는데(DECISIONS §30), 이 목록은 원문에 실제로
         #   나타난 것만 배치마다 새로 실린다. 늘어도 프롬프트가 자라지 않는다.
         names = ", ".join(sorted(keep.values()))
         out += (
