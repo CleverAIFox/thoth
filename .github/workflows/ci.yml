@@ -14,54 +14,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # 계약과 비용 가드는 로컬 훅에만 맡기지 않는다. 훅은 --no-verify 로 넘어간다.
-  worker:
+  # ★ 저장소 불변식의 정본은 tools/doctor.sh 하나다. CI 가 같은 검사를 다시
+  #   구현하면 같은 사실이 두 곳에 살고 한쪽만 고쳐질 때 어긋난다
+  #   (DECISIONS §14). 훅도 CI 도 같은 진입점을 부른다.
+  #
+  # ★ 훅은 --no-verify 로 넘어간다. CI 는 넘어갈 수 없다. 그래서 둘 다 있다.
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv run pytest -q
-        working-directory: worker
-
-  docs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.13" }
-      - run: python tools/check_docs.py
-
-  # 확장에는 자동 테스트가 없다(PLAN §2-1 #41). 그전까지 정적 검사만이라도
-  # 훅 밖에서 돈다 — 훅은 --no-verify 로 넘어간다.
-  extension:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: JS 문법
-        run: |
-          for f in extension/src/*.js extension/src/adapters/*.js; do
-            node --check "$f"
-          done
-      - name: 콘텐츠 스크립트 최상위 선언
-        run: |
-          CS=$(grep -oE '"src/[^"]+\.js"' extension/src/background.js \
-               | tr -d '"' | sed 's|^|extension/|')
-          if grep -nE "^(let|const|class|function) " $CS; then
-            echo "재주입 시 SyntaxError 가 된다 (DECISIONS §16)"
-            exit 1
-          fi
-      - name: manifest 정합
-        run: |
-          python3 -c "
-          import json, pathlib, re, sys
-          root = pathlib.Path('extension')
-          m = json.loads((root/'manifest.json').read_text())
-          bg = root / m['background']['service_worker']
-          miss = [str(bg)] if not bg.exists() else []
-          miss += [f for f in re.findall(r'\"(src/[^\"]+\.js)\"', bg.read_text())
-                   if not (root/f).exists()]
-          print('누락:', miss) if miss else print('OK')
-          sys.exit(1 if miss else 0)"
+      - run: bash tools/doctor.sh --repo
 
   # 계약을 실제 HTTP 로 때린다. TestClient 는 미들웨어·포트·.env 로딩을
   # 건너뛰므로 pytest 만으로는 서빙 경로가 검증되지 않는다.

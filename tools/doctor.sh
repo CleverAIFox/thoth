@@ -108,6 +108,9 @@ case "$DOC_RC" in
      printf '%s\n' "$DOC_OUT" | tail -5 | sed 's/^/       /' ;;
 esac
 
+# ★ 이 검사는 커밋 전 작업 트리에서만 의미가 있다. CI 에서는 작업 트리가
+#   언제나 HEAD 와 같으므로 항상 통과한다 — 조용히 아무것도 하지 않는
+#   검사다(DECISIONS §21). 훅이 정본이고 CI 는 통과만 한다.
 # DECISIONS 는 추가만 한다. 이미 적힌 절을 고치면 그때 무엇을 몰랐는지가
 # 사라진다(DECISIONS §3). 기존 절의 수정을 커밋 전에 잡는다.
 if git rev-parse --git-dir >/dev/null 2>&1; then
