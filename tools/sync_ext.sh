@@ -9,7 +9,8 @@
 #   권한 설정에서 죽는다(hathor D-0120 과 같은 원인). 권한 보존을 끈다.
 set -euo pipefail
 
-[ -f "$(dirname "$0")/../.env" ] && { set -a; . "$(dirname "$0")/../.env"; set +a; }
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+. "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 # 경로의 정본은 .env 다. 스크립트가 기본값을 들고 있으면 두 곳이 어긋난다.
 : "${THOTH_EXT_DEST:?.env 에 THOTH_EXT_DEST 가 없다}"
 DEST="$THOTH_EXT_DEST"

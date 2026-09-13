@@ -9,7 +9,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-[ -f .env ] && { set -a; . ./.env; set +a; }
+. ./tools/lib/env.sh; load_env ./.env
 SCOPE="${1:-all}"
 FAIL=0
 skip(){ printf '  \033[33mSKIP\033[0m %s\n' "$1"; }
@@ -37,6 +37,18 @@ EXTRA="$(comm -13 <(keys .env.example) <(keys .env))"
 [ -z "$MISS" ]  && ok ".env 에 빠진 키 없음"         || no ".env 에 없는 키: $(echo $MISS)"
 [ -z "$EXTRA" ] && ok ".env.example 에 빠진 키 없음" || no ".env.example 에 없는 키: $(echo $EXTRA)"
 fi
+
+echo "== .env 로더 =="
+# ★ 일회성 지정이 먹는지 본다. 전에는 `set -a; . .env` 가 무조건 덮어써서
+#   `ENGINE=echo bash tools/run_worker.sh` 가 조용히 무시됐다(DECISIONS §40).
+#   셸이라 pytest 가 보지 못하는 자리다.
+LOADER_TMP="$(mktemp -d)"
+printf 'ENGINE=local\nCACHE=file\n' > "$LOADER_TMP/.env"
+LOADER_OUT="$(ENGINE=echo bash -c '. tools/lib/env.sh; load_env "$1/.env"; echo "$ENGINE $CACHE"' _ "$LOADER_TMP" 2>/dev/null)"
+rm -rf "$LOADER_TMP"
+[ "$LOADER_OUT" = "echo file" ] \
+  && ok "셸 지정이 .env 를 이긴다" \
+  || no ".env 로더가 일회성 지정을 덮어쓴다 (받은 값: $LOADER_OUT)"
 
 echo "== 워커 노출 =="
 # ★ 토큰이 비면 엔드포인트를 주운 사람이 그대로 쓴다. 로컬 전용 설정에서는

@@ -479,7 +479,16 @@ API 로 한다.
 bash tools/run_ollama.sh > /tmp/ollama.log 2>&1 &   # ENGINE=local 일 때만
 bash tools/run_worker.sh                            # .env 를 읽어 워커 기동
 bash tools/sync_ext.sh                              # 확장을 SSD 로 내보낸다
+
+ENGINE=echo bash tools/run_worker.sh                # 이번 한 번만 다른 설정으로
 ```
+
+★ **셸에 앞세운 지정이 `.env` 를 이긴다.** 한 번만 다른 엔진으로 띄우려고
+`.env` 를 고쳤다 되돌리면 되돌리는 것을 잊는다(DECISIONS §40). 로더는
+`tools/lib/env.sh` 하나이고 모든 도구가 그것을 쓴다.
+
+★ **`~/.bashrc` 에 박아 두는 것은 여전히 금지다.** 그것은 일회성이 아니라
+영구 오염이고 `doctor.sh` 가 검사한다(D-0066).
 
 확장은 `chrome://extensions` → 개발자 모드 → 압축해제된 확장 프로그램을 로드 →
 `F:\projects\thoth\ext-build`.

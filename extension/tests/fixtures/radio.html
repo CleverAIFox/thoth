@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>standard adapter fixture</title>
+<!--
+  standard 어댑터의 두 수집 경로를 한 페이지에서 가른다(PLAN §2-1 #50).
+
+  ★ 실사이트를 대신하지 않는다. 실제 마크업은 이보다 지저분하고, 여기서 도는
+    것이 거기서도 돈다는 보장은 없다. 이 파일은 **어느 경로가 도는지**를
+    결정적으로 가르는 데 쓴다 — 실사이트에서 안 돌 때 코드 문제인지 마크업
+    문제인지 나누는 기준이 된다.
+
+  ★ `file://` 은 주입이 막힌다. 로컬 서버로 띄운다.
+      python3 -m http.server 8099 -d extension/tests/fixtures
+      http://127.0.0.1:8099/radio.html
+
+  ★ 보기 텍스트를 길게 둔다. 짧으면 번역이 붙어도 눈에 띄지 않고, Layer 0 은
+    20자 미만을 버리므로 비교도 되지 않는다.
+-->
+<style>
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 680px; margin: 40px auto; padding: 0 16px; }
+  fieldset { margin: 24px 0; }
+  label { display: block; margin: 10px 0; }
+</style>
+
+<h1>Adapter fixture</h1>
+
+<p>This page exists to tell the two collection paths apart. If the console says
+the broker started with <code>standard</code>, the adapter won the match. Each
+group below should be sent to the worker in a single request.</p>
+
+<h2>Path A — ARIA roles</h2>
+<div role="radiogroup" aria-label="Retention question">
+  <div role="radio" aria-checked="false" tabindex="0">
+    Every consumer application has already checkpointed beyond the records that
+    would fall outside the shortened retention window.
+  </div>
+  <div role="radio" aria-checked="false" tabindex="0">
+    The stream has been resharded so that the shard count matches the throughput
+    expected after the change takes effect.
+  </div>
+  <div role="radio" aria-checked="false" tabindex="0">
+    A snapshot of the stream contents has been written to durable object storage
+    before the retention period is shortened.
+  </div>
+</div>
+
+<h2>Path B — native radios, labels wrapping the input</h2>
+<form>
+  <fieldset>
+    <legend>Which change addresses the cause of the imbalance?</legend>
+    <label>
+      <input type="radio" name="skew">
+      Set the distribution key of both tables to the column used in the join so
+      that matching rows are colocated on the same node.
+    </label>
+    <label>
+      <input type="radio" name="skew">
+      Add compute nodes to the cluster so that the additional throughput absorbs
+      the imbalance without changing the layout.
+    </label>
+    <label>
+      <input type="radio" name="skew">
+      Take a manual snapshot before each run so that the previous state can be
+      restored whenever the query takes too long.
+    </label>
+  </fieldset>
+</form>
+
+<h2>Path B — native radios, labels referenced by <code>for</code></h2>
+<form>
+  <fieldset>
+    <legend>What explains the long tail?</legend>
+    <input type="radio" name="tail" id="tail-1">
+    <label for="tail-1">
+      The grouping key is heavily skewed, so the partitions holding the dominant
+      value receive far more rows than the others.
+    </label>
+    <input type="radio" name="tail" id="tail-2">
+    <label for="tail-2">
+      The compressed objects cannot be split, so every task must read the whole
+      bucket before filtering the rows it owns.
+    </label>
+  </fieldset>
+</form>
+
+<h2>Not a group — a single radio</h2>
+<form>
+  <label>
+    <input type="radio" name="lonely">
+    A single radio has nothing to be grouped with, so the adapter leaves this
+    line to the fallback layer instead of making a group of one.
+  </label>
+</form>
+
+<h2>Body text for the fallback layer</h2>
+<p>This paragraph belongs to Layer 0. It should be translated as well, and it
+should not appear twice — if the same sentence shows up in two boxes, the
+delegation between layers is collecting it more than once.</p>

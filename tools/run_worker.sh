@@ -4,7 +4,7 @@
 # .env 가 조용히 덮어쓴다. 프로젝트 설정을 셸에 export 하지 않는 이유가 그것이다(D-0066).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+. "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 PORT="${PORT:-8000}"
 
 # ★ --reload 는 reloader(부모)와 server(자식) 두 프로세스를 띄운다. 부모만

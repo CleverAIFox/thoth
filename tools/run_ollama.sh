@@ -3,5 +3,5 @@
 # ollama 시스템 사용자로 돌아 프로젝트 설정이 반영되지 않으므로 끄고 이걸 쓴다.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+. "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 exec ollama serve

@@ -17,7 +17,7 @@
 #   적용한다 — 줄끝 정리가 원본을 건드리지 않아야 다시 받을 필요가 없다.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+. "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 : "${WIN_DOWNLOADS:?.env 에 WIN_DOWNLOADS 가 없다}"
 
 CHECK=0

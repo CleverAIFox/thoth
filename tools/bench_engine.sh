@@ -6,7 +6,7 @@
 #   bash tools/bench_engine.sh exaone3.5:7.8b
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+. "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 
 MODEL="${1:-${OLLAMA_MODEL:-qwen2.5:3b}}"
 URL="${OLLAMA_URL:-http://127.0.0.1:11434}"
