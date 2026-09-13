@@ -237,16 +237,37 @@ def main() -> int:
         if only:
             print("    " + ", ".join(only))
             if a.fix:
+                # ★ **실패를 조용히 넘기지 않는다.** 종료 코드를 본다. 이웃이
+                #   `uv run` 으로 돌고 있으면 캐시 락을 쥐고 있어 정리가
+                #   타임아웃 난다 — 일시적 충돌이지 결함이 아니고, 남이 쓰는
+                #   중에는 비키는 것이 맞다. 다만 **비켰다는 사실은 적는다**
+                #   (DECISIONS §44).
                 r = subprocess.run(["uv", "cache", "clean", *only],
                                    capture_output=True, text=True)
-                print("    " + (r.stdout or r.stderr).strip().splitlines()[-1]
-                      if (r.stdout or r.stderr).strip() else "    지웠다")
+                out = (r.stdout + r.stderr).strip()
+                if r.returncode == 0:
+                    print("    " + (out.splitlines()[-1] if out else "지웠다"))
+                else:
+                    cache_err = "uv cache clean 이 실패했다"
+                    print("    못 잼 — uv 가 캐시 락을 내주지 않는다")
+                    for line in out.splitlines()[-3:]:
+                        print("      " + line)
+                    busy = subprocess.run(["pgrep", "-a", "uv"],
+                                          capture_output=True, text=True).stdout.strip()
+                    if busy:
+                        print("      쥐고 있는 것 : " + busy.splitlines()[0][:80])
+                    print("      끝난 뒤 다시 돌린다")
             else:
                 print(f"    지우려면 --fix  (uv cache clean {len(only)}건)")
 
     print()
+    # ★ **세는 것과 쓴 것이 같아야 한다.** 캐시를 못 지웠는데 그 수를 합계에
+    #   넣으면 그 수를 보고 한 판단도 틀린다. 합계는 `/tmp` 와 수신함만 센다
+    #   — 캐시는 건수가 아니라 패키지 수라 단위도 다르다(DECISIONS §44).
     if total:
         print(f"  {total}건 " + ("지웠다" if a.fix else "— 지우려면 --fix"))
+    if cache_err:
+        print("  uv 캐시는 재지 못했다")
     return 2 if (lake_err or cache_err) else 0
 
 
