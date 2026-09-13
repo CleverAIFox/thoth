@@ -11,21 +11,28 @@
   "golden": {
     "cases": 2,
     "units": 18,
-    "chars": 5332
+    "chars": 5332,
+    "_note": "여기는 재측정 전까지 옛 골든셋의 규모다. cases.json 과 어긋난 상태이며 stale 이 그것을 표시한다."
   },
   "speed": {
-    "_note": "캐시를 비운 실행에서 잰다. 캐시 히트 실행의 초는 번역 시간이 아니다(DECISIONS §6).",
-    "seconds": 177.8,
-    "chars_per_sec": 30.0,
-    "sec_per_question": 88.9
+    "_note": "캐시를 비우고 웜업을 태운 뒤 잰다. 캐시 히트 실행의 초는 번역 시간이 아니고(DECISIONS §6), 콜드 실행의 첫 배치에는 모델 로딩이 섞인다(DECISIONS §27).",
+    "warmup": true,
+    "seconds": 168.5,
+    "chars_per_sec": 31.6,
+    "sec_per_question": 84.3,
+    "cold_load_seconds": 65.2,
+    "_cold_note": "웜업이 잰 모델 로딩 시간이다. 집계 밖이며 호스팅 엔진에는 이 항목이 없다.",
+    "_noise_note": "웜 실행 2회가 177.8s 와 168.5s 로 5.5% 갈렸다. 이보다 작은 차이로 엔진을 고르면 노이즈로 고르는 것이다(DECISIONS §19)."
   },
   "violations": {
-    "_note": "검사를 고친 뒤의 판정이다. 검사가 다섯 번 틀렸다(DECISIONS §19·§21·§22).",
+    "_note": "검사를 고친 뒤의 판정이다. 검사가 다섯 번 틀렸다(DECISIONS §19·§21·§22). 2026-09-13 재측정에서 종류까지 그대로 재현됐다.",
     "total": 4,
     "by_kind": {
       "term": 2,
       "keep": 2
     },
     "hallucination": 0
-  }
+  },
+  "stale": true,
+  "_stale_note": "골든셋이 2문항 18유닛에서 5문항 45유닛으로 늘었다(PLAN #15). 아래 speed · violations 는 18유닛 값이므로 비교에 쓰지 않는다. 재측정하면 golden 을 갱신하고 이 두 키를 지운다."
 }

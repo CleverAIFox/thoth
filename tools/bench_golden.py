@@ -20,6 +20,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CASES = ROOT / "worker/tests/golden/cases.json"
@@ -55,6 +56,29 @@ def translate(url: str, texts: list[str], timeout: int) -> tuple[list[str], floa
     if data.get("partial"):
         raise SystemExit(f"워커가 부분 응답을 냈다: {data['partial']} — 측정을 멈춘다")
     return data["translations"], time.monotonic() - t0
+
+
+def warmup(url: str, timeout: int) -> float:
+    """모델을 올려 놓고 그 시간을 집계 밖에 둔다.
+
+    ★ 콜드 실행의 첫 배치에는 번역이 아니라 **모델 로딩**이 들어 있다.
+      2026-09-13 실측에서 같은 9유닛 배치가 156.6s 와 79.8s 로 두 배 갈렸고,
+      차이 76.8초가 로딩이었다. 어느 쪽을 잡느냐로 처리율이 30 과 23 사이를
+      오간다. 재는 사람이 직전에 ollama 를 건드렸는지가 수치를 정하면
+      그것은 측정이 아니다(DECISIONS §27).
+
+    ★ **매번 다른 문장을 쓴다.** 고정 문장이면 두 번째 실행부터 캐시 히트라
+      모델을 태우지 않는다. 웜업이 조용히 아무것도 하지 않게 된다(§21).
+      골든셋 캐시는 실행 전에 비우지만 웜업 문장은 그 대상이 아니다.
+
+    ★ 호스팅 엔진에는 로딩이라는 개념이 없으므로 이 시간이 0 에 가깝다.
+      그래도 같은 절차를 태운다 — 엔진마다 다른 절차로 잰 값은 비교되지 않는다.
+    """
+    nonce = uuid.uuid4().hex
+    text = (f"Warm up the inference engine before measurement. "
+            f"This sentence is not part of the golden set. Nonce {nonce}.")
+    _, dt = translate(url, [text], timeout)
+    return dt
 
 
 def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
@@ -126,6 +150,8 @@ def main() -> int:
                     help="한 요청에 실을 유닛 수. 9 는 실사용 한 문항")
     ap.add_argument("--timeout", type=int, default=900)
     ap.add_argument("--json", help="결과를 이 경로에 기록한다")
+    ap.add_argument("--no-warmup", action="store_true",
+                    help="웜업을 건너뛴다. 콜드 로딩 비용을 재려는 경우에만 쓴다")
     a = ap.parse_args()
 
     book = load_terms()
@@ -133,6 +159,18 @@ def main() -> int:
     units = [u for q in cases for u in q["units"]]
     if not units:
         print("케이스가 없다"); return 1
+
+    # ★ 웜업은 집계 밖이다. 이 시간을 총 시간에 더하면 콜드 로딩이 처리율에
+    #   섞인다. 값 자체는 버리지 않고 따로 보고한다 — 로딩 비용은 그 자체로
+    #   알 만한 수치이고, 0 에 가까우면 이미 웜이었다는 뜻이다.
+    warm = None
+    if not a.no_warmup:
+        try:
+            warm = warmup(a.url, a.timeout)
+        except urllib.error.URLError as e:
+            print(f"워커에 닿지 못했다: {e}\n  bash tools/run_worker.sh & 로 띄운다")
+            return 1
+        print(f"  웜업 {warm:6.1f}s  (집계 제외)", flush=True)
 
     rows, elapsed, chars = [], 0.0, 0
     for i in range(0, len(units), a.batch):
@@ -153,6 +191,10 @@ def main() -> int:
     fail = [r for r in rows if r["bad"]]
     print(f"\n{'=' * 60}\n유닛 {len(rows)} · 통과 {len(rows) - len(fail)} · 위반 {len(fail)}")
     print(f"총 {elapsed:.1f}s · {chars}자 · {chars / max(elapsed, 1e-9):.0f}자/초")
+    if warm is None:
+        print("웜업 없음 — 이 처리율에는 모델 로딩이 섞여 있다")
+    else:
+        print(f"웜업 {warm:.1f}s (집계 제외)")
 
     tally: dict[str, int] = {}
     for r in fail:
@@ -173,6 +215,8 @@ def main() -> int:
         pathlib.Path(a.json).write_text(
             json.dumps({"units": len(rows), "fail": len(fail),
                         "seconds": round(elapsed, 1), "chars": chars,
+                        "warmup": warm is not None,
+                        "warmup_seconds": None if warm is None else round(warm, 1),
                         "rows": rows}, ensure_ascii=False, indent=1),
             encoding="utf-8")
         print(f"\n기록 → {a.json}")
