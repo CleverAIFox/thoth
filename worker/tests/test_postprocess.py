@@ -49,3 +49,83 @@ def test_잘라낸_뒤에_종결어미를_본다():
     src = "What must be confirmed?"
     ko = "무엇을 확인해야 하나요?\n답: 체크포인트를 보십시오."
     assert postprocess(src, ko) == "무엇을 확인해야 합니까?"
+
+
+# ─── 배치 분할 ───────────────────────────────────────────────────────
+# 정렬이 깨지면 1번 보기에 2번 번역이 붙는다. 없는 것보다 나쁘므로
+# (DECISIONS §1) 조금이라도 어긋나면 None 을 돌려 개별 호출로 되돌린다.
+from app.engine import _join, _split, BATCH_MARK
+
+
+def test_정상_분할():
+    raw = f"{BATCH_MARK} 0\n첫째입니다.\n\n{BATCH_MARK} 1\n둘째입니다."
+    assert _split(raw, 2) == ["첫째입니다.", "둘째입니다."]
+
+
+def test_조각이_모자라면_None():
+    assert _split(f"{BATCH_MARK} 0\n하나뿐입니다.", 2) is None
+
+
+def test_번호가_중복이면_None():
+    raw = f"{BATCH_MARK} 0\n가.\n\n{BATCH_MARK} 0\n나."
+    assert _split(raw, 2) is None
+
+
+def test_번호가_건너뛰면_None():
+    raw = f"{BATCH_MARK} 0\n가.\n\n{BATCH_MARK} 2\n나."
+    assert _split(raw, 2) is None
+
+
+def test_빈_조각이면_None():
+    raw = f"{BATCH_MARK} 0\n\n\n{BATCH_MARK} 1\n나."
+    assert _split(raw, 2) is None
+
+
+def test_순서가_뒤바뀌어도_번호대로_돌려준다():
+    raw = f"{BATCH_MARK} 1\n둘째.\n\n{BATCH_MARK} 0\n첫째."
+    assert _split(raw, 2) == ["첫째.", "둘째."]
+
+
+def test_join_이_분할_가능한_형태를_만든다():
+    texts = ["alpha", "beta", "gamma"]
+    assert _split(_join(texts), 3) == texts
+
+
+# ─── 배치 분할 ───────────────────────────────────────────────────────
+# 정렬이 깨지면 1번 보기에 2번 번역이 붙는다. 없는 것보다 나쁘므로
+# (DECISIONS §1) 조금이라도 어긋나면 None 을 돌려 개별 호출로 되돌린다.
+from app.engine import _join, _split, BATCH_MARK
+
+
+def test_정상_분할():
+    raw = f"{BATCH_MARK} 0\n첫째입니다.\n\n{BATCH_MARK} 1\n둘째입니다."
+    assert _split(raw, 2) == ["첫째입니다.", "둘째입니다."]
+
+
+def test_조각이_모자라면_None():
+    assert _split(f"{BATCH_MARK} 0\n하나뿐입니다.", 2) is None
+
+
+def test_번호가_중복이면_None():
+    raw = f"{BATCH_MARK} 0\n가.\n\n{BATCH_MARK} 0\n나."
+    assert _split(raw, 2) is None
+
+
+def test_번호가_건너뛰면_None():
+    raw = f"{BATCH_MARK} 0\n가.\n\n{BATCH_MARK} 2\n나."
+    assert _split(raw, 2) is None
+
+
+def test_빈_조각이면_None():
+    raw = f"{BATCH_MARK} 0\n\n\n{BATCH_MARK} 1\n나."
+    assert _split(raw, 2) is None
+
+
+def test_순서가_뒤바뀌어도_번호대로_돌려준다():
+    raw = f"{BATCH_MARK} 1\n둘째.\n\n{BATCH_MARK} 0\n첫째."
+    assert _split(raw, 2) == ["첫째.", "둘째."]
+
+
+def test_join_이_분할_가능한_형태를_만든다():
+    texts = ["alpha", "beta", "gamma"]
+    assert _split(_join(texts), 3) == texts
