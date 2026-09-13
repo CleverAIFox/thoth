@@ -5,5 +5,16 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+PORT="${PORT:-8000}"
+
+# ★ --reload 는 reloader(부모)와 server(자식) 두 프로세스를 띄운다. 부모만
+#   죽이면 자식이 잠깐 포트를 붙들고 있어 다음 기동이 Address already in use
+#   로 실패한다. 띄우기 전에 포트가 비었는지 확인하고 비운다.
+if command -v fuser >/dev/null 2>&1 && fuser "$PORT/tcp" >/dev/null 2>&1; then
+  echo "포트 $PORT 사용 중 — 정리한다"
+  fuser -k "$PORT/tcp" >/dev/null 2>&1
+  for _ in $(seq 10); do fuser "$PORT/tcp" >/dev/null 2>&1 || break; sleep 0.3; done
+fi
+
 cd "$ROOT/worker"
-exec uv run uvicorn app.main:app --port "${PORT:-8000}" --reload
+exec uv run uvicorn app.main:app --port "$PORT" --reload

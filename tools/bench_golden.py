@@ -49,6 +49,7 @@ def translate(url: str, texts: list[str], timeout: int) -> tuple[list[str], floa
 def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     """불변식 위반 목록. 빈 리스트가 통과다."""
     src, bad = unit["text"], []
+    low = src.lower()
 
     # 1. 고유명사 · API명은 영어로 남는다 (MASTER §7-2 규칙 1)
     for tok in unit.get("keep", []):
@@ -56,9 +57,28 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
             bad.append(f"keep:{tok}")
 
     # 2. 등재 용어는 등재된 한국어 표기를 쓴다 (MASTER §8)
-    for en in unit.get("terms", []):
+    #
+    # ★ 세 가지를 먼저 뺀다. 실측에서 term 위반 4건이 전부 오탐이었다.
+    #   - 긴 용어에 포함된 짧은 용어. consumer application 을 올바르게
+    #     옮기면 consumer 검사가 반드시 실패한다
+    #   - keep 토큰에 포함된 용어. Data Catalog 를 영어로 유지하는 것이
+    #     규칙 1 이고, 그때 catalog 검사가 실패한다. 규칙 1 이 이긴다
+    #   - 원문에 없는 용어. 케이스의 terms 가 넉넉하게 적혀 있어도 된다
+    terms = [t for t in unit.get("terms", []) if t in low]
+    terms = [t for t in terms
+             if not any(t != o and t in o for o in terms)]
+    for en in terms:
         want = book.get(en)
-        if want and want not in ko:
+        if not want:
+            continue
+        # ★ 규칙 1 이 우선하는지는 케이스의 keep 이 아니라 원문이 정한다.
+        #   원문에 대문자로 시작하는 고유명사가 있으면 영어 유지가 맞고,
+        #   그때 소문자 등재 용어 검사는 성립하지 않는다. keep 을 빠짐없이
+        #   적으라는 규약은 사람 손에 기대므로 지켜지지 않는다(DECISIONS §18).
+        if re.search(rf"\b[A-Z]\w*\s+{re.escape(en.split()[-1])}\b", src, re.I) \
+           and en not in src:
+            continue
+        if want not in ko:
             bad.append(f"term:{en}→{want}")
 
     # 3. 물음표 보존. 원문이 물으면 번역도 물어야 한다 (PLAN §2-2 #14)
