@@ -28,6 +28,34 @@ git check-ignore -q .env && ok ".env 가 무시된다" || no ".env 가 추적될
 git ls-files | grep -qE '(^|/)\.env$|credential|\.pem$' \
   && no "추적 중인 비밀 파일" || ok "추적 중인 비밀 파일 없음"
 
+# ★ 위 셋은 전부 git 에 묻는다. **저장소 밖은 구조적으로 시야 밖이다.**
+#   2026-09-13 에 `$THOTH_SSD_ROOT/.aws/credentials` 가 장기 액세스 키를 담은
+#   채 남아 있었고 아무도 보지 않았다. DrvFs 는 유닉스 권한이 붙지 않아
+#   `-rwxrwxrwx` 로 보이고 윈도우 탐색기에서 그대로 열린다 — **거기서는 600 을
+#   줄 수 없으므로 "권한을 고쳐라" 가 아니라 "두지 마라" 가 맞는 검사다**
+#   (DECISIONS §43).
+#
+# ★ 경로를 박지 않는다. `.env` 의 `THOTH_SSD_ROOT` 를 쓴다. 기계 설정이므로
+#   `--repo` 범위 밖이다 — CI 에는 그 마운트가 없다.
+if [ "$SCOPE" = "--repo" ]; then
+  skip "SSD 비밀 검사 (기계 설정이다)"
+elif [ -z "${THOTH_SSD_ROOT:-}" ] || [ ! -d "${THOTH_SSD_ROOT:-/nonexistent}" ]; then
+  skip "SSD 에 닿지 못해 재지 못했다"
+else
+  # 이름으로 찾는다. 내용을 읽지 않는다 — 검사가 비밀을 읽을 이유가 없다.
+  SSD_HITS="$(find "$THOTH_SSD_ROOT" \
+    \( -name 'credentials' -o -name '*.pem' -o -name '*.key' -o -name '.env' \
+       -o -name 'id_rsa*' -o -name 'id_ed25519' -o -name '*.p12' \) \
+    -type f 2>/dev/null | head -20)"
+  if [ -n "$SSD_HITS" ]; then
+    no "SSD 에 비밀 파일이 있다 — DrvFs 는 권한이 붙지 않아 윈도우에서 열린다"
+    printf '%s\n' "$SSD_HITS" | sed 's|^|       |'
+    echo "       옮기거나 지운다. 키가 살아 있으면 먼저 회수한다"
+  else
+    ok "SSD 에 비밀 파일 없음"
+  fi
+fi
+
 echo "== .env 키 정합 =="
 if [ ! -f .env ]; then skip ".env 가 없어 비교하지 않는다"; else
 # 키 목록의 정본은 .env.example 이다. 한쪽만 늘면 조용히 어긋난다.

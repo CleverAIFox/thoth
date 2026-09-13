@@ -26,6 +26,38 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+def load_env() -> None:
+    """`.env` 를 읽되 이미 환경에 있는 키는 덮지 않는다.
+
+    ★ 직접 부를 때 수신함을 못 쟀다. `doctor` 와 `apply_patch` 는 셸 로더를
+      거치는데 이 도구는 스스로 읽지 않아, `python3 tools/sweep.py` 만 치면
+      `WIN_DOWNLOADS` 가 비어 `못 잼` 이 나왔다. **도구가 자기 입력을 스스로
+      챙기지 않으면 부르는 방법마다 결과가 달라진다**(DECISIONS §43).
+
+    ★ 우선순위는 `tools/lib/env.sh` 와 같다 — 셸에 앞세운 지정이 이긴다
+      (DECISIONS §40). 두 로더가 다르게 굴면 그것이 또 하나의 갈림이다.
+    """
+    f = ROOT / ".env"
+    if not f.exists():
+        return
+    try:
+        lines = f.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k = k.strip()
+        if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", k) or k in os.environ:
+            continue
+        os.environ[k] = v.strip().strip('"').strip("'")
+
+
+load_env()
 TMP = pathlib.Path(os.environ.get("TMPDIR", "/tmp"))
 
 # thoth 의 도구와 문서가 이 이름으로 쓴다. 이름이 근거다.
