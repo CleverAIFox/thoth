@@ -305,6 +305,37 @@ else
   fi
 fi
 
+echo "== 인프라 =="
+# ★ **형식은 늘 보고 의미는 초기화됐을 때만 본다.** `terraform validate` 는
+#   `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다 받게 하면 검사가
+#   네트워크에 기대게 되므로, 이미 받아 둔 기계에서만 본다(DECISIONS §73).
+#
+# ★ 로컬에 terraform 이 없으면 SKIP 이다. 없는 도구를 통과로 세지 않는다(§59).
+if [ ! -d infra ]; then
+  skip "infra 가 없다"
+elif ! command -v terraform >/dev/null 2>&1; then
+  skip "terraform 이 없어 보지 못한다"
+else
+  TF_FMT="$(terraform fmt -check -recursive infra 2>&1)"; TF_RC=$?
+  if [ "$TF_RC" = 0 ]; then
+    ok "terraform fmt"
+  else
+    no "terraform fmt 위반 — terraform fmt -recursive infra"
+    printf '%s\n' "$TF_FMT" | head -10 | sed 's/^/       /'
+  fi
+  if [ -d infra/.terraform ]; then
+    TF_VAL="$(terraform -chdir=infra validate -no-color 2>&1)"; TF_RC=$?
+    if [ "$TF_RC" = 0 ]; then
+      ok "terraform validate"
+    else
+      no "terraform validate 실패"
+      printf '%s\n' "$TF_VAL" | head -12 | sed 's/^/       /'
+    fi
+  else
+    skip "infra/.terraform 이 없다 — terraform -chdir=infra init 후에 본다"
+  fi
+fi
+
 echo "== 파이썬 =="
 # ★ **`F` 만 켠다.** 스타일이 아니라 오류를 잡는 것이 목적이다. 2026-09-14 에
 #   테스트 7개가 재정의로 죽어 있는 것을 이것이 찾았고, 그때까지 pytest 도

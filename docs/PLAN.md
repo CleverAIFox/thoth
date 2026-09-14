@@ -40,19 +40,30 @@
 
 ## 0. 다음 한 수
 
-**#17 Terraform 배포.** `bedrock` 이 실호출로 검증되면서(2026-09-14) 배포를
-막던 것이 사라졌다. **Lambda 가 탈 코드와 산출물은 준비됐다** — 계약을
-프레임워크에서 떼고(DECISIONS §68) 핸들러와 패키징을 붙였다(§71). `dist/worker.zip`
-이 20KB 이고 의존성이 없다. 남은 것은 리소스를 세우는 일이다. Lambda · Function URL · DynamoDB · IAM 넷을 세우면 #18~#22
-가 줄줄이 열리고, 그 뒤에야 #24 비용 실측이 가능하다.
+**`terraform apply` 를 한 번 돌린다.** `infra/` 가 섰고 패키지도 결정적으로
+나온다. 남은 것은 실제로 세워 보는 일이며, 그때까지 이 계층은 코드만 있고
+실행된 적이 없다(DECISIONS §17).
 
+새 세션이 할 일을 순서대로 적는다.
+
+1. `aws login --profile fox` — 세션이 만료돼 있을 수 있다
+2. `bash tools/package_lambda.sh` — zip 이 먼저다. 없으면 `plan` 에서 멈춘다
+3. `cp infra/terraform.tfvars.example infra/terraform.tfvars` 후 토큰을 채운다
+4. `terraform -chdir=infra init`
+5. `terraform -chdir=infra apply`
+6. `WORKER_URL=<출력> WORKER_TOKEN=<토큰> bash tools/smoke.sh`
+
+- **6 이 이 배포의 검증이다.** 도구를 새로 만들지 않는다 — `smoke.sh` 가 이미
+  `WORKER_URL` 을 받는다
+- 크로스리전 추론 프로파일의 IAM 이 제일 틀리기 쉽다. `AccessDeniedException`
+  이 나면 프로파일 ARN 과 기반 모델 ARN 중 한쪽이 빠진 것이다
+- Lambda 런타임의 `boto3` 가 Converse 를 아는지는 **실호출로만 안다.** 모르면
+  `/translate` 가 502 로 떨어지고, 그때 zip 에 boto3 를 넣는 판단을 한다
 - **크레딧 만료가 일정 위험이다**(§6 첫 행). 배포를 미루면 데모 URL 을 세울
   창이 닫힌다. 기술 난이도가 아니라 시점 문제다
-- `WORKER_TOKEN` 을 채우지 않으면 `doctor` 가 막는다. 배포 설정에서 무인증이면
-  상한만이 유일한 방어이고 그 상한은 남이 태운다(MASTER §12)
-- #18 TTL 을 빠뜨리면 지난 달 문자 카운터가 영원히 남는다
+- 세워지면 #20 · #21 · #22 가 열리고, 그 뒤에야 #24 비용 실측이 가능하다
 
-**#45 도 함께 열렸다.** 호스팅의 `MAX_BATCH` 를 다시 재는 일이며 배포의 전건은
+**#45 도 열려 있다.** 호스팅의 `MAX_BATCH` 를 다시 재는 일이며 배포의 전건은
 아니다. 로컬 최적점 3 은 ollama 가 직렬 처리해서 나온 값이고, 호스팅은 왕복이
 곧 비용이라 반대로 갈 수 있다. 기준선의 `engines.bedrock.batch` 가 3 으로
 박혀 있으므로 재면 그 자리를 고친다.
@@ -353,18 +364,18 @@ DECISIONS §20.
 
 | # | 상태 | 항목 | 전건 |
 |---|---|---|---|
-| 17 | 📄 | Terraform — Lambda · Function URL · DynamoDB · IAM | |
-| 18 | 📄 | DynamoDB TTL 활성화 (`expires_at`) | 17 |
-| 19 | 📄 | Lambda reserved concurrency 고정 | 17 |
-| 20 | 📄 | OIDC 역할 · `production` Environment | 17 |
-| 21 | 📄 | 배포 워크플로 — **태그 푸시에서만** | 19 · 20 |
+| 20 | 📄 | OIDC 역할 · `production` Environment | |
+| 21 | 📄 | 배포 워크플로 — **태그 푸시에서만** | 20 |
 | 22 | 📄 | 확장의 워커 URL 을 배포본으로 전환 | 21 |
+
+★ **`infra/` 가 섰다**(2026-09-14). Lambda · Function URL · DynamoDB(TTL) ·
+IAM 넷이고 동시 실행도 고정했다. `terraform fmt` 는 `doctor` 와 CI 가 보고
+`validate` 는 `init` 된 기계에서만 본다(DECISIONS §73). **`apply` 는 아직
+돌리지 않았다** — 코드만 있고 실행된 적 없는 계층은 검증된 것이 아니다(§17).
 
 ★ #21 이 `on: push` 가 아닌 이유는 둘이다. 커밋마다 배포하면 크레딧이 새고
 데모 URL 이 수시로 흔들린다. **태그를 다는 행위가 이 저장소의 승인 절차다.**
 승인자 게이트는 두지 않는다.
-
-★ #18 을 빠뜨리면 지난 달 문자 카운터가 영원히 남는다.
 
 ★ ALB · NAT Gateway · Kinesis 샤드를 쓰지 않는다(§4).
 
@@ -459,7 +470,7 @@ DECISIONS §20.
 | 위험 | 영향 | 대응 |
 |---|---|---|
 | ⚠ AWS 크레딧 만료 · 계정 자동 폐쇄 | 데모 URL 소멸 | **5개월째에 Paid 전환.** 크레딧은 가입 후 12개월까지 유효 |
-| ⚠ Free 플랜이 일부 서비스를 막는다 | AWS Translate 가 `SubscriptionRequiredException` 으로 거부됐다 | 현재는 로컬 엔진이라 무관. #17 배포 전에 확인 |
+| ⚠ Free 플랜이 일부 서비스를 막는다 | AWS Translate 가 `SubscriptionRequiredException` 으로 거부됐다 | 현재는 로컬 엔진이라 무관. 배포 전에 확인 |
 | ⚠ Udemy DOM 변경 | 어댑터 무효화 | 제네릭 계층이 폴백. #25 가 탐지 |
 | ⚠ 웹스토어 심사 지연 · 반려 | #30 무기한 대기 | 확장은 로컬 로드로 동작한다. 심사를 공개 조건으로 두지 않는다 |
 | 모델 환각 | 정답 누설 · 오정보 | 후처리(MASTER §7-2) · 골든셋 45유닛에서 0 |

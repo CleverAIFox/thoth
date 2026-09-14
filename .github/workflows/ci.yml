@@ -36,10 +36,16 @@ jobs:
       # ★ **doctor 는 린터가 없으면 SKIP 한다.** 로컬에서는 맞지만 CI 는
       #   넘어갈 수 없는 자리다. 없으면 여기서 멈춘다 — 건너뛰면 초록불인 채로
       #   셸과 파이썬을 아무도 보지 않는다(DECISIONS §54 · §63).
+      # ★ **`fmt` 만 본다.** `validate` 는 `init` 을 요구하고 `init` 은 프로바이더
+      #   수백 MB 를 받는다. 커밋마다 받게 하면 검사가 네트워크에 기대게 된다.
+      #   의미 검사는 이미 받아 둔 기계에서 `doctor` 가 본다(DECISIONS §73).
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_wrapper: false }
       - name: 린터가 실제로 있는가
         run: |
           shellcheck --version | sed -n 2p
           uvx ruff --version
+          terraform version | sed -n 1p
       - run: bash tools/doctor.sh --repo
       # ★ doctor 는 건너뛴 건수를 WARN 으로만 알린다. CI 에서는 0 이어야 하므로
       #   따로 확인한다 — 등급이 다른 두 자리에서 같은 검사를 쓴다.

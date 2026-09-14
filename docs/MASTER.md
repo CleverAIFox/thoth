@@ -960,7 +960,47 @@ bash tools/package_lambda.sh      # dist/worker.zip
 ★ 넣는 것을 목록으로 고른다. `__pycache__` 가 섞이면 런타임이 바이트코드를
 쓸지 소스를 쓸지가 조용히 갈린다.
 
-### 11-11. 엔진 전제
+### 11-11. 배포
+
+```bash
+bash tools/package_lambda.sh                 # dist/worker.zip 을 먼저 만든다
+cp infra/terraform.tfvars.example infra/terraform.tfvars   # worker_token 을 채운다
+terraform -chdir=infra init
+terraform -chdir=infra apply
+WORKER_URL=<출력된 url> WORKER_TOKEN=<토큰> bash tools/smoke.sh
+```
+
+| 리소스 | 왜 |
+|---|---|
+| Lambda (`python3.13`) | zip 배포. 의존성 없음 |
+| Function URL (`NONE`) | 확장이 SigV4 를 못 한다. 방어는 토큰(§12) |
+| DynamoDB (온디맨드) | 캐시 · 카운터 한 테이블. TTL `expires_at` |
+| IAM 역할 | 로그 · 테이블 · `bedrock:InvokeModel` 만 |
+
+★ **zip 을 terraform 이 만들지 않는다.** `package_lambda.sh` 가 "의존성 없이
+도는가" 를 함께 확인하므로, 만드는 것과 확인하는 것을 가르면 확인 없이 배포하는
+길이 생긴다. 순서가 어긋나면 `filebase64sha256` 이 파일을 못 찾아 `plan` 에서
+멈춘다.
+
+★ **크로스리전 추론 프로파일은 IAM 두 자리를 요구한다** — 프로파일 ARN 과 각
+리전의 기반 모델 ARN 이다. 프로파일만 허용하면 `AccessDeniedException` 이 나고,
+**로컬에서는 되던 것이 Lambda 에서만 안 되므로** 원인을 찾기 어렵다.
+
+★ **`AWS_REGION` 을 환경변수로 넣지 않는다.** Lambda 예약 키라 설정하면 배포가
+거부된다. 런타임이 채워 주고 `engine.py` 가 그것을 읽는다.
+
+★ **동시 실행을 고정한다**(#19). 월 문자 상한은 비용을 막지만 그 사이의 동시
+호출은 Bedrock 쓰로틀을 부른다.
+
+★ **상태는 로컬에 둔다.** 리소스가 넷이고 전부 재생성 가능하며 유휴 비용이 0
+이라, 상태를 잃어도 고아 리소스가 돈을 태우지 않는다. `*.tfstate` 와 `*.tfvars`
+는 `.gitignore` 가 막는다.
+
+★ **`doctor` 가 `fmt` 를 항상 보고 `validate` 는 `infra/.terraform` 이 있을 때만
+본다.** `validate` 는 `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다
+받게 하면 검사가 네트워크에 기댄다(DECISIONS §73).
+
+### 11-12. 엔진 전제
 
 ```bash
 bash tools/preflight.sh                  # 현재 엔진
