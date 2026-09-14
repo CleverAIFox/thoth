@@ -21,59 +21,59 @@ def unit(text, **kw):
 
 def test_정상은_통과한다():
     u = unit("The stream retains records for 168 hours in total here.",
-             keep=[], terms=["record"])
+             keep=[])
     assert bench.check(u, "스트림은 레코드를 168시간 보관합니다.", BOOK) == []
 
 
 def test_의문형_합니다체를_위반으로_보지_않는다():
     # 후처리가 만들어 내는 형태다. 검사가 이것을 잡으면 스스로를 부정한다.
-    u = unit("Which condition must be confirmed?", keep=[], terms=[])
+    u = unit("Which condition must be confirmed?", keep=[])
     assert bench.check(u, "어떤 조건을 확인해야 합니까?", BOOK) == []
 
 
 def test_해요체는_잡는다():
-    u = unit("Confirm the checkpoint position now please.", keep=[], terms=[])
+    u = unit("Confirm the checkpoint position now please.", keep=[])
     assert any("합니다체" in b for b in bench.check(u, "체크포인트를 확인하세요.", BOOK))
 
 
 def test_원문에_없는_용어는_보지_않는다():
-    u = unit("The shard count matches throughput.", keep=[], terms=["record"])
+    u = unit("The shard count matches throughput.", keep=[])
     assert not any("term" in b for b in bench.check(u, "샤드 수가 처리량과 맞습니다.", BOOK))
 
 
 def test_긴_용어에_포함된_짧은_용어는_빼고_본다():
     u = unit("Every consumer application has checkpointed past the record.",
-             keep=[], terms=["consumer", "consumer application"])
+             keep=[])
     ko = "모든 컨슈머 애플리케이션이 레코드를 지나 체크포인트했습니다."
     assert not any("term" in b for b in bench.check(u, ko, BOOK))
 
 
 def test_길이가_과하면_덧붙임으로_잡는다():
-    u = unit("Short source here.", keep=[], terms=[])
+    u = unit("Short source here.", keep=[])
     bad = bench.check(u, "원문보다 훨씬 길게 늘어난 번역문을 여기에 넣습니다.", BOOK)
     assert any("덧붙임" in b for b in bad)
 
 
 def test_길이가_모자라면_누락으로_잡는다():
     u = unit("A" * 200 + " records are retained for a long period of time.",
-             keep=[], terms=[])
+             keep=[])
     assert any("누락" in b for b in bench.check(u, "짧습니다.", BOOK))
 
 
 def test_물음표가_사라지면_잡는다():
-    u = unit("Which condition must be confirmed?", keep=[], terms=[])
+    u = unit("Which condition must be confirmed?", keep=[])
     assert any("물음표" in b for b in bench.check(u, "조건을 확인해야 합니다.", BOOK))
 
 
 def test_keep_토큰이_번역되면_잡는다():
     u = unit("A Glue crawler populates the Data Catalog nightly here now.",
-             keep=["Data Catalog"], terms=[])
+             keep=["Data Catalog"])
     ko = "Glue 크롤러가 매일 밤 데이터 카탈로그를 채웁니다."
     assert any("keep" in b for b in bench.check(u, ko, BOOK))
 
 
 def test_한글이_없으면_잡는다():
-    u = unit("The stream retains records.", keep=[], terms=[])
+    u = unit("The stream retains records.", keep=[])
     assert any("한글" in b for b in bench.check(u, "[KO] The stream retains records.", BOOK))
 
 
@@ -214,7 +214,7 @@ def test_단어_내부에_박힌_용어는_보지_않는다():
     # ★ ProvisionedThroughputExceededException 안의 throughput 이 잡혀서
     #   원문에 단독으로 나오지도 않는 용어의 표기를 요구했다(DECISIONS §28).
     u = unit("The client receives ProvisionedThroughputExceededException here.",
-             keep=[], terms=["throughput"])
+             keep=[])
     assert bench.check(u, "클라이언트가 여기서 예외를 받습니다.",
                        {"throughput": "처리량"}) == []
 
@@ -224,12 +224,12 @@ def test_복수형과_굴절형은_계속_본다():
     # 용어집(glossary._hits)과 같은 굴절 패턴을 쓴다.
     book = {"record": "레코드", "catalog": "카탈로그"}
     u = unit("The stream stores records for the configured window of time here.",
-             keep=[], terms=["record"])
+             keep=[])
     assert bench.check(u, "스트림은 설정된 기간 동안 기록을 저장합니다.", book) \
         == ["term:record→레코드"]
 
     u = unit("The crawler is cataloging every partition of the bucket tonight.",
-             keep=[], terms=["catalog"])
+             keep=[])
     assert bench.check(u, "크롤러가 오늘 밤 모든 파티션을 목록화합니다.", book) \
         == ["term:catalog→카탈로그"]
 
@@ -411,3 +411,37 @@ def test_본문이_깨져도_안내가_나간다():
     e = urllib.error.HTTPError("http://x", 502, "Bad Gateway", {},
                                io.BytesIO(b"<html>not json</html>"))
     assert "502" in bench.explain_failure(e)
+
+
+# ---------- 검사 대상 목록 ----------
+
+def test_케이스의_terms_를_보지_않는다():
+    """★ 그 필드는 사람이 손으로 적는데 프롬프트는 원문에서 자동으로 고른다.
+    두 목록이 다르면 차이나는 자리는 지시만 하고 검사하지 않는다 — 실측에서
+    15개 유닛이 그랬고 위반 3건이 그 그늘에 있었다(DECISIONS §49).
+    """
+    u = unit("The stream stores records for the configured window of time.")
+    u["terms"] = []            # 비어 있어도 원문에서 골라 검사한다
+    assert bench.check(u, "스트림은 설정된 기간 동안 기록을 저장합니다.", BOOK) \
+        == ["term:record→레코드"]
+
+
+def test_원문에_없는_용어는_검사하지_않는다():
+    # 용어집이 커져도 관계없는 용어를 요구하지 않는다.
+    u = unit("The crawler updates the table every night without fail here.")
+    assert bench.check(u, "크롤러가 매일 밤 테이블을 갱신합니다.", BOOK) == []
+
+
+def test_프롬프트와_같은_함수로_고른다():
+    """★ 같은 질문에 답이 둘이면 하나는 틀렸다(§28 · §30 · §32 의 재발).
+    `glossary._hits` 가 고른 것과 검사 대상이 같아야 한다.
+    """
+    import sys, pathlib as _p
+    sys.path.insert(0, str(_p.Path(__file__).resolve().parents[1]))
+    from app import glossary
+
+    src = "The consumer application reads records from the stream today."
+    picked = set(glossary._hits(BOOK, src.lower()))
+    # consumer 는 consumer application 에 포함되므로 검사에서 빠진다
+    assert "consumer application" in picked
+    assert "record" in picked

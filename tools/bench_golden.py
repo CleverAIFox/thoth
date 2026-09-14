@@ -26,6 +26,7 @@ import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "worker"))
+from app import glossary  # noqa: E402
 CASES = ROOT / "worker/tests/golden/cases.json"
 GLOSSARY = ROOT / "worker/app/glossary"
 
@@ -232,13 +233,14 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     #   - keep 토큰에 포함된 용어. Data Catalog 를 영어로 유지하는 것이
     #     규칙 1 이고, 그때 catalog 검사가 실패한다. 규칙 1 이 이긴다
     #   - 원문에 없는 용어. 케이스의 terms 가 넉넉하게 적혀 있어도 된다
-    # ★ 원문에 용어가 있는지를 `t in low` 로 보면 단어 내부에 박힌 것까지
-    #   걸린다. `ProvisionedThroughputExceededException` 안의 throughput 이
-    #   그렇게 잡혀, 원문에 단독으로 나오지도 않는 용어의 표기를 요구했다.
-    #   같은 질문에 `glossary._hits` 는 굴절 패턴으로 답하고 여기는 부분
-    #   문자열로 답하고 있었다. 답이 둘이면 하나는 틀렸다(DECISIONS §28).
-    terms = [t for t in unit.get("terms", [])
-             if re.search(rf"\b{re.escape(t)}(s|es|ing|ed)?\b", low)]
+    # ★ **케이스의 `terms` 를 보지 않는다.** 그것은 사람이 손으로 적는데
+    #   프롬프트는 원문에서 자동으로 고른다. 두 목록이 다르면 차이나는 자리는
+    #   **지시만 하고 검사하지 않는다** — 실측에서 15개 유닛이 그랬고 위반
+    #   3건이 그 그늘에 있었다(DECISIONS §49).
+    #
+    # ★ 그래서 프롬프트가 쓰는 것과 같은 함수를 쓴다. 같은 질문에 답이 둘이면
+    #   하나는 틀렸다(§28 · §30 · §32 의 재발).
+    terms = list(glossary._hits(book, low))
     terms = [t for t in terms
              if not any(t != o and t in o for o in terms)]
     for en in terms:
