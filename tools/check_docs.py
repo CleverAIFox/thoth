@@ -146,6 +146,29 @@ def check_refs(root: Path, fails: list):
                and "__pycache__" not in p.parts and ".cache" not in p.parts:
                 targets.append(str(p.relative_to(root)))
 
+    # ★ **PLAN 자기 안의 참조도 본다.** 바깥에서는 `PLAN §2-2 #45` 로 쓰지만
+    #   PLAN 안에서는 `#45` 로만 쓴다. 그 형태를 보지 않아, 항목을 지울 때
+    #   전건 열은 잡히고 **판단 기준 열과 산문은 잡히지 않았다** — 2026-09-14
+    #   에 둘을 사람이 찾았다(DECISIONS §54).
+    #
+    # ★ **해결 경위를 적은 ★ 문단은 지운 번호를 가리키는 것이 정상이다.** 그
+    #   줄이 없으면 왜 사라졌는지 다음 사람이 알 수 없다. 잡아야 하는 것은
+    #   **표의 칸**과 **아직 살아 있다고 말하는 문장**이다.
+    # ★ ★ 문단은 여러 줄에 걸친다. 첫 줄만 건너뛰면 이어지는 줄이 잡혀
+    #   오탐이 된다 — 빈 줄이 나올 때까지 같은 문단으로 본다.
+    plan_text = (root / "docs/PLAN.md").read_text(encoding="utf-8")
+    in_note = False
+    for n, line in enumerate(plan_text.splitlines(), 1):
+        if line.lstrip().startswith("★"):
+            in_note = True
+        elif not line.strip():
+            in_note = False
+        if in_note:
+            continue        # 경위 서술. 지운 번호를 가리켜도 된다
+        for m in re.finditer(r"(?<![\w§-])#(\d+)", line):
+            if int(m.group(1)) not in nums:
+                fails.append(f"docs/PLAN.md:{n} 가 없는 #{m.group(1)} 을 가리킨다")
+
     ref = re.compile(r"PLAN\s+§[\d-]+\s*#\s*(\d+)")
     for rel in targets:
         p = root / rel

@@ -26,7 +26,22 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-python@v5
         with: { python-version: "3.13" }
+      # ★ **jsdom 이 없으면 확장 검사 25건이 건너뛰어진다.** 로컬에서는 WARN 으로
+      #   두는 것이 맞지만(DECISIONS §46) CI 는 넘어갈 수 없는 자리다. 여기서
+      #   건너뛰면 초록불인 채로 수집이 깨진다(DECISIONS §54).
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: extension/package-lock.json }
+      - run: npm ci
+        working-directory: extension
       - run: bash tools/doctor.sh --repo
+      # ★ doctor 는 건너뛴 건수를 WARN 으로만 알린다. CI 에서는 0 이어야 하므로
+      #   따로 확인한다 — 등급이 다른 두 자리에서 같은 검사를 쓴다.
+      - name: 확장 검사가 건너뛰이지 않았는지
+        run: |
+          OUT="$(node --test "extension/tests/*.test.js" 2>&1)"
+          echo "$OUT" | tail -8
+          N="$(printf '%s' "$OUT" | sed -n 's/^# skipped \([0-9]*\)$/\1/p')"
+          [ "${N:-0}" -eq 0 ] || { echo "건너뛴 검사 ${N}건 — CI 에서는 0 이어야 한다"; exit 1; }
 
   # 계약을 실제 HTTP 로 때린다. TestClient 는 미들웨어·포트·.env 로딩을
   # 건너뛰므로 pytest 만으로는 서빙 경로가 검증되지 않는다.
