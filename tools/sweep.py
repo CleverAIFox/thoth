@@ -254,9 +254,18 @@ def main() -> int:
                         print("      " + line)
                     busy = subprocess.run(["pgrep", "-a", "uv"],
                                           capture_output=True, text=True).stdout.strip()
+                    mine = [l for l in busy.splitlines() if "uvicorn app.main:app" in l]
                     if busy:
-                        print("      쥐고 있는 것 : " + busy.splitlines()[0][:80])
-                    print("      끝난 뒤 다시 돌린다")
+                        print("      쥐고 있는 것 : " + (mine or busy.splitlines())[0][:80])
+                    # ★ **쥔 것이 이 저장소 자신이면 대응이 다르다.** `run_worker.sh`
+                    #   가 `uv run` 으로 띄우므로 워커가 살아 있는 동안 락이 잡힌다.
+                    #   개발 중에는 워커를 띄워 두는 것이 정상이라, 기다리라고만
+                    #   하면 캐시를 털 기회가 영영 오지 않는다(DECISIONS §53).
+                    if mine:
+                        print("      이 저장소의 워커다. 내리고 다시 돌린다 —")
+                        print("      fuser -k 8000/tcp && python3 tools/sweep.py --fix")
+                    else:
+                        print("      다른 저장소가 쓰는 중이다. 끝난 뒤 다시 돌린다")
             else:
                 print(f"    지우려면 --fix  (uv cache clean {len(only)}건)")
 
