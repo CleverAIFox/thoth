@@ -15,6 +15,12 @@ FAIL=0
 skip(){ printf '  \033[33mSKIP\033[0m %s\n' "$1"; }
 ok(){ printf '  \033[32mOK\033[0m   %s\n' "$1"; }
 no(){ printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; }
+# ★ **등급이 하나뿐이면 모든 검사가 최악의 검사와 같은 힘을 갖는다.** 문서 세
+#   줄을 고치는 커밋이 ollama 미기동으로 막혔다 — 번역을 돌릴 일이 없는데도
+#   그랬다. `no` 는 커밋을 막고 `warn` 은 알리고 넘어간다. 새 검사를 넣을 때
+#   "이것이 커밋을 막을 일인가" 를 묻게 하는 것이 이 구분의 목적이다
+#   (DECISIONS §46).
+warn(){ printf '  \033[33mWARN\033[0m %s\n' "$1"; }
 
 echo "== 비밀값 =="
 git check-ignore -q .env && ok ".env 가 무시된다" || no ".env 가 추적될 수 있다"
@@ -116,8 +122,16 @@ OUT="$(ls ~ | grep -vE '^projects$' | tr '\n' ' ')"
 [ -z "$OUT" ] && ok "홈 바로 아래에 규약 밖 이름 없음" || skip "규약 밖: $OUT"
 
 echo "== 산출물 =="
-[ -d "${THOTH_SSD_ROOT:-}" ] && ok "SSD 프로젝트 폴더 있음" \
-                             || no "THOTH_SSD_ROOT 가 없거나 가리키는 경로가 없다"
+# ★ 설정이 틀린 것과 마운트가 안 붙은 것은 다르다. 전자는 저장소 규약 위반이고
+#   후자는 지금 이 순간의 상태다. 한 줄로 묶으면 노트북을 도킹하지 않았다는
+#   이유로 커밋이 막힌다.
+if [ -z "${THOTH_SSD_ROOT:-}" ]; then
+  no "THOTH_SSD_ROOT 가 .env 에 없다"
+elif [ -d "$THOTH_SSD_ROOT" ]; then
+  ok "SSD 프로젝트 폴더 있음"
+else
+  warn "THOTH_SSD_ROOT 가 가리키는 곳이 없다 — 마운트를 본다 ($THOTH_SSD_ROOT)"
+fi
 # 경로는 .env 에만 산다. 스크립트가 기본값을 들면 두 곳이 조용히 어긋난다.
 HARD="$(grep -rn "/mnt/[cf]/" tools/ 2>/dev/null | grep -v "^tools/doctor.sh:.*grep -rn" | wc -l)"
 [ "$HARD" = "0" ] && ok "tools/ 에 하드코딩된 경로 없음" \
@@ -131,18 +145,20 @@ echo "== 모델 =="
 if command -v ollama >/dev/null 2>&1 && curl -sf "${OLLAMA_URL:-http://127.0.0.1:11434}/api/version" >/dev/null; then
   KEEP="${OLLAMA_MODEL:-}"
   EXTRA_M="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v "^${KEEP}$" | tr '\n' ' ')"
+  # 미채택 모델은 디스크를 먹지 저장소를 틀리게 하지 않는다. 알리고 넘어간다.
   [ -z "$EXTRA_M" ] && ok "채택 모델만 남아 있음 ($KEEP)" \
-                    || no "미채택 모델: $EXTRA_M (ollama rm 으로 정리)"
+                    || warn "미채택 모델: $EXTRA_M (ollama rm 으로 정리)"
+  # 잔재도 같다 — 느려질 뿐 결과가 틀리지 않는다.
   [ -d "${THOTH_SSD_ROOT:-/nonexistent}/ollama-models" ] \
-    && no "SSD 에 모델 잔재가 있다 (DrvFs 는 로딩이 느려 쓰지 않는다)" \
+    && warn "SSD 에 모델 잔재가 있다 (DrvFs 는 로딩이 느려 쓰지 않는다)" \
     || ok "SSD 모델 잔재 없음"
 else
-  # ★ ENGINE=local 이면 ollama 가 없는 것은 건너뛸 일이 아니라 고장이다.
-  #   2026-09-13 에 doctor 가 SKIP 으로 넘어가 "이상 없음" 을 냈고, 곧바로
-  #   벤치가 502 로 죽었다. 검사가 무엇을 건너뛸지는 설정이 정한다
-  #   (DECISIONS §22 · §37).
+  # ★ `ENGINE=local` 인데 ollama 가 없으면 **번역을 돌릴 때** 고장이다. 그것을
+  #   조용히 넘기면 벤치가 502 로 죽는다(§37). 다만 **커밋을 막을 일은
+  #   아니다** — 문서 세 줄을 고치는 중이라면 ollama 가 필요 없다. 막는 것은
+  #   실제로 필요한 자리인 `run_worker.sh` 가 한다(DECISIONS §46).
   if [ "${ENGINE:-echo}" = "local" ]; then
-    no "ENGINE=local 인데 ollama 가 응답하지 않는다 (bash tools/run_ollama.sh &)"
+    warn "ENGINE=local 인데 ollama 가 응답하지 않는다 (번역을 돌리려면 띄운다)"
   else
     skip "ollama 서버 미기동 (ENGINE=${ENGINE:-echo} 라 필요 없다)"
   fi

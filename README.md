@@ -109,7 +109,10 @@ bash tools/sync_ext.sh       # 확장을 로컬 경로로 내보낸다
 bash tools/apply_patch.sh     # 윈도우 다운로드의 패치를 적용한다
 bash tools/smoke.sh           # 워커를 띄운 상태에서 계약을 실제로 때린다
 python3 tools/bench_golden.py # 골든셋 — 번역 품질 불변식
+bash tools/bench_engine.sh <모델>  # 엔진 후보 비교 — 로딩 제외 2회차가 체감
+bash tools/scan.sh            # 실정을 잰다 — 위생 대상의 근거
 bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 문서 · 테스트
+                              # FAIL 은 커밋을 막고 WARN 은 알리고 넘어간다
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
 python3 tools/sweep.py        # 위생 — 저장소 밖에 남긴 흔적
