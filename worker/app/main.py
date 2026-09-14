@@ -11,6 +11,7 @@
 import logging
 
 from fastapi import Body, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -32,6 +33,15 @@ app.add_middleware(
 
 def _respond(r: contract.Result) -> JSONResponse:
     return JSONResponse(r.body, status_code=r.status)
+
+
+# ★ **깨진 JSON 은 FastAPI 가 422 로 가로챈다.** 본문을 날것으로 받아도 파싱은
+#   프레임워크가 하므로 그 실패는 계약에 닿지 않는다. Lambda 쪽은 파싱 실패를
+#   `None` 으로 넘겨 400 이 되므로, 두면 **같은 입력에 두 답**이 나온다 — §68 이
+#   없애려던 바로 그것이다(DECISIONS §71).
+@app.exception_handler(RequestValidationError)
+def _bad_body(request: Request, exc: RequestValidationError) -> JSONResponse:
+    return _respond(contract.err(400, "bad_request", detail="invalid_json"))
 
 
 @app.get("/health")

@@ -141,7 +141,8 @@ FastAPI 배선만 들고, 배포본의 Lambda 핸들러도 같은 함수를 부�
 | 파일 | 아는 것 |
 |---|---|
 | `contract.py` | 검증 · 토큰 · 캐시/가드/엔진 호출 · 응답 형태 |
-| `main.py` | 미들웨어 · 경로 · `JSONResponse` |
+| `main.py` | 로컬. 미들웨어 · 경로 · `JSONResponse` |
+| `lambda_handler.py` | 배포본. Function URL 이벤트의 모양 |
 
 ★ **ASGI 어댑터를 쓰지 않는다.** Mangum 을 끼우면 Lambda 패키지에 FastAPI 와
 pydantic 이 들어가고 콜드스타트가 1초 넘게 붙는다. 첫 문항 5.2초에 얹히는
@@ -624,7 +625,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->172건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->194건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -926,7 +927,40 @@ bash tools/apply_patch.sh 이름.patch    # 특정 파일
 
 ---
 
-### 11-10. 엔진 전제
+### 11-10. Lambda 패키지
+
+```bash
+bash tools/package_lambda.sh      # dist/worker.zip
+```
+
+**의존성이 들어가지 않는다.** `app` 이 모듈 최상위에서 부르는 서드파티가 없고
+`boto3` · `botocore` 는 함수 안에서 늦게 불려 Lambda 런타임이 제공한다. 실측
+**18KB · 파일 8개**다.
+
+| | |
+|---|---|
+| 넣는 것 | `app/*.py` · `app/glossary/*.json` |
+| 빼는 것 | `main.py`(FastAPI 를 최상위에서 부른다) · `preflight.py`(개발 도구) |
+
+★ **넣지 않는 것과 넣고 안 쓰는 것은 다르다.** `main.py` 를 넣어도 import 되지
+않아 무해하지만, 넣어 두면 언젠가 누가 import 한다.
+
+★ **"의존성이 없다" 를 검사로 만든다.** 만든 zip 을 풀어 `fastapi` · `pydantic`
+· `starlette` · `uvicorn` import 를 막은 상태에서 핸들러를 실제로 부른다. 말로만
+적으면 언젠가 틀린다(DECISIONS §17 · §71).
+
+★ **zip 이 결정적이다.** 타임스탬프를 고정하고 순서를 정렬한다. 그러지 않으면
+내용이 같아도 해시가 매번 달라지고, terraform 이 `source_code_hash` 로 그것을
+보므로 **고친 것이 없어도 배포가 돈다**(DECISIONS §72).
+
+★ **`zip` · `unzip` 을 부르지 않는다.** 저장소는 이미 `python3` 에 의존하고
+`zipfile` 이 표준 라이브러리다. 외부 도구를 하나 더 요구하면 그것이 없는
+기계에서 배포가 막힌다.
+
+★ 넣는 것을 목록으로 고른다. `__pycache__` 가 섞이면 런타임이 바이트코드를
+쓸지 소스를 쓸지가 조용히 갈린다.
+
+### 11-11. 엔진 전제
 
 ```bash
 bash tools/preflight.sh                  # 현재 엔진

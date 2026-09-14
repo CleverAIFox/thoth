@@ -106,6 +106,7 @@ bash tools/sync_ext.sh       # 확장을 로컬 경로로 내보낸다
 확인할 수 있고, 엔드포인트와 토큰은 고급에 접혀 있다.
 
 ```bash
+bash tools/package_lambda.sh  # 배포 zip — 의존성 0 을 검사로 확인한다
 bash tools/preflight.sh       # 엔진 전제만 본다 — 띄우기 전에 죽는 편이 낫다
 bash tools/bedrock_survey.sh  # Bedrock 쪽 실정을 잰다. 아무것도 바꾸지 않는다
 bash tools/apply_patch.sh     # 윈도우 다운로드의 패치를 적용한다
