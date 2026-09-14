@@ -244,7 +244,7 @@ def test_프롬프트가_바뀌면_기준선이_stale_이어야_한다():
     base = _json.loads(
         (_pathlib.Path(bench.__file__).resolve().parents[1]
          / "docs/bench/baseline.json").read_text(encoding="utf-8"))
-    if base.get("prompt_fingerprint") != bench.prompt_fingerprint():
+    if base.get("prompt_fingerprint") != bench.prompt_fingerprint(base["config"]["batch"]):
         assert base.get("stale"), (
             "프롬프트·용어집이 기준선을 뜬 때와 다르다. 재측정하고 값을 채우거나 "
             "stale 로 표시한다")

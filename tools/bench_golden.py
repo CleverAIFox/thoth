@@ -62,7 +62,7 @@ def translate(url: str, texts: list[str], timeout: int) -> tuple[list[str], floa
     return data["translations"], time.monotonic() - t0
 
 
-def prompt_fingerprint() -> str:
+def prompt_fingerprint(batch: int | None = None) -> str:
     """번역 결과를 정하는 입력의 지문.
 
     ★ 기준선이 늙었는지를 사람이 기억해서 표시하게 두면, 표시하지 않은 날은
@@ -88,6 +88,12 @@ def prompt_fingerprint() -> str:
     # 조립 로직의 지문. 값이 아니라 형태를 본다.
     parts.append(glossary.as_prompt(
         {"record": "레코드", "catalog": "카탈로그", "data catalog": "Data Catalog"}))
+    # ★ **배치 크기도 결과를 정하는 입력이다.** 같은 프롬프트라도 몇 유닛을
+    #   묶느냐에 따라 위반이 U자를 그린다 — 1·2·3·6·9 에서 9·6·3·5·6 이다
+    #   (DECISIONS §51). 지문에 넣지 않으면 기준선이 다른 배치의 값인데도
+    #   `doctor` 가 통과한다(DECISIONS §57).
+    if batch is not None:
+        parts.append(f"batch={batch}")
     return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
@@ -343,7 +349,7 @@ def main() -> int:
     fail = [r for r in rows if r["bad"]]
     print(f"\n{'=' * 60}\n유닛 {len(rows)} · 통과 {len(rows) - len(fail)} · 위반 {len(fail)}")
     print(f"총 {elapsed:.1f}s · {chars}자 · {chars / max(elapsed, 1e-9):.0f}자/초")
-    print(f"프롬프트 지문 {prompt_fingerprint()}")
+    print(f"프롬프트 지문 {prompt_fingerprint(a.batch)}  (배치 {a.batch})")
     if warm is None:
         print("웜업 없음 — 이 처리율에는 모델 로딩이 섞여 있다")
     else:
@@ -384,7 +390,8 @@ def main() -> int:
         pathlib.Path(a.json).write_text(
             json.dumps({"units": len(rows), "fail": len(fail),
                         "seconds": round(elapsed, 1), "chars": chars,
-                        "prompt_fingerprint": prompt_fingerprint(),
+                        "prompt_fingerprint": prompt_fingerprint(a.batch),
+                        "batch": a.batch,
                         "env": envs,
                         "warmup": warm is not None,
                         "warmup_seconds": None if warm is None else round(warm, 1),
