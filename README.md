@@ -116,7 +116,8 @@ bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
 python3 tools/sweep.py        # 위생 — 저장소 밖에 남긴 흔적
-node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정
+node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑터 수집
+                              # 어댑터 검사에는 jsdom 이 필요하다 (cd extension && npm install)
 ```
 
 ---
@@ -152,7 +153,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정
 - 로컬 엔진은 문항당 80초다. 호스팅 전환 전까지 실용적이지 않다
 - `bedrock` 은 코드만 있고 실호출이 없다. 계정·모델 접근 승인 대기 중이다
 - 어댑터 검증이 얕다. 제네릭은 MDN 한 곳, 표준은 저장소 픽스처에서만 확인했다
-- 확장의 어댑터 수집에 자동 테스트가 없다. 팝업 판정만 검증된다
+- 어댑터 테스트는 수집 구조만 본다. 텍스트 추출의 정확도는 브라우저에서 본다
 - 남은 위반 4건은 일반 용어 표기다. 오정보가 아니라 용어집과 어긋난 표기다
 - 배포(Lambda · DynamoDB)와 분석 경로가 아직 구현되지 않았다
 

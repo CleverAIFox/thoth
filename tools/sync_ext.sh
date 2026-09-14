@@ -18,8 +18,11 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)/extension"
 
 [ -d "$SRC" ] || { echo "소스 없음 : $SRC" >&2; exit 1; }
 mkdir -p "$DEST"
-# ★ 테스트는 배포물이 아니다. 크롬에 실릴 필요가 없고, 실리면 웹스토어 심사에
-#   설명할 것만 는다.
-rsync -rlt --delete --no-perms --no-owner --no-group --exclude=tests/ "$SRC/" "$DEST/"
+# ★ 테스트와 그 의존성은 배포물이 아니다. 크롬에 실릴 필요가 없고, 실리면
+#   웹스토어 심사에 설명할 것만 는다. 확장 자체는 의존성이 없다 —
+#   `package.json` 은 테스트 전용이다.
+rsync -rlt --delete --no-perms --no-owner --no-group \
+  --exclude=tests/ --exclude=node_modules/ --exclude=package*.json \
+  "$SRC/" "$DEST/"
 
 echo "동기화 완료 -> $(echo "$DEST" | sed 's|/mnt/f|F:|; s|/|\\|g')"

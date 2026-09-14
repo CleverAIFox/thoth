@@ -17,11 +17,16 @@ globalThis.ST.adapters.push({
     const own = input.closest("label");
     if (own) return own;
     if (!input.id) return null;
-    // id 에 따옴표나 콜론이 들어간 페이지가 있다. 셀렉터로 넘기기 전에 감싼다.
+    // ★ id 에 따옴표나 콜론이 들어간 페이지가 있다. 셀렉터로 넘기기 전에
+    //   감싼다. `CSS.escape` 가 없는 환경이면 감싸지 않고 그대로 쓴다 —
+    //   `try` 가 둘을 함께 삼키면 "셀렉터가 이상하다" 와 "환경이 없다" 를
+    //   구분하지 못하고 조용히 null 이 된다(DECISIONS §47).
+    const id = (typeof CSS !== "undefined" && CSS.escape)
+      ? CSS.escape(input.id) : input.id;
     try {
-      return root.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+      return root.querySelector(`label[for="${id}"]`);
     } catch {
-      return null;
+      return null;          // 셀렉터로 쓸 수 없는 id
     }
   },
 

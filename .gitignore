@@ -8,3 +8,4 @@ __pycache__/
 dist/
 *.zip
 .cache/
+node_modules/

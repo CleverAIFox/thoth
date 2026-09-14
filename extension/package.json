@@ -1,0 +1,12 @@
+{
+  "name": "thoth-extension-tests",
+  "private": true,
+  "type": "module",
+  "description": "확장 테스트 전용. 확장 자체는 의존성이 없고 번들도 하지 않는다.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.0"
+  }
+}

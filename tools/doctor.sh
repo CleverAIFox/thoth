@@ -286,10 +286,19 @@ EOF
 # 확장의 동적 테스트. 정적 검사(문법 · 최상위 선언 · manifest)는 저장 로직이
 # 맞는지 보지 못한다. 판정을 순수 함수로 떼어 그 부분만이라도 기계가 본다.
 if command -v node >/dev/null 2>&1; then
-  if node --test "extension/tests/*.test.js" >/dev/null 2>&1; then
-    ok "확장 테스트 통과"
-  else
+  EXT_OUT="$(node --test "extension/tests/*.test.js" 2>&1)"
+  if [ $? -ne 0 ]; then
     no "확장 테스트 실패 (node --test \"extension/tests/*.test.js\")"
+  else
+    # ★ **건너뛴 테스트를 통과로 세지 않는다.** jsdom 이 없으면 어댑터 검사가
+    #   전부 skip 되는데, 그 상태로 "통과" 라고 적으면 수집이 깨져도 모른다.
+    #   못 잰 것과 깨끗한 것은 다르다(DECISIONS §41 ㉢ · §47).
+    EXT_SKIP="$(printf '%s' "$EXT_OUT" | sed -n 's/^# skipped \([0-9]*\)$/\1/p')"
+    if [ "${EXT_SKIP:-0}" -gt 0 ]; then
+      warn "확장 테스트 ${EXT_SKIP}건 건너뜀 (cd extension && npm install)"
+    else
+      ok "확장 테스트 통과"
+    fi
   fi
 else
   skip "node 가 없어 확장 테스트를 돌리지 못한다"
