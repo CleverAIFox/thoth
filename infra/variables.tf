@@ -54,11 +54,18 @@ variable "max_text_len" {
 
 variable "reserved_concurrency" {
   description = <<-EOT
-    동시 실행 상한(PLAN §2-3 #19). **고정하지 않으면 폭주가 상한까지 간다** —
-    월 문자 상한이 비용을 막지만 그 사이 동시 호출이 Bedrock 쓰로틀을 부른다.
+    동시 실행 상한. `-1` 이면 고정하지 않는다.
+
+    ★ **신규 계정은 총 동시성이 10 이다**(1000 이 아니다). 5 를 예약하면 미예약분이
+      최소값 10 아래로 떨어져 `InvalidParameterValueException` 이 난다. 이 계정에서
+      예약은 한도를 올린 뒤에야 가능하다(DECISIONS §75).
+
+    ★ **그래서 지금은 예약하지 않아도 폭발 반경이 좁다.** 계정 전체가 10 이므로
+      이 함수가 태울 수 있는 동시 실행도 10 이 천장이다. 한도를 올리는 순간
+      그 천장이 사라지므로, 그때 이 값을 함께 올린다.
   EOT
   type        = number
-  default     = 5
+  default     = -1
 }
 
 variable "log_retention_days" {

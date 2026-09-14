@@ -166,6 +166,29 @@ def test_라우트와_람다가_같은_답을_낸다(raw):
     assert a.get("detail") == b.get("detail")
 
 
+@pytest.mark.parametrize("raw", [
+    '{"texts":["hello world"]}',
+    '{"texts":[]}',
+    '{"nope":1}',
+])
+def test_직렬화_형태까지_같다(raw):
+    """★ **파싱해서 비교하면 형태 차이를 못 본다.** `body_of()` 로만 대조하던
+    검사가 `{"a": 1}` 과 `{"a":1}` 을 같다고 했고, 문자열로 보는 `smoke.sh` 가
+    배포본에서 실패했다. 바이트를 직접 본다(DECISIONS §76).
+    """
+    cache._mem.clear(); guard._mem.clear()
+    lam = lh.handler(ev("POST", "/translate", raw))["body"]
+    cache._mem.clear(); guard._mem.clear()
+    http = client.post("/translate", content=raw,
+                       headers={"Content-Type": "application/json"}).text
+    assert lam == http
+
+
+def test_응답에_불필요한_공백이_없다():
+    body = lh.handler(ev("GET", "/health"))["body"]
+    assert '", "' not in body and '": "' not in body
+
+
 def test_health_도_같은_답을_낸다():
     lam = body_of(lh.handler(ev("GET", "/health")))
     http = client.get("/health").json()

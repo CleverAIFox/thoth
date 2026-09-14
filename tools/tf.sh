@@ -30,7 +30,11 @@ if [ -n "${AWS_PROFILE:-}" ] && command -v aws >/dev/null 2>&1; then
   #   여기서 단정하면 틀린 원인이 나간다(DECISIONS §37).
   if CREDS="$(aws configure export-credentials --profile "$AWS_PROFILE" \
                 --format env-no-export 2>/dev/null)"; then
-    echo "자격증명 : 프로파일 $AWS_PROFILE 을 풀어 넘긴다"
+    # ★ **stdout 에 쓰지 않는다.** `$(bash tools/tf.sh output -raw worker_url)`
+    #   이 이 줄까지 삼켜 URL 이 오염됐다. 사람에게 하는 말과 도구가 읽는 값을
+    #   같은 통로로 내보내면, 그 도구를 스크립트가 부르는 순간 깨진다
+    #   (DECISIONS §75).
+    echo "자격증명 : 프로파일 $AWS_PROFILE 을 풀어 넘긴다" >&2
     while IFS='=' read -r k v; do
       [ -n "$k" ] && export "$k=$v"
     done <<< "$CREDS"

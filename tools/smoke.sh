@@ -7,6 +7,7 @@ URL="${WORKER_URL:-http://127.0.0.1:8000}"
 FAIL=0
 ok(){ printf '  \033[32mOK\033[0m   %s\n' "$1"; }
 no(){ printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; }
+skip(){ printf '  \033[33mSKIP\033[0m %s\n' "$1"; }
 
 # 토큰이 비면 헤더를 붙이지 않는다. 워커의 기본값과 같은 경로를 탄다.
 AUTH=()
@@ -35,19 +36,52 @@ case "$CODE" in
   *)   echo "워커가 $CODE 를 돌려줬다 — 살아 있다. 로그를 본다"; exit 1 ;;
 esac
 
+# ★ **JSON 을 문자열로 보지 않는다.** `grep '"status":"ok"'` 는 직렬화 형태에
+#   기댄다. 배포본은 공백을 넣고 로컬은 넣지 않아, 같은 값인데 검사가 갈렸다.
+#   **검사가 표현에 기대면 그 표현을 바꾸는 순간 거짓말을 한다**(DECISIONS §76).
+field(){ python3 -c '
+import json, sys
+try:
+    d = json.loads(sys.stdin.read())
+except ValueError:
+    sys.exit(2)
+v = d
+for k in sys.argv[1].split("."):
+    if not isinstance(v, dict) or k not in v:
+        sys.exit(1)
+    v = v[k]
+print(json.dumps(v, ensure_ascii=False))
+' "$1"; }
+
 echo "== /health =="
 H="$(curl -s "${AUTH[@]}" "$URL/health")"
 echo "  $H"
-echo "$H" | grep -q '"status":"ok"' && ok "degraded 아님" || no "status 가 ok 가 아니다"
-echo "$H" | grep -q 'chars_used' && ok "카운터 조회됨" || no "카운터를 못 읽는다"
+[ "$(printf '%s' "$H" | field status)" = '"ok"' ] \
+  && ok "degraded 아님" || no "status 가 ok 가 아니다 (받은 값: $(printf '%s' "$H" | field status))"
+printf '%s' "$H" | field chars_used >/dev/null \
+  && ok "카운터 조회됨" || no "카운터를 못 읽는다"
 
 echo "== 계약 =="
-[ "$(req '{"texts":["hello world"],"target":"ko"}')" = 200 ] \
-  && ok "정상 200" || no "정상 요청 실패: $(cat /tmp/smoke.body)"
-grep -q '"cached":\[false\]' /tmp/smoke.body && ok "첫 호출은 미스" || no "cached 가 이상하다"
 
-req '{"texts":["hello world"],"target":"ko"}' >/dev/null
-grep -q '"cached":\[true\]' /tmp/smoke.body && ok "두번째는 히트" || no "캐시가 안 산다"
+# ★ **매 실행 다른 문장을 쓴다.** 고정 문장이면 두 번째 실행부터 캐시 히트라
+#   `첫 호출은 미스` 가 영영 실패한다. 로컬에서는 워커를 새로 띄울 때마다 캐시가
+#   비어 보이지 않았고, **배포본에서 캐시가 영속이 되자 바로 드러났다.**
+#   `warmup()` 이 같은 이유로 이미 그렇게 한다(DECISIONS §21 · §77).
+#
+# ★ **과금 엔진에서는 실행마다 실제 번역이 한 번 일어난다.** 수십 자라 무시할
+#   크기이나 공짜는 아니고, 그 문장은 캐시에 남는다. 미스→히트 전이는 캐시
+#   계약의 핵심이라 그 값을 치를 만하다.
+UNIQ="thoth smoke probe $(date +%s%N)"
+PROBE="$(python3 -c 'import json,sys; print(json.dumps({"texts":[sys.argv[1]],"target":"ko"}))' "$UNIQ")"
+
+[ "$(req "$PROBE")" = 200 ] \
+  && ok "정상 200" || no "정상 요청 실패: $(cat /tmp/smoke.body)"
+[ "$(field cached < /tmp/smoke.body)" = "[false]" ] \
+  && ok "첫 호출은 미스" || no "cached 가 [false] 가 아니다 (받은 값: $(field cached < /tmp/smoke.body))"
+
+req "$PROBE" >/dev/null
+[ "$(field cached < /tmp/smoke.body)" = "[true]" ] \
+  && ok "두번째는 히트" || no "캐시가 [true] 가 아니다 (받은 값: $(field cached < /tmp/smoke.body))"
 
 want 400 "미지원 target" '{"texts":["hello"],"target":"ja"}'
 # ★ **422 가 아니라 400 이다.** 검증을 pydantic 에서 계약으로 옮기면서 바뀌었다.
@@ -82,10 +116,23 @@ else
 fi
 
 echo "== 캐시 · 카운터 영속 =="
-for f in "${CACHE_FILE:-.cache/translations.json}" "${QUOTA_FILE:-.cache/quota.json}"; do
-  P="worker/$f"
-  [ -s "$P" ] && ok "$P ($(wc -c <"$P") 바이트)" || no "$P 가 없거나 비었다"
-done
+# ★ **원격을 때릴 때 로컬 파일을 보지 않는다.** 배포본은 DynamoDB 를 쓰는데
+#   이 검사가 로컬 `.cache/` 를 보고 `OK` 를 냈다. 거기 있던 것은 예전 로컬
+#   실행의 잔재였다 — **못 잰 것을 통과로 센 것**이다(DECISIONS §59 · §76).
+#
+# ★ 원격의 영속은 위의 `두번째는 히트` 가 이미 본다. 같은 문장을 두 번 보내
+#   `cached` 가 참이면 저장소가 사는 것이다.
+case "$URL" in
+  http://127.0.0.1*|http://localhost*)
+    for f in "${CACHE_FILE:-.cache/translations.json}" "${QUOTA_FILE:-.cache/quota.json}"; do
+      P="worker/$f"
+      [ -s "$P" ] && ok "$P ($(wc -c <"$P") 바이트)" || no "$P 가 없거나 비었다"
+    done
+    ;;
+  *)
+    skip "원격 워커다 — 로컬 캐시 파일을 보지 않는다 (위 '두번째는 히트' 가 본다)"
+    ;;
+esac
 
 echo
 [ "$FAIL" = 0 ] && echo "이상 없음" || echo "위 FAIL 을 확인한다"

@@ -40,33 +40,27 @@
 
 ## 0. 다음 한 수
 
-**`terraform apply` 를 한 번 돌린다.** `infra/` 가 섰고 패키지도 결정적으로
-나온다. 남은 것은 실제로 세워 보는 일이며, 그때까지 이 계층은 코드만 있고
-실행된 적이 없다(DECISIONS §17).
+**#22 확장을 배포본에 붙인다.** 배포가 끝났다(2026-09-14) — Lambda · Function
+URL · DynamoDB · IAM 이 서 있고 `smoke.sh` 가 배포본을 때려 전부 통과한다.
+**그런데 확장은 아직 로컬 워커를 본다.** 붙이는 순간 처음으로 남이 쓸 수 있는
+물건이 된다.
 
 새 세션이 할 일을 순서대로 적는다.
 
-1. `aws login --profile fox` — 세션이 만료돼 있을 수 있다
-2. `bash tools/package_lambda.sh` — zip 이 먼저다. 없으면 `plan` 에서 멈춘다
-3. `cp infra/terraform.tfvars.example infra/terraform.tfvars` 후 토큰을 채운다
-4. `terraform -chdir=infra init`
-5. `terraform -chdir=infra apply`
-6. `WORKER_URL=<출력> WORKER_TOKEN=<토큰> bash tools/smoke.sh`
+1. `bash tools/tf.sh output -raw worker_url` — 엔드포인트
+2. `grep worker_token infra/terraform.tfvars` — 토큰
+3. `bash tools/sync_ext.sh` 후 확장 팝업 → 고급 → 엔드포인트와 토큰을 넣는다
+4. 실사이트에서 번역이 붙는지 본다
 
-- **6 이 이 배포의 검증이다.** 도구를 새로 만들지 않는다 — `smoke.sh` 가 이미
-  `WORKER_URL` 을 받는다
-- 크로스리전 추론 프로파일의 IAM 이 제일 틀리기 쉽다. `AccessDeniedException`
-  이 나면 프로파일 ARN 과 기반 모델 ARN 중 한쪽이 빠진 것이다
-- Lambda 런타임의 `boto3` 가 Converse 를 아는지는 **실호출로만 안다.** 모르면
-  `/translate` 가 502 로 떨어지고, 그때 zip 에 boto3 를 넣는 판단을 한다
-- **크레딧 만료가 일정 위험이다**(§6 첫 행). 배포를 미루면 데모 URL 을 세울
-  창이 닫힌다. 기술 난이도가 아니라 시점 문제다
-- 세워지면 #20 · #21 · #22 가 열리고, 그 뒤에야 #24 비용 실측이 가능하다
+- **여기서 처음 확인되는 것이 둘이다.** Function URL 의 CORS 가 확장의
+  프리플라이트를 실제로 받아 주는가, 그리고 콜드스타트가 체감에 어떻게 닿는가
+- 기본 엔드포인트를 배포본으로 바꿀지는 그다음 판단이다. 바꾸면 확장을 받은
+  사람이 설정 없이 쓰고, 그만큼 상한을 남이 태우기 쉬워진다(MASTER §12)
+- **UI 는 아직 손대지 않았다.** 동작 수준이며 한국어 길이 팽창은 실사이트
+  두 곳에서만 봤다(§6)
 
-**#45 도 열려 있다.** 호스팅의 `MAX_BATCH` 를 다시 재는 일이며 배포의 전건은
-아니다. 로컬 최적점 3 은 ollama 가 직렬 처리해서 나온 값이고, 호스팅은 왕복이
-곧 비용이라 반대로 갈 수 있다. 기준선의 `engines.bedrock.batch` 가 3 으로
-박혀 있으므로 재면 그 자리를 고친다.
+**#20 · #21 은 자동화이지 제품이 아니다.** 지금은 손으로 `apply` 하면 되고,
+태그 배포는 공개(#29) 전에 갖추면 된다.
 
 ★ 이 절은 새 세션이 문맥 없이 시작할 때 읽는 자리다. 한 수가 정해지면
 갱신하고, 해결되면 지운다.

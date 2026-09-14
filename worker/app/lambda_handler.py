@@ -60,11 +60,20 @@ def _body(event: dict) -> object:
         return UNPARSEABLE
 
 
+# ★ **직렬화 형태를 로컬과 맞춘다.** `json.dumps` 기본값은 `", "` 와 `": "` 로
+#   공백을 넣는데 FastAPI 는 넣지 않는다. 파싱하면 같은 값이지만 **바이트가
+#   다르고**, 문자열로 보는 검사(`smoke.sh`)가 로컬에서는 통과하고 배포본에서는
+#   실패했다. §68 이 약속한 "같은 답" 은 형태까지다(DECISIONS §76).
+#
+# ★ 덤으로 응답이 조금 짧아진다. Function URL 은 응답 크기로도 과금된다.
+_SEP = (",", ":")
+
+
 def _respond(result: contract.Result) -> dict:
     return {
         "statusCode": result.status,
         "headers": {"content-type": "application/json"},
-        "body": json.dumps(result.body, ensure_ascii=False),
+        "body": json.dumps(result.body, ensure_ascii=False, separators=_SEP),
     }
 
 
