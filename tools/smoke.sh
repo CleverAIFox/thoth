@@ -16,6 +16,15 @@ req(){ curl -s -o /tmp/smoke.body -w '%{http_code}' -X POST "$URL/translate" \
        -H 'Content-Type: application/json' -H 'Origin: https://www.udemy.com' \
        "${AUTH[@]}" -d "$1"; }
 
+# ★ **받은 값을 메시지에 싣는다.** 전에는 `[ "$(req ...)" = 422 ]` 가 실패하면
+#   "빈 배열이 통과한다" 가 나갔다. 실제로는 400 으로 막혔고 통과한 적이 없다 —
+#   기대값이 늙었을 뿐인데 메시지는 계약이 깨졌다고 말한다. 틀린 원인을 단정하는
+#   메시지는 침묵보다 나쁘다(DECISIONS §37 · §70).
+want(){ local expect="$1" label="$2" body="$3" got
+        got="$(req "$body")"
+        [ "$got" = "$expect" ] && ok "$label $expect" \
+          || no "$label — $expect 를 기대했는데 $got 이다: $(head -c 120 /tmp/smoke.body)"; }
+
 # ★ `curl -sf` 는 연결 거부와 HTTP 오류를 함께 잡는다. 워커가 500 을 돌려줘도
 #   "안 떠 있다" 가 나가고, 시킨 대로 다시 띄우면 같은 500 이 난다
 #   (DECISIONS §37 · §52).
@@ -40,12 +49,14 @@ grep -q '"cached":\[false\]' /tmp/smoke.body && ok "첫 호출은 미스" || no 
 req '{"texts":["hello world"],"target":"ko"}' >/dev/null
 grep -q '"cached":\[true\]' /tmp/smoke.body && ok "두번째는 히트" || no "캐시가 안 산다"
 
-[ "$(req '{"texts":["hello"],"target":"ja"}')" = 400 ] \
-  && ok "미지원 target 400" || no "target 검증이 없다"
-[ "$(req '{"texts":[],"target":"ko"}')" = 422 ] \
-  && ok "빈 배열 422" || no "빈 배열이 통과한다"
-[ "$(req "{\"texts\":[\"$(head -c 6000 /dev/zero | tr '\0' 'x')\"],\"target\":\"ko\"}")" = 413 ] \
-  && ok "길이 초과 413" || no "MAX_TEXT_LEN 이 안 걸린다"
+want 400 "미지원 target" '{"texts":["hello"],"target":"ja"}'
+# ★ **422 가 아니라 400 이다.** 검증을 pydantic 에서 계약으로 옮기면서 바뀌었다.
+#   맡겨 두면 같은 입력이 로컬에서는 422, Lambda 에서는 다른 코드가 된다
+#   (DECISIONS §68).
+want 400 "빈 배열" '{"texts":[],"target":"ko"}'
+want 400 "본문에 texts 가 없음" '{"nope":1}'
+want 400 "texts 가 문자열 아님" '{"texts":[1,2],"target":"ko"}'
+want 413 "길이 초과" "{\"texts\":[\"$(head -c 6000 /dev/zero | tr '\0' 'x')\"],\"target\":\"ko\"}"
 
 echo "== CORS =="
 # 예외가 미들웨어를 건너뛰면 브라우저는 원인을 CORS 로 오인한다(DECISIONS §2·§10).
