@@ -637,6 +637,14 @@ python3 tools/bench_golden.py --json out.json
 용어 밀도가 실제 워크로드와 같아야 하며, 맞출 값은
 `worker/tests/golden/README.md` 에 있다.
 
+★ **배치별 비교는 `bench_batch.sh` 로 한다.** 여유 메모리 · ollama 기동 ·
+캐시 순서 · 판 중 스왑을 코드가 본다. 조건을 사람이 기억해서 확인하면 잊는
+날이 오고, 그 날 잰 값은 다른 작업을 잰 것이다(DECISIONS §50).
+
+★ **위반과 속도는 조건이 다르다.** 위반은 `temperature 0` 이라 배치가 같으면
+결정적이고 메모리와 무관하다. 속도만 조건을 타므로 한 판에서 위반은 쓰고
+속도는 버릴 수 있다.
+
 ★ 기준선은 `docs/bench/baseline.json` 이다. 엔진을 바꿀 때 같은 러너로 재고
 그 값과 비교한다(PLAN §0).
 
