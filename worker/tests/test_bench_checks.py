@@ -87,7 +87,7 @@ def test_웜업_문장은_매번_다르다(monkeypatch):
 
     def fake(url, texts, timeout):
         seen.append(texts[0])
-        return ["번역", 1.0]
+        return ["번역"], 1.0, [False]
 
     monkeypatch.setattr(bench, "translate", fake)
     for _ in range(5):
@@ -107,14 +107,15 @@ def test_웜업은_골든셋_문장을_쓰지_않는다(monkeypatch):
 
     seen = []
     monkeypatch.setattr(bench, "translate",
-                        lambda url, texts, timeout: (seen.append(texts[0]), (["ko"], 1.0))[1])
+                        lambda url, texts, timeout: (seen.append(texts[0]),
+                                                     (["ko"], 1.0, [False]))[1])
     bench.warmup("http://x", 10)
     assert seen[0] not in golden
 
 
 def test_웜업은_잰_시간을_돌려준다(monkeypatch):
     monkeypatch.setattr(bench, "translate",
-                        lambda url, texts, timeout: (["ko"], 42.5))
+                        lambda url, texts, timeout: (["ko"], 42.5, [False]))
     assert bench.warmup("http://x", 10) == 42.5
 
 
@@ -244,10 +245,11 @@ def test_프롬프트가_바뀌면_기준선이_stale_이어야_한다():
     base = _json.loads(
         (_pathlib.Path(bench.__file__).resolve().parents[1]
          / "docs/bench/baseline.json").read_text(encoding="utf-8"))
-    if base.get("prompt_fingerprint") != bench.prompt_fingerprint(base["config"]["batch"]):
-        assert base.get("stale"), (
-            "프롬프트·용어집이 기준선을 뜬 때와 다르다. 재측정하고 값을 채우거나 "
-            "stale 로 표시한다")
+    for name, blk in base["engines"].items():
+        if blk.get("prompt_fingerprint") != bench.prompt_fingerprint(blk["batch"]):
+            assert blk.get("stale") or base.get("stale"), (
+                f"engines.{name} 의 프롬프트·용어집이 기준선을 뜬 때와 다르다. "
+                "재측정하고 값을 채우거나 stale 로 표시한다")
 
 
 def test_지문은_모델이_보는_것만_담는다(monkeypatch):
@@ -363,9 +365,9 @@ def test_컨텍스트도_함께_남긴다(monkeypatch):
 def test_기준선의_배치_조건을_읽는다():
     # 러너가 이번 실행의 배치를 기준선과 대조한다. 조건이 없으면 빈 문자열이고
     # 그때는 대조하지 않는다 — 없는 것을 틀렸다고 보고하면 안 된다.
-    cond = bench.baseline_condition()
-    assert isinstance(cond, str)
-    assert "GPU" in cond
+    assert "GPU" in bench.baseline_condition("local")
+    # ★ 호스팅 엔진에는 그 축이 없다. 없는 것을 틀렸다고 보고하면 안 된다.
+    assert bench.baseline_condition("bedrock") == ""
 
 
 # ---------- 실패 안내 ----------
@@ -483,17 +485,44 @@ def test_부분_응답은_여전히_멈춘다(monkeypatch):
         bench.translate("http://x/translate", ["a"], 5)
 
 
-def test_배치_기본값을_기준선에서_읽는다():
+def test_배치_기본값을_엔진별_기준선에서_읽는다():
     import json as _json
-    b = bench.baseline_batch()
-    said = _json.loads((bench.ROOT / "docs/bench/baseline.json")
-                       .read_text(encoding="utf-8"))["config"]["batch"]
-    assert b == said, "러너 기본값과 기준선이 갈리면 --batch 를 빠뜨린 실행이 다른 조건에서 잰다"
+    d = _json.loads((bench.ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+    for name, blk in d["engines"].items():
+        assert bench.baseline_batch(name) == blk["batch"], \
+            "러너 기본값과 기준선이 갈리면 --batch 를 빠뜨린 실행이 다른 조건에서 잰다"
 
 
 def test_기준선을_못_읽으면_None(monkeypatch, tmp_path):
     monkeypatch.setattr(bench, "ROOT", tmp_path)
-    assert bench.baseline_batch() is None
+    assert bench.baseline_batch("local") is None
+
+
+def test_모르는_엔진은_None(monkeypatch):
+    # ★ 조용히 다른 엔진 값으로 떨어지면 안 된다. 없으면 없다고 해야 --batch 를 요구한다.
+    assert bench.baseline_batch("없는엔진") is None
+
+
+def test_기준선이_엔진마다_지문과_배치를_갖는다():
+    import json as _json
+    d = _json.loads((bench.ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+    assert d["engines"], "engines 블록이 비었다"
+    for name, blk in d["engines"].items():
+        for k in ("batch", "prompt_fingerprint", "speed", "violations", "model"):
+            assert k in blk, f"engines.{name} 에 {k} 가 없다"
+
+
+def test_말뭉치는_엔진_블록_밖에_있다():
+    import json as _json
+    d = _json.loads((bench.ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+    assert "golden" in d and "units" in d["golden"]
+    for name, blk in d["engines"].items():
+        assert "golden" not in blk, f"engines.{name} 이 말뭉치를 따로 들고 있다"
+
+
+def test_로컬_엔진만_로컬_환경을_잰다():
+    assert "local" in bench.LOCAL_ENGINES
+    assert "bedrock" not in bench.LOCAL_ENGINES
 
 
 def test_엔진을_못_물으면_빈_문자열(monkeypatch):
@@ -506,3 +535,17 @@ def test_엔진을_못_물으면_빈_문자열(monkeypatch):
 def test_엔진을_health_에서_읽는다(monkeypatch):
     _patch_urlopen(monkeypatch, {"engine": "bedrock"})
     assert bench.worker_engine("http://x/translate", 5) == "bedrock"
+
+
+def test_흉내가_실제_translate_와_같은_모양을_돌려준다():
+    """★ `warmup` 이 3-튜플로 바뀌었는데 테스트의 흉내는 2-튜플 그대로였다.
+
+    그래서 실제 코드가 깨진 채로 테스트가 통과했고, CI 의 골든셋 스텝이 러너를
+    끝까지 돌리고 나서야 잡혔다. 흉내가 계약을 따라가지 않으면 검사가 검사를
+    하지 않는다(DECISIONS §48 · §65).
+    """
+    import inspect
+    src = inspect.getsource(bench.translate)
+    assert "return data[\"translations\"], time.monotonic() - t0, cached" in src
+    # warmup 이 그 모양을 그대로 받는지
+    assert "_, dt, _cached = translate(" in inspect.getsource(bench.warmup)

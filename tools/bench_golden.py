@@ -124,7 +124,7 @@ def warmup(url: str, timeout: int) -> float:
     nonce = uuid.uuid4().hex
     text = (f"Warm up the inference engine before measurement. "
             f"This sentence is not part of the golden set. Nonce {nonce}.")
-    _, dt = translate(url, [text], timeout)
+    _, dt, _cached = translate(url, [text], timeout)
     return dt
 
 
@@ -169,29 +169,52 @@ def worker_engine(url: str, timeout: int) -> str:
         return ""
 
 
-def baseline_batch() -> int | None:
-    """기준선이 어느 배치에서 나온 값인지.
+# ★ **로컬 전용 축을 호스팅 실행에 적지 않는다.** CPU/GPU 배치 · VRAM · 스왑은
+#   ollama 가 이 기계에서 돌 때만 뜻이 있다. 스왑 6400MB 와 123MB 인 두 판이
+#   0.2% 안쪽으로 같았으므로, 호스팅에서 그 수치를 기록하면 읽는 사람이 없는
+#   상관을 찾는다(DECISIONS §65).
+LOCAL_ENGINES = {"local"}
+
+
+def baseline() -> dict:
+    """기준선 전체. 읽지 못하면 빈 dict."""
+    try:
+        return json.loads((ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def baseline_engine(engine: str) -> dict:
+    """엔진 하나의 기준선.
+
+    ★ **엔진마다 파일을 나누지 않는다.** 비교가 목적인 정본이 갈라지면 대조할 때
+      둘을 열어야 한다. 한 파일에 엔진 키를 두고 그 안에 배치 · 지문 · 속도 ·
+      위반을 담는다(DECISIONS §65).
+    """
+    return (baseline().get("engines", {}) or {}).get(engine, {}) or {}
+
+
+def baseline_batch(engine: str) -> int | None:
+    """이 엔진의 기준선 배치.
 
     ★ **기본값을 기준선에서 읽는다.** 전에는 러너 기본이 9 이고 기준선은 3
       이었다. §51 에서 기본 배치를 3 으로 바꾸고 §57 에서 기준선을 갈아 넣으면서
       러너의 기본값만 남았고, `--batch` 를 빠뜨린 실행이 조용히 다른 조건에서
       쟀다. 같은 숫자를 두 곳에 두면 한쪽만 늙는다(DECISIONS §57 · §64).
+
+    ★ **엔진마다 다르다.** `#45` 가 호스팅의 최적 배치를 다시 재면 그 값은 이
+      엔진 블록에만 들어간다.
     """
+    b = baseline_engine(engine).get("batch")
     try:
-        d = json.loads((ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
-        b = d.get("config", {}).get("batch")
         return int(b) if b else None
-    except (OSError, ValueError, TypeError):
+    except (ValueError, TypeError):
         return None
 
 
-def baseline_condition() -> str:
-    """기준선이 어느 배치에서 나온 값인지. 없으면 빈 문자열."""
-    try:
-        d = json.loads((ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
-        return d.get("violations", {}).get("condition", "")
-    except (OSError, ValueError):
-        return ""
+def baseline_condition(engine: str) -> str:
+    """이 엔진의 기준선이 어느 하드웨어 배치에서 나온 값인지. 없으면 빈 문자열."""
+    return baseline_engine(engine).get("violations", {}).get("condition", "")
 
 
 def env_snapshot() -> dict:
@@ -341,16 +364,15 @@ def main() -> int:
                     help="웜업을 건너뛴다. 콜드 로딩 비용을 재려는 경우에만 쓴다")
     a = ap.parse_args()
 
-    if a.batch is None:
-        a.batch = baseline_batch()
-        if a.batch is None:
-            print("기준선에서 배치를 읽지 못했다 — --batch 를 직접 준다")
-            return 1
-        print(f"  배치 {a.batch} (기준선에서 읽었다)")
-
     eng = worker_engine(a.url, a.timeout)
-    if eng:
-        print(f"  엔진 {eng}")
+    print(f"  엔진 {eng or '(모름 — /health 에 닿지 못했다)'}")
+
+    if a.batch is None:
+        a.batch = baseline_batch(eng)
+        if a.batch is None:
+            print(f"기준선에 engines.{eng or '?'}.batch 가 없다 — --batch 를 직접 준다")
+            return 1
+        print(f"  배치 {a.batch} (기준선의 {eng} 값)")
 
     book = load_terms()
     cases = json.loads(CASES.read_text(encoding="utf-8"))
@@ -385,7 +407,8 @@ def main() -> int:
             chars += len(u["text"])
             rows.append({"id": u["id"], "kind": u["kind"], "ko": ko,
                          "bad": check(u, ko, book)})
-        env = env_snapshot()
+        # ★ 호스팅 엔진에서는 로컬 환경을 재지 않는다. 재면 없는 상관을 찾게 된다.
+        env = env_snapshot() if eng in LOCAL_ENGINES else {}
         envs.append(env)
         tail = ""
         if env.get("offloaded"):
@@ -427,18 +450,30 @@ def main() -> int:
         print("       캐시를 비우거나 이번 실행만 다른 파일로 보낸다 :")
         print("       ENGINE=<엔진> CACHE_FILE=/tmp/bench-cache.json bash tools/run_worker.sh")
 
-    procs = {e["processor"] for e in envs if e.get("processor")}
-    if len(procs) > 1:
-        print(f"\n경고 : 실행 중에 배치가 바뀌었다 — {' · '.join(sorted(procs))}")
-        print("       한 실행 안에서 조건이 달라졌으므로 이 값은 쓸 수 없다.")
-    elif procs:
-        only = procs.pop()
-        base = baseline_condition()
-        if base and base != only:
-            print(f"\n경고 : 배치가 기준선과 다르다 — 이번 {only} · 기준선 {base}")
-            print("       속도도 위반 수도 이 값으로 기준선을 갱신하지 않는다.")
-        else:
-            print(f"\n배치 {only} · 기준선과 같다")
+    # ★ **지문을 찍어만 두고 대조하지 않고 있었다.** §57 이 지문에 배치를 넣은
+    #   이유가 기준선과 갈리는 것을 잡기 위해서인데, 러너는 출력만 하고 아무와도
+    #   비교하지 않았다. 정본이 있는데 대조를 안 하면 정본이 아니다.
+    base_fp = baseline_engine(eng).get("prompt_fingerprint", "")
+    now_fp = prompt_fingerprint(a.batch)
+    if base_fp and base_fp != now_fp:
+        print(f"\n경고 : 프롬프트 지문이 기준선과 다르다 — 이번 {now_fp} · 기준선 {base_fp}")
+        print("       프롬프트 · 용어집 · 배치 중 하나가 바뀌었다. 같은 조건이 아니다.")
+
+    if eng not in LOCAL_ENGINES:
+        print(f"\n엔진 {eng or '?'} — 로컬 환경(CPU/GPU 배치 · VRAM · 스왑)을 재지 않았다")
+    else:
+        procs = {e["processor"] for e in envs if e.get("processor")}
+        if len(procs) > 1:
+            print(f"\n경고 : 실행 중에 배치가 바뀌었다 — {' · '.join(sorted(procs))}")
+            print("       한 실행 안에서 조건이 달라졌으므로 이 값은 쓸 수 없다.")
+        elif procs:
+            only = procs.pop()
+            base = baseline_condition(eng)
+            if base and base != only:
+                print(f"\n경고 : 배치가 기준선과 다르다 — 이번 {only} · 기준선 {base}")
+                print("       속도도 위반 수도 이 값으로 기준선을 갱신하지 않는다.")
+            else:
+                print(f"\n배치 {only} · 기준선과 같다")
 
     tally: dict[str, int] = {}
     for r in fail:
@@ -463,7 +498,8 @@ def main() -> int:
                         "cache_hits": hits,
                         "valid": hits == 0,
                         "seconds": round(elapsed, 1), "chars": chars,
-                        "prompt_fingerprint": prompt_fingerprint(a.batch),
+                        "prompt_fingerprint": now_fp,
+                        "baseline_fingerprint": base_fp,
                         "batch": a.batch,
                         "env": envs,
                         "warmup": warm is not None,

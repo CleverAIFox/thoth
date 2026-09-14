@@ -77,9 +77,24 @@ jobs:
       # ★ 러너는 300줄이 넘고 하루에 세 번 고쳐졌다(웜업 · 지문 · 환경 기록).
       #   케이스 파싱 · 배치 분할 · 워커 왕복 · 검사 실행이 한 번에 도는지는
       #   단위 테스트가 보지 못하는 자리다.
+      # ★ **`|| true` 를 걷어냈다.** 러너의 종료 코드를 전부 삼켜서, 2026-09-14
+      #   에 러너가 `warmup` 에서 터졌을 때 다음 줄의 JSON 파싱이 "파일이 없다"
+      #   로 죽었다. 원인이 "러너가 죽었다" 가 아니라 다른 것으로 보였다(§37).
+      #
+      # ★ 종료 코드를 가른다 — 0 위반 없음 · 2 위반 있음 · 3 캐시 히트.
+      #   `echo` 는 번역하지 않아 45유닛이 전부 위반이므로 2 가 정상이다.
+      #   **3 은 통과시키지 않는다** — 캐시를 타면 러너를 검사한 것이 아니다.
       - name: 골든셋 러너가 끝까지 도는가
         run: |
-          python3 tools/bench_golden.py --json /tmp/golden.json || true
+          set +e
+          python3 tools/bench_golden.py --json /tmp/golden.json
+          rc=$?
+          set -e
+          case "$rc" in
+            0|2) : ;;
+            3)   echo "캐시 히트로 돌았다 — 러너를 검사한 것이 아니다"; exit 1 ;;
+            *)   echo "러너가 종료 코드 $rc 로 죽었다"; exit 1 ;;
+          esac
           python3 - <<'EOF'
           import json, sys
           d = json.load(open("/tmp/golden.json"))
@@ -88,6 +103,8 @@ jobs:
           assert len(d["rows"]) == 45, "검사가 모든 유닛에서 돌지 않았다"
           assert d["prompt_fingerprint"], "지문이 비었다"
           assert d["warmup"] is True, "웜업이 돌지 않았다"
+          assert d["cache_hits"] == 0, f"캐시 히트 {d['cache_hits']}건 — 측정이 아니다"
+          assert d["engine"] == "echo", f"엔진이 {d['engine']} 다 — 워커 설정을 본다"
           print("러너 정상 —", d["units"], "유닛 ·", len(d.get("env", [])), "배치")
           EOF
       - if: failure()
