@@ -14,7 +14,7 @@ os.environ["CACHE"] = "memory"
 import pytest
 from fastapi.testclient import TestClient
 
-from app import cache, engine, guard, main
+from app import cache, contract, engine, guard
 from app.main import app
 
 client = TestClient(app)
@@ -180,18 +180,18 @@ def test_맞은_용어만_프롬프트에_실린다():
 
 def test_토큰이_비면_열린다():
     # 로컬 개발의 기본값이다. 토큰을 강제하면 워커를 띄울 때마다 값이 필요하다.
-    assert main.TOKEN == ""
+    assert contract.TOKEN == ""
     assert post(["hello world"]).status_code == 200
 
 
 def test_토큰이_설정되면_없는_요청은_401(monkeypatch):
-    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    monkeypatch.setattr(contract, "TOKEN", "s3cret")
     r = post(["hello world"])
     assert r.status_code == 401 and r.json()["error"] == "unauthorized"
 
 
 def test_틀린_토큰도_401(monkeypatch):
-    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    monkeypatch.setattr(contract, "TOKEN", "s3cret")
     r = client.post(
         "/translate",
         json={"texts": ["hello world"], "target": "ko"},
@@ -201,7 +201,7 @@ def test_틀린_토큰도_401(monkeypatch):
 
 
 def test_맞는_토큰은_통과한다(monkeypatch):
-    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    monkeypatch.setattr(contract, "TOKEN", "s3cret")
     r = client.post(
         "/translate",
         json={"texts": ["hello world"], "target": "ko"},
@@ -212,7 +212,7 @@ def test_맞는_토큰은_통과한다(monkeypatch):
 
 def test_401_에도_CORS_헤더가_있다(monkeypatch):
     # 인증 실패가 브라우저 콘솔에 CORS 위반으로 보이면 원인을 찾지 못한다.
-    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    monkeypatch.setattr(contract, "TOKEN", "s3cret")
     r = client.post(
         "/translate",
         json={"texts": ["hello world"], "target": "ko"},
@@ -224,7 +224,7 @@ def test_401_에도_CORS_헤더가_있다(monkeypatch):
 
 def test_인증_없는_health_는_잔여를_싣지_않는다(monkeypatch):
     # 기동 여부는 누구에게나 답한다. 남의 상한이 얼마나 닳았는지는 아니다.
-    monkeypatch.setattr(main, "TOKEN", "s3cret")
+    monkeypatch.setattr(contract, "TOKEN", "s3cret")
     body = client.get("/health").json()
     assert body["status"] == "ok" and body["auth"] is True
     assert "chars_used" not in body and "chars_remaining" not in body
@@ -423,3 +423,75 @@ def test_ollama_타임아웃이_실측보다_길다():
     from app import engine
 
     assert engine.OLLAMA_TIMEOUT >= 700
+
+
+# ---------- 계약 직접 호출 (DECISIONS §68) ----------
+#
+# ★ **뗀 덕에 생긴 자리다.** 전에는 검증도 토큰 비교도 `TestClient` 를 통해서만
+#   닿았다. 배포본은 FastAPI 를 타지 않으므로, 프레임워크 없이 부르는 경로가
+#   검사되지 않으면 Lambda 쪽이 통째로 사각이 된다.
+
+
+@pytest.mark.parametrize("payload,name", [
+    ("문자열", "bad_request"),
+    (["리스트"], "bad_request"),
+    ({}, "bad_request"),
+    ({"texts": []}, "bad_request"),
+    ({"texts": "hello"}, "bad_request"),
+    ({"texts": ["a", 3]}, "bad_request"),
+    ({"texts": ["a"] * (contract.MAX_TEXTS + 1)}, "bad_request"),
+    ({"texts": ["a"], "target": 3}, "bad_request"),
+    ({"texts": ["a"], "target": "ja"}, "unsupported_target"),
+])
+def test_검증이_모양과_내용을_함께_본다(payload, name):
+    bad = contract.validate(payload)
+    assert bad and bad[0] == name
+
+
+def test_검증을_통과하는_최소_본문():
+    assert contract.validate({"texts": ["hello"]}) is None
+    assert contract.validate({"texts": ["hello"], "target": "ko"}) is None
+
+
+def test_상한_경계는_통과한다():
+    assert contract.validate({"texts": ["a"] * contract.MAX_TEXTS}) is None
+
+
+def test_토큰이_비면_헤더가_없어도_통과(monkeypatch):
+    monkeypatch.setattr(contract, "TOKEN", "")
+    assert contract.authorized(None) and contract.authorized("아무거나")
+
+
+def test_토큰이_있으면_같을_때만_통과(monkeypatch):
+    monkeypatch.setattr(contract, "TOKEN", "s3cret")
+    assert contract.authorized("s3cret")
+    assert not contract.authorized("wrong")
+    assert not contract.authorized(None)
+
+
+def test_프레임워크_없이_번역이_돈다():
+    r = contract.translate({"texts": ["hello world"]}, None)
+    assert r.status == 200
+    assert len(r.body["translations"]) == 1 and r.body["cached"] == [False]
+
+
+def test_결과는_상태와_본문_두_칸이다():
+    r = contract.err(429, "quota_exceeded")
+    assert (r.status, r.body["error"]) == (429, "quota_exceeded")
+
+
+@pytest.mark.parametrize("payload", [
+    None, "문자열", {}, {"texts": []}, {"texts": ["a"], "target": "ja"},
+    {"texts": ["hello world"]},
+])
+def test_라우트와_직접_호출이_같은_상태를_낸다(payload):
+    """★ **이 검사가 두 경로를 묶는다.** 배포본은 FastAPI 를 타지 않으므로,
+    같은 입력에 두 답이 나오기 시작해도 HTTP 쪽만 보면 모른다. 계약을 떼어
+    놓고 양쪽을 대조하지 않으면 떼어 놓은 의미가 없다.
+    """
+    cache._mem.clear(); guard._mem.clear()
+    direct = contract.translate(payload, None)
+    cache._mem.clear(); guard._mem.clear()
+    via_http = client.post("/translate", json=payload)
+    assert direct.status == via_http.status_code
+    assert direct.body.get("error") == via_http.json().get("error")

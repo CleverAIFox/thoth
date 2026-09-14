@@ -86,8 +86,13 @@ jobs:
       #   **3 은 통과시키지 않는다** — 캐시를 타면 러너를 검사한 것이 아니다.
       - name: 골든셋 러너가 끝까지 도는가
         run: |
+          # ★ **배치를 명시한다.** 러너의 기본값은 기준선의 그 엔진 블록에서
+          #   읽는데(§65) CI 는 `ENGINE=echo` 로 돌고 기준선에 `echo` 는 없다.
+          #   러너가 조용히 다른 값으로 떨어지지 않고 멈추는 것이 맞는 동작이며,
+          #   여기서는 부르는 쪽이 값을 준다. 품질을 보지 않으므로 어느 값이든
+          #   되지만 **적지 않고 넘어가지는 않는다**(DECISIONS §69).
           set +e
-          python3 tools/bench_golden.py --json /tmp/golden.json
+          python3 tools/bench_golden.py --batch 3 --json /tmp/golden.json
           rc=$?
           set -e
           case "$rc" in
