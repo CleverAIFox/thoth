@@ -1,0 +1,95 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>innerText fixture</title>
+<!--
+  **하네스가 볼 수 없는 것만 모았다**(PLAN §2-1 #50).
+
+  ★ 어댑터 테스트는 jsdom 위에서 돈다. `innerText` 가 없어 하네스가
+    `textContent` 로 채우는데, 그 둘은 같지 않다 — 숨긴 글자를 포함하고,
+    `<br>` 을 개행으로 만들지 않으며, `<script>` 내용까지 딸려온다
+    (DECISIONS §47).
+
+  ★ 그래서 **수집 구조는 테스트가 보고 텍스트 추출은 여기서 본다.** 이 파일이
+    `radio.html` 과 다른 점이 그것이다 — 저쪽은 어느 경로가 도는지를 가르고
+    이쪽은 뽑힌 글자가 맞는지를 본다.
+
+  ★ 각 항목에 **기대값**을 적어 두었다. 번역 박스의 `[KO] ` 뒤가 그것과 같아야
+    한다. 다르면 `innerText` 경로에 문제가 있다.
+
+  띄우기 :
+    python3 -m http.server 8099 -d extension/tests/fixtures > /tmp/fx.log 2>&1 &
+    ENGINE=echo bash tools/run_worker.sh > /tmp/w.log 2>&1 &
+    http://127.0.0.1:8099/innertext.html
+-->
+<style>
+  body { font: 15px/1.7 system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+  .want { color: #555; font: 12px/1.5 ui-monospace, monospace; background: #f3f4f6;
+          padding: 6px 8px; border-radius: 4px; margin: 4px 0 18px; }
+  .hidden { display: none; }
+  .invisible { visibility: hidden; }
+  fieldset { margin: 20px 0; }
+  label { display: block; margin: 10px 0; }
+  h2 { margin-top: 32px; }
+</style>
+
+<h1>innerText fixture</h1>
+<p>This page collects the cases the jsdom harness cannot see. Each item states what
+the extracted text should be. If a translation box shows something else, the
+innerText path is wrong.</p>
+
+<h2>1. Hidden text must not be collected</h2>
+<div role="radiogroup" aria-label="Hidden text">
+  <div role="radio" tabindex="0">The retention window has already been shortened<span class="hidden">SHOULD_NOT_APPEAR</span> for every shard in the stream.</div>
+  <div role="radio" tabindex="0">A snapshot was written to durable storage<span class="invisible">ALSO_HIDDEN</span> before the change took effect.</div>
+</div>
+<p class="want">기대 : SHOULD_NOT_APPEAR · ALSO_HIDDEN 이 번역문에 없어야 한다</p>
+
+<h2>2. Line breaks become newlines, not glue</h2>
+<div role="radiogroup" aria-label="Line breaks">
+  <div role="radio" tabindex="0">The first line ends here<br>and the second line starts here without glue.</div>
+  <div role="radio" tabindex="0">A paragraph break follows this sentence<br><br>and another block begins afterwards.</div>
+</div>
+<p class="want">기대 : "here and the second" 처럼 띄어져야 한다. "hereand" 면 틀렸다</p>
+
+<h2>3. Script and style content must not leak</h2>
+<div role="radiogroup" aria-label="Script leak">
+  <div role="radio" tabindex="0">The cluster was resized before the query ran<script>var leaked = "SCRIPT_LEAK";</script> and the plan changed.</div>
+  <div role="radio" tabindex="0">The crawler runs nightly<style>.x{color:red}</style> and updates the catalog each time.</div>
+</div>
+<p class="want">기대 : SCRIPT_LEAK · color:red 가 번역문에 없어야 한다</p>
+
+<h2>4. Whitespace is normalized</h2>
+<div role="radiogroup" aria-label="Whitespace">
+  <div role="radio" tabindex="0">
+        This   option   has        irregular      spacing
+        spread   across   several       source   lines.
+  </div>
+  <div role="radio" tabindex="0">		Tabs and newlines
+		surround this option in the source markup.</div>
+</div>
+<p class="want">기대 : 공백이 하나로 합쳐져야 한다. 원문 그대로면 틀렸다</p>
+
+<h2>5. Nested elements read in order</h2>
+<div role="radiogroup" aria-label="Nested">
+  <div role="radio" tabindex="0"><span>The partition key</span> <em>determines</em> <strong>which shard</strong> <span>receives each record.</span></div>
+  <div role="radio" tabindex="0"><span><span><span>Three levels of nesting still read as one sentence here.</span></span></span></div>
+</div>
+<p class="want">기대 : 조각이 순서대로 이어져 한 문장이 되어야 한다</p>
+
+<h2>6. Native radios with the same quirks</h2>
+<form>
+  <fieldset>
+    <legend>Which change addresses the cause?</legend>
+    <label><input type="radio" name="q">
+      Set the distribution key on both tables<span class="hidden">NATIVE_HIDDEN</span> so that rows are colocated.</label>
+    <label><input type="radio" name="q">
+      Add compute nodes to the cluster<br>so that throughput absorbs the imbalance.</label>
+  </fieldset>
+</form>
+<p class="want">기대 : NATIVE_HIDDEN 이 없고 br 자리가 띄어져야 한다</p>
+
+<h2>7. Body text for the fallback layer</h2>
+<p>This paragraph belongs to Layer 0 and carries a <span class="hidden">BODY_HIDDEN</span>
+hidden span as well. It should be translated without the hidden marker, and it
+should not appear twice.</p>
+<p class="want">기대 : BODY_HIDDEN 이 없고 같은 문장이 두 번 나오지 않아야 한다</p>

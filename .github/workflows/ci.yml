@@ -62,6 +62,27 @@ jobs:
           for _ in $(seq 30); do curl -sf localhost:8000/health && break; sleep 1; done
         working-directory: worker
       - run: bash tools/smoke.sh
+      # ★ **러너가 끝까지 도는지만 본다.** CI 에는 GPU 가 없어 `ENGINE=echo` 로
+      #   돌리므로 번역 품질은 볼 수 없다 — 45유닛이 전부 위반으로 나오고 그
+      #   숫자는 아무 뜻이 없다. 임계값으로 쓰면 기준선을 모르고 정한 검사가
+      #   된다(DECISIONS §19 · §55).
+      #
+      # ★ 러너는 300줄이 넘고 하루에 세 번 고쳐졌다(웜업 · 지문 · 환경 기록).
+      #   케이스 파싱 · 배치 분할 · 워커 왕복 · 검사 실행이 한 번에 도는지는
+      #   단위 테스트가 보지 못하는 자리다.
+      - name: 골든셋 러너가 끝까지 도는가
+        run: |
+          python3 tools/bench_golden.py --json /tmp/golden.json || true
+          python3 - <<'EOF'
+          import json, sys
+          d = json.load(open("/tmp/golden.json"))
+          # 위반 수는 보지 않는다. echo 는 번역하지 않으므로 전부 위반이다.
+          assert d["units"] == 45, f"유닛 {d['units']} — 케이스가 다 실리지 않았다"
+          assert len(d["rows"]) == 45, "검사가 모든 유닛에서 돌지 않았다"
+          assert d["prompt_fingerprint"], "지문이 비었다"
+          assert d["warmup"] is True, "웜업이 돌지 않았다"
+          print("러너 정상 —", d["units"], "유닛 ·", len(d.get("env", [])), "배치")
+          EOF
       - if: failure()
         run: cat /tmp/worker.log
       # ★ 백그라운드 uvicorn 을 내린다. 남겨 두면 setup-uv 의 캐시 정리가
