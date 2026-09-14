@@ -59,7 +59,15 @@ def translate(url: str, texts: list[str], timeout: int) -> tuple[list[str], floa
     #   기준선이 조용히 오염된다(DECISIONS §19).
     if data.get("partial"):
         raise SystemExit(f"워커가 부분 응답을 냈다: {data['partial']} — 측정을 멈춘다")
-    return data["translations"], time.monotonic() - t0
+    # ★ **위 주석은 맞는 말을 하면서 `partial` 만 막고 있었다.** 캐시 히트는
+    #   200 으로 멀쩡히 돌아오므로 여기를 그냥 지나간다. 2026-09-14 에 그렇게
+    #   45유닛이 전부 히트로 돌아와 `199236자/초` 가 찍혔고, 그 수치는 전 엔진이
+    #   남긴 번역을 읽은 시간이었다(DECISIONS §64).
+    #
+    # ★ 워커는 유닛마다 히트 여부를 실어 보낸다(MASTER §4). 계약에 있는 것을
+    #   읽지 않아서 못 본 것이지 알 수 없었던 것이 아니다.
+    cached = data.get("cached") or [False] * len(data["translations"])
+    return data["translations"], time.monotonic() - t0, cached
 
 
 def prompt_fingerprint(batch: int | None = None) -> str:
@@ -143,6 +151,38 @@ def explain_failure(e: Exception) -> str:
             return "워커가 토큰을 거부했다 (401). .env 의 WORKER_TOKEN 을 확인한다"
         return f"워커가 {e.code} 를 돌려줬다 ({code})"
     return f"워커에 닿지 못했다: {e}\n  bash tools/run_worker.sh & 로 띄운다"
+
+
+def worker_engine(url: str, timeout: int) -> str:
+    """워커가 어느 엔진으로 떠 있는지. 못 물으면 빈 문자열.
+
+    ★ **결과 파일이 어느 엔진의 값인지 스스로 말해야 한다.** 러너는 HTTP 로만
+      붙으므로 엔진을 모르고, 파일 이름과 사람의 기억이 그것을 대신해 왔다.
+      `/health` 가 이미 답하고 있었다(MASTER §12).
+    """
+    health = url.rsplit("/", 1)[0] + "/health"
+    try:
+        req = urllib.request.Request(health)
+        with urllib.request.urlopen(req, timeout=min(timeout, 10)) as r:
+            return json.loads(r.read()).get("engine", "")
+    except (urllib.error.URLError, OSError, ValueError):
+        return ""
+
+
+def baseline_batch() -> int | None:
+    """기준선이 어느 배치에서 나온 값인지.
+
+    ★ **기본값을 기준선에서 읽는다.** 전에는 러너 기본이 9 이고 기준선은 3
+      이었다. §51 에서 기본 배치를 3 으로 바꾸고 §57 에서 기준선을 갈아 넣으면서
+      러너의 기본값만 남았고, `--batch` 를 빠뜨린 실행이 조용히 다른 조건에서
+      쟀다. 같은 숫자를 두 곳에 두면 한쪽만 늙는다(DECISIONS §57 · §64).
+    """
+    try:
+        d = json.loads((ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+        b = d.get("config", {}).get("batch")
+        return int(b) if b else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def baseline_condition() -> str:
@@ -293,13 +333,24 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default="http://127.0.0.1:8000/translate")
-    ap.add_argument("--batch", type=int, default=9,
-                    help="한 요청에 실을 유닛 수. 9 는 실사용 한 문항")
+    ap.add_argument("--batch", type=int, default=None,
+                    help="한 요청에 실을 유닛 수. 기본은 기준선의 배치다")
     ap.add_argument("--timeout", type=int, default=900)
     ap.add_argument("--json", help="결과를 이 경로에 기록한다")
     ap.add_argument("--no-warmup", action="store_true",
                     help="웜업을 건너뛴다. 콜드 로딩 비용을 재려는 경우에만 쓴다")
     a = ap.parse_args()
+
+    if a.batch is None:
+        a.batch = baseline_batch()
+        if a.batch is None:
+            print("기준선에서 배치를 읽지 못했다 — --batch 를 직접 준다")
+            return 1
+        print(f"  배치 {a.batch} (기준선에서 읽었다)")
+
+    eng = worker_engine(a.url, a.timeout)
+    if eng:
+        print(f"  엔진 {eng}")
 
     book = load_terms()
     cases = json.loads(CASES.read_text(encoding="utf-8"))
@@ -320,10 +371,12 @@ def main() -> int:
         print(f"  웜업 {warm:6.1f}s  (집계 제외)", flush=True)
 
     rows, elapsed, chars, envs = [], 0.0, 0, []
+    hits = 0
     for i in range(0, len(units), a.batch):
         chunk = units[i:i + a.batch]
         try:
-            out, dt = translate(a.url, [u["text"] for u in chunk], a.timeout)
+            out, dt, cached = translate(a.url, [u["text"] for u in chunk], a.timeout)
+            hits += sum(1 for c in cached if c)
         except urllib.error.URLError as e:
             print(explain_failure(e))
             return 1
@@ -348,7 +401,13 @@ def main() -> int:
     # ---- 보고 ----
     fail = [r for r in rows if r["bad"]]
     print(f"\n{'=' * 60}\n유닛 {len(rows)} · 통과 {len(rows) - len(fail)} · 위반 {len(fail)}")
-    print(f"총 {elapsed:.1f}s · {chars}자 · {chars / max(elapsed, 1e-9):.0f}자/초")
+    # ★ **히트가 하나라도 있으면 속도를 적지 않는다.** 숫자를 적고 옆에 경고를
+    #   붙이면 그 숫자가 인용된다. 재지 못한 자리에는 값을 쓰지 않는다
+    #   (DECISIONS §59 · §64).
+    if hits:
+        print(f"총 {elapsed:.1f}s · {chars}자 · 처리율 없음 (캐시 히트 {hits}/{len(rows)})")
+    else:
+        print(f"총 {elapsed:.1f}s · {chars}자 · {chars / max(elapsed, 1e-9):.0f}자/초")
     print(f"프롬프트 지문 {prompt_fingerprint(a.batch)}  (배치 {a.batch})")
     if warm is None:
         print("웜업 없음 — 이 처리율에는 모델 로딩이 섞여 있다")
@@ -358,6 +417,16 @@ def main() -> int:
     # ★ 오프로딩 자체는 결함이 아니다. VRAM 이 모델보다 작으면 그것이 이
     #   기계의 정상 상태다. 문제는 **배치가 실행마다 달라지는 것**이다 —
     #   비율이 달라지면 속도도 번역 결과도 달라진다(DECISIONS §36).
+    # ★ **캐시 히트는 이 엔진이 낸 값이 아니다.** 속도만이 아니라 위반도
+    #   그렇다 — 히트로 돌아온 문장은 전에 다른 엔진이 번역한 것이다. 한 판에서
+    #   위반은 쓰고 속도는 버릴 수 있지만(MASTER §11-4), 그것은 같은 엔진이
+    #   번역했을 때의 이야기다.
+    if hits:
+        print(f"\n경고 : 캐시 히트 {hits}/{len(rows)} — 이 값은 측정이 아니다")
+        print("       히트한 유닛은 전 엔진이 남긴 번역이다. 속도도 위반도 쓰지 않는다.")
+        print("       캐시를 비우거나 이번 실행만 다른 파일로 보낸다 :")
+        print("       ENGINE=<엔진> CACHE_FILE=/tmp/bench-cache.json bash tools/run_worker.sh")
+
     procs = {e["processor"] for e in envs if e.get("processor")}
     if len(procs) > 1:
         print(f"\n경고 : 실행 중에 배치가 바뀌었다 — {' · '.join(sorted(procs))}")
@@ -389,6 +458,10 @@ def main() -> int:
     if a.json:
         pathlib.Path(a.json).write_text(
             json.dumps({"units": len(rows), "fail": len(fail),
+                        "engine": eng,
+                        # ★ 히트가 있으면 초 자체가 번역 시간이 아니다.
+                        "cache_hits": hits,
+                        "valid": hits == 0,
                         "seconds": round(elapsed, 1), "chars": chars,
                         "prompt_fingerprint": prompt_fingerprint(a.batch),
                         "batch": a.batch,
@@ -399,6 +472,9 @@ def main() -> int:
             encoding="utf-8")
         print(f"\n기록 → {a.json}")
 
+    # 0 위반 없음 · 2 위반 있음 · 3 측정 무효(캐시 히트)
+    if hits:
+        return 3
     return 0 if not fail else 2
 
 

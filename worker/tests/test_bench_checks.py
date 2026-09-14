@@ -445,3 +445,64 @@ def test_프롬프트와_같은_함수로_고른다():
     # consumer 는 consumer application 에 포함되므로 검사에서 빠진다
     assert "consumer application" in picked
     assert "record" in picked
+
+
+# ── 캐시 히트 · 배치 기본값 (DECISIONS §64) ──────────────────────────────
+
+
+class _Resp:
+    def __init__(self, payload):
+        self._b = __import__("json").dumps(payload).encode()
+    def read(self): return self._b
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+
+def _patch_urlopen(monkeypatch, payload):
+    monkeypatch.setattr(bench.urllib.request, "urlopen",
+                        lambda *a, **k: _Resp(payload))
+
+
+def test_translate_가_캐시_플래그를_돌려준다(monkeypatch):
+    _patch_urlopen(monkeypatch, {"translations": ["가", "나"], "cached": [True, False]})
+    out, _dt, cached = bench.translate("http://x/translate", ["a", "b"], 5)
+    assert out == ["가", "나"] and cached == [True, False]
+
+
+def test_cached_가_없으면_히트로_세지_않는다(monkeypatch):
+    # 옛 워커와 붙어도 죽지 않는다. 없는 것을 True 로 읽으면 멀쩡한 측정이 무효가 된다.
+    _patch_urlopen(monkeypatch, {"translations": ["가"]})
+    _out, _dt, cached = bench.translate("http://x/translate", ["a"], 5)
+    assert cached == [False]
+
+
+def test_부분_응답은_여전히_멈춘다(monkeypatch):
+    import pytest
+    _patch_urlopen(monkeypatch, {"translations": ["가"], "partial": "quota"})
+    with pytest.raises(SystemExit):
+        bench.translate("http://x/translate", ["a"], 5)
+
+
+def test_배치_기본값을_기준선에서_읽는다():
+    import json as _json
+    b = bench.baseline_batch()
+    said = _json.loads((bench.ROOT / "docs/bench/baseline.json")
+                       .read_text(encoding="utf-8"))["config"]["batch"]
+    assert b == said, "러너 기본값과 기준선이 갈리면 --batch 를 빠뜨린 실행이 다른 조건에서 잰다"
+
+
+def test_기준선을_못_읽으면_None(monkeypatch, tmp_path):
+    monkeypatch.setattr(bench, "ROOT", tmp_path)
+    assert bench.baseline_batch() is None
+
+
+def test_엔진을_못_물으면_빈_문자열(monkeypatch):
+    def boom(*a, **k):
+        raise bench.urllib.error.URLError("no")
+    monkeypatch.setattr(bench.urllib.request, "urlopen", boom)
+    assert bench.worker_engine("http://x/translate", 5) == ""
+
+
+def test_엔진을_health_에서_읽는다(monkeypatch):
+    _patch_urlopen(monkeypatch, {"engine": "bedrock"})
+    assert bench.worker_engine("http://x/translate", 5) == "bedrock"
