@@ -135,10 +135,20 @@ export function fakeFetch(responses) {
                  headers: init?.headers ?? {} });
     const r = queue.length > 1 ? queue.shift() : queue[0];
     if (r instanceof Error) throw r;
+    // ★ `translations: "echo"` 면 보낸 수만큼 돌려준다. 고정 배열로 두면 배치
+    //   크기를 바꾸는 검사에서 길이가 어긋나 `contract_violation` 이 나고,
+    //   브로커가 재시도하며 1개씩 쪼개 **엉뚱한 것을 재게 된다.**
+    const body = r.body ?? {};
+    const n = init?.body ? JSON.parse(init.body).texts.length : 0;
     return {
       ok: r.ok ?? true,
       status: r.status ?? 200,
-      async json() { return r.body ?? {}; },
+      async json() {
+        if (body.translations === "echo") {
+          return { ...body, translations: Array.from({ length: n }, (_, i) => `번역${i}`) };
+        }
+        return body;
+      },
     };
   };
   fn.calls = calls;

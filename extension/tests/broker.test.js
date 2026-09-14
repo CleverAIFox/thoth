@@ -152,3 +152,52 @@ test("엔드포인트 설정이 기본값을 이긴다", need, async () => {
   await translate(["a"]);
   assert.equal(fetch.calls[0].url, "https://w.test/translate");
 });
+
+// ---------- 배치 기본값 ----------
+
+test("배치 기본값이 실측 최적점이다", need, async () => {
+  // ★ 로컬 엔진 45유닛 실측에서 위반이 U자를 그린다 — 배치 1·2·3·6·9 에서
+  //   9·6·3·5·6 건이다(DECISIONS §51). 이 값이 바뀌면 근거가 사라진다.
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome, fakeFetch } = harness;
+  await loadAdapters(["generic", "standard"]);
+  makeDoc(`<div role="radiogroup">
+    <div role="radio">The first option is long enough to be collected here now.</div>
+    <div role="radio">The second option is long enough to be collected here now.</div>
+    <div role="radio">The third option is long enough to be collected here now.</div>
+    <div role="radio">The fourth option is long enough to be collected here now.</div>
+  </div>`);
+  globalThis.chrome = fakeChrome().api;
+  const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
+  globalThis.fetch = f;
+  const b = await loadBroker();
+  await new Promise((r) => setTimeout(r, 2000));
+  b.stop();
+
+  assert.ok(f.calls.length > 0, "요청이 나가야 한다");
+  assert.deepEqual(f.calls.map((c) => c.body.texts.length), [3, 1],
+                   "보기 넷이 3+1 로 쪼개져야 한다");
+});
+
+test("그룹이 없는 본문은 낱개로 나간다", need, async () => {
+  /**★ `MAX_BATCH` 는 **그룹 안에서만** 먹는다. 그룹이 없는 유닛은
+   * `solo:${id}` 로 각각 다른 키를 받으므로 한 묶음에 하나뿐이다.
+   *
+   * ★ 그래서 **일반 웹페이지 본문에는 배치가 적용되지 않는다.** 배치 3 이
+   * 최적이라는 실측은 골든셋(문항 단위로 묶인다)의 것이고, `generic` 이 걷는
+   * 본문에는 해당하지 않는다. 그 차이를 모르면 실측을 잘못 옮긴다
+   * (DECISIONS §51).
+   */
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome, fakeFetch } = harness;
+  await loadAdapters(["generic"]);
+  makeDoc(Array.from({ length: 5 },
+    (_, i) => `<p>Sentence number ${i} is long enough to be collected here now.</p>`).join(""));
+  globalThis.chrome = fakeChrome().api;
+  const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
+  globalThis.fetch = f;
+  const b = await loadBroker();
+  await new Promise((r) => setTimeout(r, 2000));
+  b.stop();
+
+  assert.equal(f.calls.length, 5, "다섯 문단이 다섯 번 나간다");
+  assert.ok(f.calls.every((c) => c.body.texts.length === 1));
+});
