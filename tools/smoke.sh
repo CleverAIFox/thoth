@@ -16,7 +16,15 @@ req(){ curl -s -o /tmp/smoke.body -w '%{http_code}' -X POST "$URL/translate" \
        -H 'Content-Type: application/json' -H 'Origin: https://www.udemy.com' \
        "${AUTH[@]}" -d "$1"; }
 
-curl -sf "$URL/health" >/dev/null || { echo "워커가 안 떠 있다: $URL"; exit 1; }
+# ★ `curl -sf` 는 연결 거부와 HTTP 오류를 함께 잡는다. 워커가 500 을 돌려줘도
+#   "안 떠 있다" 가 나가고, 시킨 대로 다시 띄우면 같은 500 이 난다
+#   (DECISIONS §37 · §52).
+CODE="$(curl -s -o /dev/null -w '%{http_code}' "$URL/health" 2>/dev/null)"
+case "$CODE" in
+  200) ;;
+  000) echo "워커에 닿지 못했다: $URL"; echo "  bash tools/run_worker.sh & 로 띄운다"; exit 1 ;;
+  *)   echo "워커가 $CODE 를 돌려줬다 — 살아 있다. 로그를 본다"; exit 1 ;;
+esac
 
 echo "== /health =="
 H="$(curl -s "${AUTH[@]}" "$URL/health")"

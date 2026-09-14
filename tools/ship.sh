@@ -31,6 +31,18 @@ MSG="${1:-}"
 step(){ printf '\n\033[1m%s\033[0m\n' "$1"; }
 die(){ printf '\033[31m멈춘다 — %s\033[0m\n' "$1" >&2; exit 1; }
 
+# ── 0. 바꿀 것이 있는가 ──────────────────────────────────
+#
+# ★ **없으면 시작하지 않는다.** 패치를 받지 못한 채 이 스크립트를 부르면
+#   doctor 를 다 돌리고 3 단계에서야 "nothing to commit" 으로 멈춘다. 4분을
+#   쓰고 아무것도 하지 않는다 — 실패는 그것이 일어난 자리에서 알린다
+#   (DECISIONS §37 · §52).
+if [ -z "$(git status --porcelain)" ]; then
+  echo "바꿀 것이 없다 — 작업 트리가 깨끗하다"
+  echo "  패치를 받았는가 : bash tools/apply_patch.sh"
+  exit 1
+fi
+
 # ── 1. 검사 ──────────────────────────────────────────────
 step "1/4  doctor"
 bash tools/doctor.sh || die "doctor 가 FAIL 했다"
@@ -63,7 +75,21 @@ fi
 step "3/4  커밋"
 git add -A
 git diff --cached --stat | tail -1
-git commit -m "$MSG" || die "커밋이 거부됐다 (훅을 본다)"
+# ★ **실패 이유를 단정하지 않는다.** 훅이 막은 것과 git 이 거부한 것은 대응이
+#   다르다. 시킨 대로 훅을 보면 아무것도 없는 경우가 있다(DECISIONS §37 의
+#   재발).
+if ! COMMIT_OUT="$(git commit -m "$MSG" 2>&1)"; then
+  printf '%s\n' "$COMMIT_OUT" | sed 's/^/  /'
+  case "$COMMIT_OUT" in
+    *"nothing to commit"*|*"no changes added"*)
+      die "커밋할 것이 없다" ;;
+    *"Please tell me who you are"*|*"unable to auto-detect"*)
+      die "git 신원이 없다 (git config --global user.email · user.name)" ;;
+    *)
+      die "커밋이 거부됐다 — 위 출력을 본다" ;;
+  esac
+fi
+printf '%s\n' "$COMMIT_OUT" | tail -2 | sed 's/^/  /'
 
 # ── 4. 푸시 안내 · 위생 ──────────────────────────────────
 step "4/4  푸시"
