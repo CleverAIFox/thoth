@@ -20,7 +20,7 @@
 #   순환이 된다 — `doctor` 에 `--ship` 같은 인자를 두지 않는 이유다.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 . "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 
 DRY=0

@@ -33,6 +33,13 @@ jobs:
         with: { node-version: "22", cache: npm, cache-dependency-path: extension/package-lock.json }
       - run: npm ci
         working-directory: extension
+      # ★ **doctor 는 린터가 없으면 SKIP 한다.** 로컬에서는 맞지만 CI 는
+      #   넘어갈 수 없는 자리다. 없으면 여기서 멈춘다 — 건너뛰면 초록불인 채로
+      #   셸과 파이썬을 아무도 보지 않는다(DECISIONS §54 · §63).
+      - name: 린터가 실제로 있는가
+        run: |
+          shellcheck --version | sed -n 2p
+          uvx ruff --version
       - run: bash tools/doctor.sh --repo
       # ★ doctor 는 건너뛴 건수를 WARN 으로만 알린다. CI 에서는 0 이어야 하므로
       #   따로 확인한다 — 등급이 다른 두 자리에서 같은 검사를 쓴다.

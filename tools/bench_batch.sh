@@ -17,7 +17,7 @@
 #   워커가 한 번 읽어 메모리에 들고 있다. 그것으로 한 판을 날렸다.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 . "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 
 MIN_FREE=4000          # MB. 이보다 적으면 재지 않는다

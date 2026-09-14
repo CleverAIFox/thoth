@@ -8,7 +8,7 @@
 #   다른 기계에서 관계없는 이유로 커밋이 막힌다. --repo 에서 뺀다.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 . ./tools/lib/env.sh; load_env ./.env
 SCOPE="${1:-all}"
 FAIL=0
@@ -78,6 +78,7 @@ echo "== .env 로더 =="
 #   셸이라 pytest 가 보지 못하는 자리다.
 LOADER_TMP="$(mktemp -d)"
 printf 'ENGINE=local\nCACHE=file\n' > "$LOADER_TMP/.env"
+# shellcheck disable=SC2209  # ENGINE 의 값이 문자열 'echo' 다. 명령 치환이 아니다
 LOADER_OUT="$(ENGINE=echo bash -c '. tools/lib/env.sh; load_env "$1/.env"; echo "$ENGINE $CACHE"' _ "$LOADER_TMP" 2>/dev/null)"
 rm -rf "$LOADER_TMP"
 [ "$LOADER_OUT" = "echo file" ] \
@@ -106,6 +107,7 @@ else
 echo "== 셸 오염 (D-0066) =="
 # 프로젝트 설정을 셸에 export 하면 .env 가 조용히 무시된다.
 POL="$(grep -cE '^\s*export\s+(AWS_PROFILE|ENGINE|CACHE|OLLAMA_|MAX_CHARS|TERMINOLOGY)' ~/.bashrc 2>/dev/null || true)"
+# shellcheck disable=SC2088  # 경로가 아니라 사람이 읽는 문구다. 확장할 이유가 없다
 [ "$POL" = "0" ] && ok "~/.bashrc 에 프로젝트 변수 없음" || no "~/.bashrc 에 프로젝트 변수 ${POL}건"
 
 echo "== 훅 =="
@@ -118,7 +120,14 @@ echo "== 훅 =="
 
 echo "== 홈 규약 =="
 # 저장소가 아니라 작업 기계의 규약이다. FAIL 로 올리지 않는다.
-OUT="$(ls ~ | grep -vE '^projects$' | tr '\n' ' ')"
+# ★ `ls | grep` 을 쓰지 않는다. 이름에 개행이나 특수문자가 들어가면 판정이
+#   흔들린다 — 보여주기용이 아니라 ok/skip 을 가르는 값이다.
+OUT=""
+for e in "$HOME"/*; do
+  [ -e "$e" ] || continue
+  b="$(basename "$e")"
+  [ "$b" = "projects" ] || OUT="$OUT$b "
+done
 [ -z "$OUT" ] && ok "홈 바로 아래에 규약 밖 이름 없음" || skip "규약 밖: $OUT"
 
 echo "== 산출물 =="
@@ -153,7 +162,8 @@ echo "== 엔진 전제 =="
 #   일이 아니다. 막는 것은 실제로 필요한 자리인 `run_worker.sh` 가 한다(§46).
 if command -v uv >/dev/null 2>&1; then
   PF="$( cd worker && uv run python -m app.preflight --cheap --brief 2>/dev/null )"
-  IFS='|' read -r PF_OK PF_CODE PF_FACT <<< "$PF"
+  # 첫 필드(ok)는 코드가 대신한다. 받아만 두면 '쓰지 않는 변수' 가 된다.
+  IFS='|' read -r _ PF_CODE PF_FACT <<< "$PF"
   case "${PF_CODE:-}" in
     ok)           ok "engine=${ENGINE:-echo} 전제 충족 — ${PF_FACT:-}" ;;
     not_measured) skip "engine=${ENGINE:-echo} 전제 — bash tools/preflight.sh 가 본다" ;;
@@ -246,6 +256,67 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   fi
 fi
 
+echo "== 셸 =="
+# ★ **오늘까지 이 자리가 비어 있었다.** JS 는 `node --check` 가 보는데 셸 18개는
+#   아무도 보지 않았고, 패치를 줄 때마다 사람이 `bash -n` 을 손으로 돌렸다.
+#   사람의 성실성에 기댄 자리는 도구로 옮긴다(DECISIONS §9 · §63).
+#
+# ★ 대상은 `git ls-files` 로 고른다. 추적되는 것만 저장소의 불변식이다.
+mapfile -t SH_FILES < <(git ls-files 'tools/*.sh' 'tools/lib/*.sh' '.githooks/*' 2>/dev/null)
+if [ "${#SH_FILES[@]}" = 0 ]; then
+  skip "셸 파일을 찾지 못했다"
+else
+  SHBAD=0
+  for f in "${SH_FILES[@]}"; do
+    bash -n "$f" 2>/dev/null || { no "셸 문법 오류: $f"; SHBAD=1; }
+  done
+  [ "$SHBAD" = 0 ] && ok "셸 문법 (${#SH_FILES[@]}개)"
+
+  # ★ **등급을 warning 까지만 본다.** info · style 은 취향이고 커밋을 막을 일이
+  #   아니다. warning 은 실제로 깨지는 것이다 — `cd` 실패 미처리 · 쓰지 않는
+  #   변수 · `ls | grep` 파싱(DECISIONS §46).
+  #
+  # ★ 로컬에 없으면 SKIP 이다. CI 러너에는 있고 거기서는 넘어갈 수 없다 —
+  #   정본이 하나인 것과 모든 자리에서 똑같이 구는 것은 다르다(DECISIONS §54).
+  if command -v shellcheck >/dev/null 2>&1; then
+    SC_OUT="$(shellcheck -S warning -f gcc "${SH_FILES[@]}" 2>&1)"; SC_RC=$?
+    case "$SC_RC" in
+      0) ok "shellcheck (-S warning)" ;;
+      1) no "shellcheck 위반"; printf '%s\n' "$SC_OUT" | head -15 | sed 's/^/       /' ;;
+      *) no "shellcheck 가 죽었다 (exit $SC_RC)"
+         printf '%s\n' "$SC_OUT" | tail -5 | sed 's/^/       /' ;;
+    esac
+  else
+    skip "shellcheck 가 없어 보지 못한다 (CI 에서는 돈다)"
+  fi
+fi
+
+echo "== 파이썬 =="
+# ★ **`F` 만 켠다.** 스타일이 아니라 오류를 잡는 것이 목적이다. 2026-09-14 에
+#   테스트 7개가 재정의로 죽어 있는 것을 이것이 찾았고, 그때까지 pytest 도
+#   doctor 도 CI 도 초록불이었다(DECISIONS §63).
+#
+# ★ `uv.lock` 을 건드리지 않는다. 개발 의존성으로 넣으면 락이 따라 움직이고
+#   CI 에서 트리가 더러워진다. `uvx` 는 받아서 캐시만 쓴다.
+RUFF=()
+if command -v ruff >/dev/null 2>&1; then
+  RUFF=(ruff)
+elif command -v uvx >/dev/null 2>&1 && uvx ruff --version >/dev/null 2>&1; then
+  RUFF=(uvx ruff)
+fi
+if [ "${#RUFF[@]}" = 0 ]; then
+  # ★ 받지 못한 것과 위반이 없는 것은 다르다(DECISIONS §59).
+  skip "ruff 를 부르지 못해 파이썬을 보지 못한다"
+else
+  PYL_OUT="$("${RUFF[@]}" check --no-cache --output-format concise tools worker 2>&1)"; PYL_RC=$?
+  case "$PYL_RC" in
+    0) ok "ruff (F)" ;;
+    1) no "파이썬 린트 위반"; printf '%s\n' "$PYL_OUT" | head -15 | sed 's/^/       /' ;;
+    *) no "ruff 가 죽었다 (exit $PYL_RC)"
+       printf '%s\n' "$PYL_OUT" | tail -5 | sed 's/^/       /' ;;
+  esac
+fi
+
 echo "== 확장 =="
 # 콘텐츠 스크립트는 재주입 시 전부 다시 평가된다. 최상위 let · const · class
 # 는 재선언이 SyntaxError 이고, 한 번 터지면 그 파일이 통째로 죽는다
@@ -316,6 +387,9 @@ if command -v node >/dev/null 2>&1; then
     #   전부 skip 되는데, 그 상태로 "통과" 라고 적으면 수집이 깨져도 모른다.
     #   못 잰 것과 깨끗한 것은 다르다(DECISIONS §41 ㉢ · §47).
     EXT_SKIP="$(printf '%s' "$EXT_OUT" | sed -n 's/^# skipped \([0-9]*\)$/\1/p')"
+    # ★ 문서가 적은 건수를 대조하는 데 쓴다. **여기서 이미 재고 있으므로 다시
+    #   돌리지 않는다** — 같은 것을 두 번 재면 두 값이 갈릴 자리가 생긴다.
+    EXT_N="$(printf '%s' "$EXT_OUT" | sed -n 's/^# tests \([0-9]*\)$/\1/p')"
     if [ "${EXT_SKIP:-0}" -gt 0 ]; then
       warn "확장 테스트 ${EXT_SKIP}건 건너뜀 (cd extension && npm install)"
     else
@@ -333,6 +407,7 @@ if command -v uv >/dev/null 2>&1; then
   #   쪽은 이미 원문을 남긴다 — 같은 규칙을 여기에도 적용한다(§21).
   if PY_OUT="$( cd worker && uv run pytest -q 2>&1 )"; then
     ok "테스트 통과"
+    PY_N="$(printf '%s' "$PY_OUT" | grep -oE '[0-9]+ passed' | head -1 | cut -d' ' -f1)"
   else
     no "테스트 실패"
     printf '%s\n' "$PY_OUT" | tail -15 | sed 's/^/       /'
@@ -340,6 +415,26 @@ if command -v uv >/dev/null 2>&1; then
 else
   skip "uv 가 없어 테스트를 돌리지 못한다"
 fi
+
+echo "== 문서 건수 =="
+# ★ **문서에 적은 수의 정본은 실행이다.** 같은 숫자가 두 곳에 살면 한쪽만
+#   늙는다(DECISIONS §57). 위에서 이미 잰 값을 넘겨 대조한다 — 재는 곳과
+#   판정하는 곳을 나누되 측정은 한 번만 한다(DECISIONS §62).
+#
+# ★ **표시된 것만 본다.** `<!--count:이름-->` 뒤의 정수만 주장이다. PLAN 의 ★
+#   문단은 과거 서술이라 옛 숫자가 있는 것이 정상이다(DECISIONS §54).
+#
+# ★ 재지 못한 이름은 통과가 아니라 SKIP 이다. node 나 uv 가 없는 기계에서
+#   조용히 초록불이 되면 안 된다(DECISIONS §59).
+CNT_OUT="$(python3 tools/check_counts.py \
+             "ext_tests=${EXT_N:-}" "worker_tests=${PY_N:-}" 2>&1)"; CNT_RC=$?
+case "$CNT_RC" in
+  0) ok "문서가 적은 건수가 실측과 같다" ;;
+  1) no "문서 건수가 실측과 다르다"; printf '%s\n' "$CNT_OUT" | sed 's/^/    /' ;;
+  3) printf '%s\n' "$CNT_OUT" | sed 's/^    //' | while IFS= read -r l; do skip "$l"; done ;;
+  *) no "check_counts.py 가 죽었다 (exit $CNT_RC)"
+     printf '%s\n' "$CNT_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
 
 echo
 [ "$FAIL" = "0" ] && echo "이상 없음" || echo "위 FAIL 항목을 확인한다"

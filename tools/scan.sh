@@ -14,7 +14,7 @@
 #   저장소 밖에 흘리는 것이 있는지는 저장소 안을 봐서는 알 수 없다.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 . "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
 
 hr(){ printf '\n=== %s ===\n' "$1"; }
@@ -72,6 +72,7 @@ fi
 
 hr "마운트 — 수신함의 thoth 파일"
 if [ -n "${WIN_DOWNLOADS-}" ] && [ -d "$WIN_DOWNLOADS" ]; then
+  # shellcheck disable=SC2010  # 판정이 아니라 사람이 읽는 표시다. -la 서식이 목적이다
   ls -la "$WIN_DOWNLOADS" 2>/dev/null | grep -i thoth | head -30
   echo "  --- 전체 파일 수: $(ls -1 "$WIN_DOWNLOADS" 2>/dev/null | wc -l) ---"
 else

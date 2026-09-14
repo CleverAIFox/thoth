@@ -3,3 +3,16 @@ name = "thoth"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = []
+
+# ★ **스타일이 아니라 오류만 본다.** `F` 는 미사용 import · 정의되지 않은 이름 ·
+#   재정의를 잡는다. 2026-09-14 에 테스트 7개가 재정의로 죽어 있는 것을 이것이
+#   찾았고, 그동안 pytest 도 doctor 도 CI 도 초록불이었다(DECISIONS §63).
+#
+# ★ 포매팅 규칙은 켜지 않는다. 커밋을 막을 일이 아닌 것을 막으면 급할 때
+#   넘기는 버릇이 든다(DECISIONS §46).
+[tool.ruff]
+target-version = "py313"
+extend-exclude = [".venv", ".cache"]
+
+[tool.ruff.lint]
+select = ["F"]
