@@ -332,7 +332,7 @@ else
       printf '%s\n' "$TF_VAL" | head -12 | sed 's/^/       /'
     fi
   else
-    skip "infra/.terraform 이 없다 — terraform -chdir=infra init 후에 본다"
+    skip "infra/.terraform 이 없다 — bash tools/tf.sh init 후에 본다"
   fi
 fi
 

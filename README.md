@@ -99,6 +99,16 @@ bash tools/run_worker.sh
 bash tools/sync_ext.sh       # 확장을 로컬 경로로 내보낸다
 ```
 
+배포본은 따로 세운다. 순서가 어긋나면 `plan` 이 zip 을 못 찾아 멈춘다.
+
+```bash
+bash tools/package_lambda.sh                               # zip 이 먼저다
+cp infra/terraform.tfvars.example infra/terraform.tfvars   # worker_token 을 채운다
+bash tools/tf.sh init
+bash tools/tf.sh apply
+WORKER_URL=<출력> WORKER_TOKEN=<토큰> bash tools/smoke.sh   # 배포본을 실제로 때린다
+```
+
 `chrome://extensions` → 개발자 모드 → 압축해제된 확장 프로그램을 로드.
 **아무 사이트에서나 아이콘을 눌러 "이 사이트에서 켜기" 를 한 번 승인하면 이후
 자동으로 동작한다.** 특정 사이트를 미리 등록해 두지 않으므로 저장소에 사이트
@@ -107,6 +117,8 @@ bash tools/sync_ext.sh       # 확장을 로컬 경로로 내보낸다
 
 ```bash
 bash tools/package_lambda.sh  # 배포 zip — 의존성 0 을 검사로 확인한다
+bash tools/tf.sh plan         # 인프라. .env 의 프로파일을 풀어 넘긴다
+bash tools/tf.sh apply
 bash tools/preflight.sh       # 엔진 전제만 본다 — 띄우기 전에 죽는 편이 낫다
 bash tools/bedrock_survey.sh  # Bedrock 쪽 실정을 잰다. 아무것도 바꾸지 않는다
 bash tools/apply_patch.sh     # 윈도우 다운로드의 패치를 적용한다
@@ -165,7 +177,10 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 - 확장 테스트는 구조와 판정만 본다. 텍스트 추출은 픽스처를 브라우저에서 연다
 - 남은 위반은 용어 표기다. `record` 처럼 일반 번역어가 있는 말에서 새며,
   오정보가 아니다
-- 배포(Lambda · DynamoDB)와 분석 경로가 아직 구현되지 않았다
+- 배포는 `infra/` 에 섰으나 **`apply` 를 한 번도 돌리지 않았다.** IAM · 런타임
+  boto3 · 콜드스타트는 실제로 세워야 안다
+- 분석 경로(Firehose · Athena)는 아직 없다
+- 확장을 배포본에 붙여 본 적이 없다. UI 는 동작 수준이다
 
 ---
 

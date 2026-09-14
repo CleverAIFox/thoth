@@ -965,10 +965,15 @@ bash tools/package_lambda.sh      # dist/worker.zip
 ```bash
 bash tools/package_lambda.sh                 # dist/worker.zip 을 먼저 만든다
 cp infra/terraform.tfvars.example infra/terraform.tfvars   # worker_token 을 채운다
-terraform -chdir=infra init
-terraform -chdir=infra apply
+bash tools/tf.sh init
+bash tools/tf.sh apply
 WORKER_URL=<출력된 url> WORKER_TOKEN=<토큰> bash tools/smoke.sh
 ```
+
+★ **terraform 을 직접 부르지 않는다.** `.env` 를 읽지 않으므로 `AWS_PROFILE` 이
+비고, 그러면 "No valid credential sources" 가 난다. `tools/tf.sh` 가 로더를 태우고
+**자격증명을 CLI 로 풀어 환경변수로 넘긴다** — 프로파일이 SSO 든 `aws login` 이든
+정적 키든 terraform 이 그 형식을 몰라도 된다(DECISIONS §74).
 
 | 리소스 | 왜 |
 |---|---|
