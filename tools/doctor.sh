@@ -202,8 +202,22 @@ echo "== 기준선 =="
 # ★ stale 은 재측정 대기다. FAIL 로 올리지 않는다 — 코드를 고친 커밋과
 #   재측정 커밋은 나뉠 수밖에 없고, 그 사이 커밋을 막을 이유가 없다.
 #   다만 조용히 지나가면 플래그가 영영 남는다(DECISIONS §21).
-if python3 -c "import json,sys; sys.exit(0 if json.load(open('docs/bench/baseline.json')).get('stale') else 1)" 2>/dev/null; then
-  skip "기준선이 stale 이다 — 재측정 후 값을 채우고 플래그를 지운다"
+# ★ **엔진 블록 안의 `stale` 을 못 보고 있었다.** 기준선이 엔진별로 갈린 뒤에도
+#   최상위 키만 읽어서, 두 엔진이 모두 stale 인데 화면에는 `OK 기준선이 현재
+#   코드와 맞는다` 가 떴다. **검사가 조용히 아무것도 하지 않았다**(DECISIONS §21
+#   · §67). pytest 는 잡고 있었으므로 커밋은 막혔을 것이나, doctor 화면은
+#   거짓이었다.
+STALE="$(python3 - <<'EOF' 2>/dev/null
+import json
+d = json.load(open("docs/bench/baseline.json"))
+names = [n for n, b in (d.get("engines") or {}).items() if b.get("stale")]
+if d.get("stale"):
+    names.append("전체")
+print(" · ".join(names))
+EOF
+)"
+if [ -n "$STALE" ]; then
+  skip "기준선이 stale 이다 ($STALE) — 재측정 후 값을 채우고 플래그를 지운다"
 else
   ok "기준선이 현재 코드와 맞는다"
 fi

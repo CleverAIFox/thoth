@@ -342,7 +342,7 @@ def test_항등_항목은_번역_목록에_섞이지_않는다():
     assert "bucket -> 버킷" in p
     assert "Data Catalog -> Data Catalog" not in p
     assert "data catalog -> Data Catalog" not in p
-    assert "Data Catalog" in p.split("proper names")[1]
+    assert "Data Catalog" in p.split(glossary.KEEP_HEADER)[1]
 
 
 def test_항등_항목에_포함된_용어는_번역_목록에서_빠진다():
@@ -385,8 +385,8 @@ def test_항등_항목만_있어도_번역_절은_나오지_않는다():
     from app import glossary
 
     p = glossary.as_prompt({"data catalog": "Data Catalog"})
-    assert "Use these term translations" not in p
-    assert "proper names" in p
+    assert glossary.TRANS_HEADER not in p
+    assert glossary.KEEP_HEADER in p
 
 
 def test_용어가_없으면_빈_프롬프트다():

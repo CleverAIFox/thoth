@@ -26,6 +26,18 @@ MIN_SCORE = 5         # 가중 점수의 하한. 한 낱말 용어 넷으로는 
 MULTIWORD_W = 4       # 여러 낱말 용어의 가중치
 MAX_TERMS = 25        # 프롬프트에 실을 상한
 
+# ★ **절 표지를 상수로 둔다.** 검사가 프롬프트 문구를 리터럴로 들고 있으면
+#   문구를 고칠 때마다 관계없는 이유로 깨진다. 같은 문자열이 두 곳에 살면
+#   언젠가 갈린다(DECISIONS §14 · §66).
+TRANS_HEADER = ("Use these term translations consistently "
+                "(apply to every occurrence, including inflected forms):")
+KEEP_HEADER = (
+    "The following appear in the source and must be copied into the translation "
+    "character for character, in English. Never translate them into Korean, "
+    "even when the words look like ordinary nouns. "
+    "Attach Korean particles after them:"
+)
+
 _books: dict[str, dict[str, str]] | None = None
 
 
@@ -104,17 +116,17 @@ def as_prompt(terms: dict[str, str]) -> str:
     out = ""
     if trans:
         lines = "\n".join(f"  {en} -> {ko}" for en, ko in trans.items())
-        out += (
-            "\nUse these term translations consistently "
-            "(apply to every occurrence, including inflected forms):\n" + lines
-        )
+        out += "\n" + TRANS_HEADER + "\n" + lines
     if keep:
         # ★ 규칙 1 의 예시가 아니라 데이터다. 예시는 모델이 목록으로 취급해
         #   거기 없는 이름을 놓치는데(DECISIONS §30), 이 목록은 원문에 실제로
         #   나타난 것만 배치마다 새로 실린다. 늘어도 프롬프트가 자라지 않는다.
         names = ", ".join(sorted(keep.values()))
-        out += (
-            "\nThese are proper names. Keep them in English exactly as written, "
-            "and attach Korean particles after them:\n  " + names
-        )
+        # ★ **"proper names" 라고만 하면 모델이 그 판정을 스스로 한다.**
+        #   `DynamoDB Streams` 는 지켜지는데 `Data Catalog` 는 3판 연속
+        #   "데이터 카탈로그" 로 나왔다(Nova Lite). 차이는 브랜드 토큰이고,
+        #   원문에 `the Data Catalog` 로 나오면 보통명사구처럼 읽힌다.
+        #   **판정을 모델에게 맡기지 않고 목록 자체를 근거로 준다**
+        #   (DECISIONS §66).
+        out += "\n" + KEEP_HEADER + "\n  " + names
     return out
