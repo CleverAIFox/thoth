@@ -67,9 +67,18 @@ if ! git apply --check -p1 "$TMP" 2>/tmp/thoth-patch.err; then
     echo "       이미 적용되어 있다. 아무것도 하지 않는다"
     exit 0
   fi
+  # ★ **영수증이 있으면 역적용이 안 붙어도 적용된 것이다.** 붙은 뒤에 그
+  #   파일을 다음 패치가 또 고치면 정방향도 역방향도 안 붙는다. 그때
+  #   "저장소가 어긋났다" 로 적으면 맞는 상태를 사고로 읽는다(§61).
+  RECEIPT="$ROOT/.cache/applied-patches.tsv"
+  if [ -f "$RECEIPT" ] && grep -q "^$(sha256sum "$TMP" | cut -d' ' -f1)	" "$RECEIPT"; then
+    echo "       이미 적용되어 있다 (영수증). 아무것도 하지 않는다" >&2
+    exit 0
+  fi
   echo "붙지 않는다 :" >&2
   sed 's/^/       /' /tmp/thoth-patch.err >&2
-  echo "       저장소가 패치를 만든 시점과 다른 상태일 수 있다" >&2
+  echo "       정방향도 역방향도 붙지 않고 영수증도 없다" >&2
+  echo "       패치를 만든 시점과 다른 상태이거나, 붙은 뒤 같은 파일이 또 바뀌었다" >&2
   exit 1
 fi
 echo "       붙는다"
@@ -78,6 +87,22 @@ echo "       붙는다"
 
 git apply -p1 "$TMP"
 echo "적용 완료"
+
+# ★ **적용했다는 사실을 여기서 적는다.** 이 스크립트는 지금 그것을 아는데,
+#   전에는 버리고 `sweep` 이 나중에 역적용으로 되알아내게 했다. 역적용 성공은
+#   "적용됐다" 의 증거지만 **역적용 실패는 "적용 안 됐다" 의 증거가 아니다** —
+#   붙은 뒤에 그 파일이 또 바뀌면 양쪽 다 안 붙는다(DECISIONS §61).
+#
+# ★ 해시는 **줄끝을 벗긴 본문**으로 잡는다. `sweep` 이 같은 정규화를 하므로
+#   브라우저를 거쳐 CRLF 가 된 사본도 같은 값이 된다.
+#
+# ★ `.cache/` 는 기계 상태다. 커밋되지 않으며 `doctor` 가 무시 여부를 본다.
+RECEIPT="$ROOT/.cache/applied-patches.tsv"
+mkdir -p "$(dirname "$RECEIPT")"
+printf '%s\t%s\t%s\n' \
+  "$(sha256sum "$TMP" | cut -d' ' -f1)" \
+  "$(basename "$SRC")" \
+  "$(date -Iseconds)" >> "$RECEIPT"
 
 # 적용 직후 상태를 보여 준다. 다음에 무엇을 해야 하는지가 여기서 갈린다.
 echo

@@ -448,6 +448,7 @@ DECISIONS §20.
 | 런타임 LLM 의 DOM 추론 | 느리고 비싸고 비결정적이다. §5 참고 |
 | AWS Custom Terminology | AWS 전용이라 엔진을 바꾸면 이식되지 않는다 |
 | 승인자 게이트 | 단독 작업. 태그를 다는 행위가 승인이다 |
+| `git apply --3way` | 실측에서 판정을 개선하지 못했다. `--index` 를 함의해 스테이징까지 바꾼다(DECISIONS §61) |
 
 ---
 

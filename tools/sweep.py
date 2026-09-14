@@ -13,8 +13,12 @@
 
 ★ **경로를 박지 않는다.** `.env` 의 `WIN_DOWNLOADS` 를 쓴다.
 
-★ **근거 없이 지우지 않는다.** 패치는 역적용으로, 로그는 그것을 쓰는 프로세스가
-  떠 있는지로 판정한다. 판정할 수 없는 것은 나열만 한다.
+★ **근거 없이 지우지 않는다.** 패치는 영수증과 역적용으로, 로그는 그것을 쓰는
+  프로세스가 떠 있는지로 판정한다. 판정할 수 없는 것은 나열만 한다.
+
+★ **역적용 실패는 "적용 안 됐다" 의 증거가 아니다.** 붙은 뒤에 그 파일을 다음
+  패치가 또 고치면 정방향도 역방향도 안 붙는다. 판정을 참·거짓 둘로 두면 그
+  경우가 "아직 아니다" 로 떨어져 거짓말이 된다 — 셋으로 가른다(DECISIONS §61).
 
 ★ 닿지 못한 자리는 **0건이 아니라 못 잼**이다. 못 잰 것과 깨끗한 것은 다르다.
 """
@@ -73,15 +77,53 @@ def running(pattern: str) -> bool:
     return subprocess.run(["pgrep", "-f", pattern], capture_output=True).returncode == 0
 
 
-def applied(patch: pathlib.Path) -> bool:
-    """이미 저장소에 들어가 있는가. 역적용이 되면 그렇다(DECISIONS §29)."""
+RECEIPT = ROOT / ".cache" / "applied-patches.tsv"
+
+
+def receipts() -> set[str]:
+    """`apply_patch.sh` 가 적어 둔 해시. **관측이지 추론이 아니다.**
+
+    ★ 기계 상태이므로 다른 기계에는 없다. 없으면 아래의 추론으로 내려간다 —
+      영수증은 추론을 대신하는 것이 아니라 앞에 서는 것이다.
+    """
+    try:
+        lines = RECEIPT.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return set()
+    return {line.split("\t", 1)[0] for line in lines if line.strip()}
+
+
+def _applies(body: bytes, reverse: bool) -> bool:
+    cmd = ["git", "apply", "--check", "-p1"] + (["-R"] if reverse else []) + ["-"]
+    r = subprocess.run(cmd, cwd=ROOT, input=body, capture_output=True, timeout=30)
+    return r.returncode == 0
+
+
+def judge(patch: pathlib.Path, seen: set[str]) -> tuple[bool, str]:
+    """(지워도 되는가, 사유). **셋으로 가른다**(DECISIONS §61).
+
+    | 근거 | 판정 |
+    |---|---|
+    | 영수증에 있다 | 적용됨 |
+    | 역적용이 붙는다 | 적용됨 (§29 의 기법) |
+    | 정방향이 붙는다 | 아직 아니다 |
+    | 셋 다 아니다 | 판정 불가 |
+
+    ★ 마지막 줄이 이 함수가 생긴 이유다. 전에는 그것이 "아직 아니다" 로
+      떨어져, 이미 붙은 패치를 수신함에 영원히 남기고 다시 붙이게 했다.
+    """
     try:
         body = patch.read_bytes().replace(b"\r\n", b"\n")
     except OSError:
-        return False
-    r = subprocess.run(["git", "apply", "--check", "-R", "-p1", "-"],
-                       cwd=ROOT, input=body, capture_output=True, timeout=30)
-    return r.returncode == 0
+        return False, "읽지 못했다"
+    import hashlib
+    if hashlib.sha256(body).hexdigest() in seen:
+        return True, "적용됨"
+    if _applies(body, reverse=True):
+        return True, "적용됨"
+    if _applies(body, reverse=False):
+        return False, "아직 아니다"
+    return False, "판정 불가"
 
 
 def scan_tmp():
@@ -111,11 +153,13 @@ def scan_lake():
         raise LookupError(f"{d} 에 닿지 못한다")
 
     out = []
+    seen = receipts()
     for p in sorted(d.glob("thoth-*")):
         if not p.is_file():
             continue
         if p.suffix == ".patch":
-            out.append((True, "적용됨", p) if applied(p) else (False, "아직 아니다", p))
+            ok, why = judge(p, seen)
+            out.append((ok, why, p))
         else:
             # ★ zip 같은 것은 적용 개념이 없어 판정할 수 없다. 나열만 한다 —
             #   지울 만해 보이는 것과 지워도 되는 것은 다르다.
