@@ -106,6 +106,8 @@ bash tools/sync_ext.sh       # 확장을 로컬 경로로 내보낸다
 확인할 수 있고, 엔드포인트와 토큰은 고급에 접혀 있다.
 
 ```bash
+bash tools/preflight.sh       # 엔진 전제만 본다 — 띄우기 전에 죽는 편이 낫다
+bash tools/bedrock_survey.sh  # Bedrock 쪽 실정을 잰다. 아무것도 바꾸지 않는다
 bash tools/apply_patch.sh     # 윈도우 다운로드의 패치를 적용한다
 bash tools/smoke.sh           # 워커를 띄운 상태에서 계약을 실제로 때린다
 python3 tools/bench_golden.py # 골든셋 — 번역 품질 불변식

@@ -46,11 +46,16 @@
 
 새 세션이 할 일을 순서대로 적는다.
 
-1. `aws login` — 홈은 SSO 를 쓴다. 세션이 만료돼 있다
-2. Bedrock 콘솔에서 `BEDROCK_MODEL`(기본 `apac.amazon.nova-lite-v1:0`) 접근 승인
-3. `ENGINE=bedrock bash tools/run_worker.sh` — `.env` 를 고치지 않는다(§40)
-4. `python3 tools/bench_golden.py --json /tmp/bedrock.json`
-5. `docs/bench/baseline.json` 과 비교
+1. `aws login` — 프로파일이 `login_session` 이라 `aws sso login` 이 아니다.
+   어느 쪽인지는 `bash tools/preflight.sh` 가 `~/.aws/config` 를 읽어 알려 준다
+2. `bash tools/bedrock_survey.sh` — 이 리전에 그 모델과 추론 프로파일이 있는지
+   먼저 본다. 없으면 접근 승인과 무관하게 `ValidationException` 으로 죽는다
+3. Bedrock 콘솔에서 `BEDROCK_MODEL`(기본 `apac.amazon.nova-lite-v1:0`) 접근 승인.
+   **이 단계에는 CLI 가 없다**
+4. `bash tools/preflight.sh` — 실제로 한 번 호출해 확인한다
+5. `ENGINE=bedrock bash tools/run_worker.sh` — `.env` 를 고치지 않는다(§40)
+6. `python3 tools/bench_golden.py --json /tmp/bedrock.json`
+7. `docs/bench/baseline.json` 과 비교
 
 - **배치 조건이 다르다.** 기준선은 `24%/76% CPU/GPU` 인데 호스팅에는 그 축이
   없다. 러너가 "배치가 기준선과 다르다" 로 경고할 것이고, 엔진별로 기준선을

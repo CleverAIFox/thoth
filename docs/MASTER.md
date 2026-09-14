@@ -523,6 +523,7 @@ API 로 한다.
 
 ```bash
 bash tools/run_ollama.sh > /tmp/ollama.log 2>&1 &   # ENGINE=local 일 때만
+bash tools/preflight.sh                             # 엔진 전제만 본다. 띄우지 않는다
 bash tools/run_worker.sh                            # .env 를 읽어 워커 기동
 bash tools/sync_ext.sh                              # 확장을 SSD 로 내보낸다
 
@@ -562,8 +563,8 @@ bash tools/doctor.sh          # 전부
 bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범위)
 ```
 
-비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 미채택 모델 ·
-문서 규약 · 워커 테스트를 검사한다.
+비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
+모델 위생 · 문서 규약 · 워커 테스트를 검사한다.
 
 **등급이 셋이다.**
 
@@ -581,9 +582,14 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 저장소를 틀리게 하거나 비밀을 새게 하는 것뿐이다. 느려지는 것 · 디스크를 먹는
 것 · 지금 못 돌아가는 것은 `WARN` 이다.
 
-★ **막는 일은 그것이 실제로 필요한 자리에서 한다.** ollama 미기동은 `doctor`
-가 `WARN` 으로 알리고, `run_worker.sh` 가 `ENGINE=local` 일 때 기동 전에 죽는다.
-실패는 그것이 일어난 자리에서 알린다(DECISIONS §37).
+★ **막는 일은 그것이 실제로 필요한 자리에서 한다.** 엔진 전제가 깨진 것은
+`doctor` 가 `WARN` 으로 알리고, `run_worker.sh` 가 기동 전에 죽는다. 실패는
+그것이 일어난 자리에서 알린다(DECISIONS §37).
+
+★ **`doctor` 는 전검사를 `--cheap` 으로 부른다.** 커밋마다 도는 자리에서
+`bedrock` 확인은 실제 호출이라 네트워크와 비용이 든다. 재지 않은 엔진은
+`not_measured` 로 돌아오고 `SKIP` 으로 적힌다 — **통과가 아니다**
+(DECISIONS §59).
 
 ★ **기계 설정 검사를 커밋을 막는 자리에 두지 않는다.** 홈 규약 · 셸 오염 ·
 SSD 경로 · 모델 목록은 이 저장소의 불변식이 아니라 한 작업 기계의 불변식이다.
@@ -806,6 +812,31 @@ bash tools/apply_patch.sh 이름.patch    # 특정 파일
 담지 못하므로 키가 늘어난 경우 손으로 넣는다.
 
 ---
+
+### 11-10. 엔진 전제
+
+```bash
+bash tools/preflight.sh                  # 현재 엔진
+ENGINE=bedrock bash tools/preflight.sh   # 이번 한 번만 다른 엔진으로
+bash tools/bedrock_survey.sh             # Bedrock 쪽 실정을 잰다
+```
+
+엔진마다 기동 전제가 다르다. `local` 은 ollama 응답, `bedrock` 과 `translate`
+는 자격증명과 실제 호출, `echo` 는 아무것도 아니다. 정본은
+`worker/app/preflight.py` 의 `CHECKS` 레지스트리이고 `run_worker.sh` 와
+`doctor.sh` 는 결과를 옮겨 적는다.
+
+★ **호출부가 엔진 이름을 묻지 않는다.** 엔진마다 `if` 를 붙이면 그 엔진의
+기본값도 호출부가 갖게 되고, 실제로 `OLLAMA_URL` 기본값이 세 곳에 있었다
+(DECISIONS §58).
+
+★ **재인증 명령은 프로파일이 정한다.** `sso_session` · `sso_start_url` 이면
+`aws sso login`, `login_session` 이면 `aws login` 이다. 둘 다 아니면 아무
+명령도 내지 않는다 — 틀린 원인을 단정하는 메시지는 침묵보다 나쁘다(§37).
+
+★ **`preflight` 와 `bedrock_survey` 는 역할이 다르다.** 전자는 "지금 돌릴 수
+있는가" 에 예/아니오로 답하고, 후자는 아니오일 때 무엇이 있는지 본다. 모델
+접근 승인 자체는 콘솔에만 있다.
 
 ## 12. 접근 토큰
 

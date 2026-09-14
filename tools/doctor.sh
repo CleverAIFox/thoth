@@ -140,28 +140,50 @@ HARD="$(grep -rn "/mnt/[cf]/" tools/ 2>/dev/null | grep -v "^tools/doctor.sh:.*g
 git check-ignore -q .cache/translations.json \
   && ok ".cache/ 무시됨" || no ".cache/ 가 추적될 수 있다"
 
-echo "== 모델 =="
+echo "== 엔진 전제 =="
+# ★ **여기서 다시 판단하지 않는다.** 정본은 `worker/app/preflight.py` 이고
+#   doctor 는 결과를 옮겨 적기만 한다. 전에는 같은 기본값(OLLAMA_URL)이
+#   `engine.py` · `run_worker.sh` · 여기 세 곳에 있었다.
+#
+# ★ `--cheap` 이다. doctor 는 커밋마다 도는 자리이고 bedrock 전검사는 실제
+#   호출이다. 검사가 돈을 쓰거나 네트워크에 기대면 비행기에서 커밋이 막힌다.
+#   **못 잰 것은 통과가 아니라 SKIP 으로 적는다**(DECISIONS §41 ㉢ · §47).
+#
+# ★ FAIL 로 올리지 않는다. 문서 세 줄을 고치는 커밋이 엔진 미기동으로 막힐
+#   일이 아니다. 막는 것은 실제로 필요한 자리인 `run_worker.sh` 가 한다(§46).
+if command -v uv >/dev/null 2>&1; then
+  PF="$( cd worker && uv run python -m app.preflight --cheap --brief 2>/dev/null )"
+  IFS='|' read -r PF_OK PF_CODE PF_FACT <<< "$PF"
+  case "${PF_CODE:-}" in
+    ok)           ok "engine=${ENGINE:-echo} 전제 충족 — ${PF_FACT:-}" ;;
+    not_measured) skip "engine=${ENGINE:-echo} 전제 — bash tools/preflight.sh 가 본다" ;;
+    unregistered) skip "${PF_FACT:-전검사가 없다}" ;;
+    "")           warn "전검사를 돌리지 못했다 (bash tools/preflight.sh)" ;;
+    *)            warn "engine=${ENGINE:-echo} 전제가 깨졌다 (${PF_CODE}) — ${PF_FACT:-}" ;;
+  esac
+else
+  skip "uv 가 없어 엔진 전제를 보지 못한다"
+fi
+
+echo "== 모델 위생 =="
+# ★ **잔재 검사가 ollama 기동에 묶여 있었다.** 서버가 내려가 있으면 SSD 잔재를
+#   보는 줄까지 통째로 돌지 않았고, 화면에는 "ollama 미기동" 한 줄만 남아
+#   통과처럼 보였다 — 조용히 아무것도 하지 않는 검사다(DECISIONS §21 · §54).
+#   잔재는 서버와 무관하므로 갈라 둔다.
+[ -d "${THOTH_SSD_ROOT:-/nonexistent}/ollama-models" ] \
+  && warn "SSD 에 모델 잔재가 있다 (DrvFs 는 로딩이 느려 쓰지 않는다)" \
+  || ok "SSD 모델 잔재 없음"
+
 # 벤치에서 진 모델은 즉시 지운다. 필요하면 다시 받는다(재현 가능).
-if command -v ollama >/dev/null 2>&1 && curl -sf "${OLLAMA_URL:-http://127.0.0.1:11434}/api/version" >/dev/null; then
+# ★ `ollama list` 는 서버에 묻는다. 서버가 없으면 **못 잰 것이지 깨끗한 것이
+#   아니다.** 미채택 모델은 디스크를 먹지 저장소를 틀리게 하지 않으므로 WARN 이다.
+if command -v ollama >/dev/null 2>&1 && ollama list >/dev/null 2>&1; then
   KEEP="${OLLAMA_MODEL:-}"
   EXTRA_M="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v "^${KEEP}$" | tr '\n' ' ')"
-  # 미채택 모델은 디스크를 먹지 저장소를 틀리게 하지 않는다. 알리고 넘어간다.
   [ -z "$EXTRA_M" ] && ok "채택 모델만 남아 있음 ($KEEP)" \
                     || warn "미채택 모델: $EXTRA_M (ollama rm 으로 정리)"
-  # 잔재도 같다 — 느려질 뿐 결과가 틀리지 않는다.
-  [ -d "${THOTH_SSD_ROOT:-/nonexistent}/ollama-models" ] \
-    && warn "SSD 에 모델 잔재가 있다 (DrvFs 는 로딩이 느려 쓰지 않는다)" \
-    || ok "SSD 모델 잔재 없음"
 else
-  # ★ `ENGINE=local` 인데 ollama 가 없으면 **번역을 돌릴 때** 고장이다. 그것을
-  #   조용히 넘기면 벤치가 502 로 죽는다(§37). 다만 **커밋을 막을 일은
-  #   아니다** — 문서 세 줄을 고치는 중이라면 ollama 가 필요 없다. 막는 것은
-  #   실제로 필요한 자리인 `run_worker.sh` 가 한다(DECISIONS §46).
-  if [ "${ENGINE:-echo}" = "local" ]; then
-    warn "ENGINE=local 인데 ollama 가 응답하지 않는다 (번역을 돌리려면 띄운다)"
-  else
-    skip "ollama 서버 미기동 (ENGINE=${ENGINE:-echo} 라 필요 없다)"
-  fi
+  skip "ollama 에 묻지 못해 미채택 모델을 재지 못했다"
 fi
 
 fi   # SCOPE
@@ -306,7 +328,15 @@ fi
 
 echo "== 워커 =="
 if command -v uv >/dev/null 2>&1; then
-  ( cd worker && uv run pytest -q >/dev/null 2>&1 ) && ok "테스트 통과" || no "테스트 실패"
+  # ★ **출력을 버리지 않는다.** 전에는 "테스트 실패" 한 줄뿐이라 무엇이
+  #   깨졌는지 알 수 없어 같은 명령을 손으로 다시 쳐야 했다. `check_docs`
+  #   쪽은 이미 원문을 남긴다 — 같은 규칙을 여기에도 적용한다(§21).
+  if PY_OUT="$( cd worker && uv run pytest -q 2>&1 )"; then
+    ok "테스트 통과"
+  else
+    no "테스트 실패"
+    printf '%s\n' "$PY_OUT" | tail -15 | sed 's/^/       /'
+  fi
 else
   skip "uv 가 없어 테스트를 돌리지 못한다"
 fi
