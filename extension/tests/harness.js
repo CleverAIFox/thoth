@@ -57,6 +57,14 @@ export function makeDoc(html) {
     configurable: true,
   });
 
+  // ★ 브로커는 전역에서 찾는다. jsdom 의 **창 안에만** 있는 것은 못 본다 —
+  //   `CSS` 에서 겪은 것과 같은 함정이고, 빠뜨리면 `is not defined` 로 죽거나
+  //   더 나쁘게는 조용히 빈손이 된다(DECISIONS §47).
+  for (const k of ["MutationObserver", "Node", "Element", "HTMLElement",
+                   "getComputedStyle", "requestAnimationFrame", "location"]) {
+    if (win[k] !== undefined) globalThis[k] = win[k];
+  }
+  globalThis.window = win;
   globalThis.document = win.document;
   return win.document;
 }
@@ -79,4 +87,95 @@ export function groupSizes(units) {
     m.set(k, (m.get(k) ?? 0) + 1);
   }
   return m;
+}
+
+// ---------- 브로커 ----------
+//
+// ★ 흉내내는 것은 `chrome.storage` 와 `fetch` 둘뿐이다. `document` 는 jsdom 이,
+//   타이머는 `node:test` 의 `mock.timers` 가, `MutationObserver` 와
+//   `AbortController` 는 각각 jsdom 과 Node 가 이미 한다. **흉내가 적을수록
+//   실제와 어긋날 자리가 적다**(DECISIONS §47).
+//
+// ★ 그래도 흉내인 것은 맞다. 이 하네스로 보는 것은 **판정과 배선**이고,
+//   실제 네트워크·렌더링 동작은 픽스처와 실사이트에서 본다.
+
+/** `chrome.storage.local` 최소 구현. 계약이 단순해 어긋날 여지가 작다. */
+export function fakeChrome(initial = {}) {
+  const store = { ...initial };
+  return {
+    store,
+    api: {
+      storage: {
+        local: {
+          async get(keys) {
+            const ks = typeof keys === "string" ? [keys] : keys;
+            const out = {};
+            for (const k of ks) if (k in store) out[k] = store[k];
+            return out;
+          },
+          async set(obj) { Object.assign(store, obj); },
+        },
+      },
+      runtime: { lastError: null },
+    },
+  };
+}
+
+/**
+ * `fetch` 스텁. 응답을 차례로 돌려준다.
+ *
+ * 각 항목은 `{ ok, status, body }` 이거나 `Error` 다. `Error` 면 던진다 —
+ * 네트워크 실패를 그렇게 흉내낸다.
+ */
+export function fakeFetch(responses) {
+  const calls = [];
+  const queue = [...responses];
+  const fn = async (url, init) => {
+    calls.push({ url, body: init?.body ? JSON.parse(init.body) : null,
+                 headers: init?.headers ?? {} });
+    const r = queue.length > 1 ? queue.shift() : queue[0];
+    if (r instanceof Error) throw r;
+    return {
+      ok: r.ok ?? true,
+      status: r.status ?? 200,
+      async json() { return r.body ?? {}; },
+    };
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+/**
+ * 브로커와 클라이언트를 문서 위에 올린다. 어댑터는 먼저 등록돼 있어야 한다.
+ *
+ * ★ **브로커는 올라가는 순간 순회를 시작한다.** 실제 타이머로 두면 테스트가
+ *   끝나도 `setInterval` 이 남아 프로세스가 죽지 않는다. 잡아서 핸들을
+ *   돌려주고, 호출한 쪽이 `stop()` 으로 끊는다.
+ *
+ * ★ 타이머를 통째로 가짜로 바꾸지 않는다. 그것도 흉내이고, 지금 보려는 것은
+ *   주기가 아니라 판정이다. **필요 없는 흉내는 하지 않는다**(DECISIONS §47).
+ */
+export async function loadBroker() {
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const { dirname, join } = await import("node:path");
+  const here = dirname(fileURLToPath(import.meta.url));
+  const timers = [];
+  const realSI = globalThis.setInterval;
+  const realST = globalThis.setTimeout;
+  globalThis.setInterval = (fn, ms) => { const t = realSI(fn, ms); timers.push(t); return t; };
+  globalThis.setTimeout = (fn, ms) => { const t = realST(fn, ms); timers.push(t); return t; };
+
+  for (const n of ["client", "broker"]) {
+    new Function(readFileSync(join(here, "..", "src", `${n}.js`), "utf8"))();
+  }
+
+  globalThis.setInterval = realSI;
+  globalThis.setTimeout = realST;
+  return {
+    stop() {
+      for (const t of timers) { clearInterval(t); clearTimeout(t); }
+      timers.length = 0;
+    },
+  };
 }

@@ -94,6 +94,26 @@
   let poll = 0;
   let streak = 0;          // 연속 실패. 워커가 꺼져 있으면 계속 때릴 이유가 없다
   const MAX_STREAK = 3;
+
+  // ★ 판정을 `catch` 안에 두지 않는다. 한 블록에서 세 가지를 정하면서 —
+  //   자리를 영구히 버릴지 · 순회를 멈출지 · 연속 실패를 셀지 — 상태를 셋
+  //   건드리면, 읽어서는 어느 경우에 무엇이 되는지 알기 어렵다. 입력과 출력만
+  //   있는 함수로 떼어 두면 브라우저 없이 검사된다(DECISIONS §48).
+  //
+  // ★ `ST` 에 붙이는 이유는 이 파일이 주입되는 클래식 스크립트라 `export` 를
+  //   쓸 수 없기 때문이다. 최상위 선언도 아니므로 재주입에 안전하다(§16).
+  globalThis.ST.failureAction = (err, n) => {
+    const code = err?.code || "";
+    const fatal = err?.fatal === true;
+    // 상한 초과 · 카운터 불통은 페이지를 새로 열어도 안 풀린다. 센 횟수는
+    // 의미가 없으므로 0 으로 둔다.
+    if (code === "quota_exceeded" || code === "guard_unavailable") {
+      return { fatal, halt: code, streak: 0 };
+    }
+    const next = n + 1;
+    // 워커 미기동 · 엔드포인트 오류. 꺼진 워커를 1.5초마다 때릴 이유가 없다.
+    return { fatal, halt: next >= MAX_STREAK ? "worker_unreachable" : "", streak: next };
+  };
   let idle = 0;            // 연속으로 아무것도 못 찾은 순회 수
   let relaxed = false;     // 주기를 이미 늘렸는가
   const halt = (why) => {
@@ -180,16 +200,11 @@
           //   (DECISIONS §12). 받은 번역은 이미 위에서 채웠다.
           if (partial) halt(partial);
         } catch (e) {
-          const fatal = e?.fatal === true;
           console.warn("[st] 번역 실패", e?.message || e);
-          batch.forEach((u) => drop(u, fatal));
-          // 상한 초과는 페이지를 새로 열어도 안 풀린다. 순회를 멈춘다.
-          if (e?.code === "quota_exceeded" || e?.code === "guard_unavailable") {
-            halt(e.code);
-          } else if (++streak >= MAX_STREAK) {
-            // 워커 미기동 · 엔드포인트 오류. 페이지를 새로 열기 전에는 안 풀린다.
-            halt("worker_unreachable");
-          }
+          const act = globalThis.ST.failureAction(e, streak);
+          streak = act.streak;
+          batch.forEach((u) => drop(u, act.fatal));
+          if (act.halt) halt(act.halt);
         }
       }
     }

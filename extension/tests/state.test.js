@@ -1,10 +1,11 @@
-// 확장의 첫 동적 테스트.
+// 팝업 판정. 순수 함수라 브라우저도 jsdom 도 필요 없다.
 //
-// ★ 의존성을 들이지 않는다. Node 18+ 에 내장된 `node:test` 로 돈다 —
-//   package.json 도 node_modules 도 없다. 확장에 테스트가 없어 결함이 사람
-//   눈에만 걸렸는데(PLAN §2-1 #41), 러너를 고르는 일로 시작을 미루지 않는다.
+// ★ 러너는 Node 내장 `node:test` 다. 러너를 고르는 일로 시작을 미루지 않으려고
+//   골랐고, 이 파일은 여전히 의존성 없이 돈다. 어댑터와 브로커 검사가 jsdom 을
+//   쓰지만 그것은 DOM 이 본체이기 때문이다(DECISIONS §47).
 //
-//   실행 : node --test extension/tests/
+//   실행 : node --test "extension/tests/*.test.js"
+//   (디렉터리 인자는 먹지 않는다. 글롭을 따옴표로 감싼다)
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
