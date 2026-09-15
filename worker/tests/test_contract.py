@@ -325,6 +325,67 @@ def test_배치_파싱이_깨지면_개별_호출로_되돌린다(monkeypatch):
     assert len(calls) == 3                     # 배치 1 + 개별 2
 
 
+def _fake_bedrock(monkeypatch, usage, metrics=None):
+    """converse 응답을 흉내낸다. **실제 호출 형태만 흉내내고 값은 시험값이다.**"""
+    seen = {}
+
+    class C:
+        def converse(self, **kw):
+            seen.update(kw)
+            r = {"output": {"message": {"content": [{"text": "§ 0\n번역0\n\n§ 1\n번역1"}]}}}
+            if usage is not None:
+                r["usage"] = usage
+            if metrics is not None:
+                r["metrics"] = metrics
+            return r
+
+    monkeypatch.setattr(engine, "_bedrock_client", lambda: C())
+    return seen
+
+
+def _usage_lines(caplog):
+    import json as _json
+    return [_json.loads(r.message.split(" ", 1)[1])
+            for r in caplog.records if r.message.startswith("usage ")]
+
+
+def test_토큰_사용량을_호출마다_남긴다(monkeypatch, caplog):
+    # ★ 상한은 원문만 세고 과금은 입력 토큰으로 매겨져 두 수가 7배 갈린다
+    #   (DECISIONS §78). 비용을 판단할 단위가 어딘가에 남아야 한다.
+    import logging
+    _fake_bedrock(monkeypatch, {"inputTokens": 1234, "outputTokens": 567},
+                  {"latencyMs": 890})
+    monkeypatch.setattr(engine, "ENGINE", "bedrock")
+    caplog.set_level(logging.INFO, logger="thoth")
+
+    engine._raw_batch(["A shard stores records.", "The partition key differs."])
+
+    lines = _usage_lines(caplog)
+    assert len(lines) == 1
+    u = lines[0]
+    assert u["in_tok"] == 1234 and u["out_tok"] == 567
+    assert u["latency_ms"] == 890
+    # 배치 크기를 함께 적지 않으면 총액은 알아도 교환비를 모른다(#45).
+    assert u["n"] == 2
+    # 프롬프트 머리를 따로 적는다. 오버헤드가 요청마다 다시 실린다.
+    assert u["sys_chars"] > 0 and u["in_chars"] > 0
+
+
+def test_usage_가_없으면_0_이_아니라_null_로_적는다(monkeypatch, caplog):
+    # ★ 못 잰 것과 0 은 다르다(DECISIONS §59). 0 으로 채우면 합계가 조용히
+    #   틀리고, 그 합계가 비용 판단의 근거가 된다.
+    import logging
+    _fake_bedrock(monkeypatch, None)
+    monkeypatch.setattr(engine, "ENGINE", "bedrock")
+    caplog.set_level(logging.INFO, logger="thoth")
+
+    out = engine._raw_batch(["A shard stores records.", "The partition key differs."])
+
+    assert out == ["번역0", "번역1"]          # 계기가 없어도 번역은 돈다
+    u = _usage_lines(caplog)[0]
+    assert u["in_tok"] is None and u["out_tok"] is None
+
+
 def test_모르는_엔진은_조용히_넘어가지_않는다(monkeypatch):
     monkeypatch.setattr(engine, "ENGINE", "gpt5")
     with pytest.raises(NotImplementedError):

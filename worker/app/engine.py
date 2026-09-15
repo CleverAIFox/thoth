@@ -240,7 +240,41 @@ def _converse(text: str, system: str) -> str:
         messages=[{"role": "user", "content": [{"text": text}]}],
         inferenceConfig={"temperature": 0, "maxTokens": BEDROCK_MAX_TOKENS},
     )
+    _log_usage(r, text, system)
     return r["output"]["message"]["content"][0]["text"].strip()
+
+
+def _log_usage(r: dict, text: str, system: str) -> None:
+    """한 번의 Bedrock 호출을 문자와 토큰 양쪽으로 적는다.
+
+    ★ **세는 단위가 목적마다 다르다**(DECISIONS §78). `chars_used` 는 원문만
+      세고 과금은 입력 토큰으로 매겨져 두 수가 7배 갈린다. 상한을 비용의 대리
+      지표로 읽을 수 없으므로, 비용을 판단할 수 있는 단위를 이 자리에서 남긴다.
+
+    ★ **배치 크기를 함께 적는다.** 오버헤드는 요청 수에 비례하고 배치는 품질로도
+      값을 매긴다. 토큰만 적으면 총액은 알아도 교환비를 모른다.
+
+    ★ **못 잰 자리는 `null` 로 남긴다**(DECISIONS §59). `usage` 가 응답에 없는
+      것과 토큰이 0 인 것은 다르다. 0 으로 채우면 합계가 조용히 틀린다.
+
+    ★ **토큰을 추정하지 않는다.** 모델의 토크나이저는 공개돼 있지 않고, 문자수
+      에서 환산한 수는 실측처럼 보이는 짐작이다. 응답이 말한 것만 적는다.
+
+    ★ 로그 한 줄이 계기의 전부다. 응답 본문에 싣지 않는다 — 사용자에게 줄 값이
+      아니고, 계약이 바뀌면 확장까지 따라 고치게 된다.
+    """
+    u = r.get("usage") or {}
+    m = r.get("metrics") or {}
+    log.info("usage %s", json.dumps({
+        "engine": "bedrock",
+        "model": BEDROCK_MODEL,
+        "n": len(_MARK_RE.findall(text)) or 1,
+        "in_chars": len(text),
+        "sys_chars": len(system),
+        "in_tok": u.get("inputTokens"),
+        "out_tok": u.get("outputTokens"),
+        "latency_ms": m.get("latencyMs"),
+    }, ensure_ascii=False, separators=(",", ":")))
 
 
 def _llm_batch(texts: list[str], call) -> list[str]:
