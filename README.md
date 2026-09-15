@@ -206,7 +206,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->43건 · 워커 <!--count:worker_tests-->214건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->43건 · 워커 <!--count:worker_tests-->218건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 2. 실사이트 확인 완료 |
 | 속도 | 문항당 5.2초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |

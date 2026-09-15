@@ -669,7 +669,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->214건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->218건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1115,6 +1115,10 @@ python3 tools/usage_report.py --drop-warmup /tmp/w3.log
 호출 수가 그대로 돈이다. 도구가 따로 알린다.
 
 ★ **`local` 은 이 줄을 남기지 않는다.** 과금이 0 이라 잴 이유가 없다.
+
+★ **로그는 stdout 으로 나간다.** 배선은 `worker/app/__init__.py` 에 있고 두
+진입점이 같은 것을 쓴다. 배포본에서는 Lambda 가 stdout 을 CloudWatch 로 담으므로
+같은 줄을 Logs Insights 로 모은다.
 
 ## 12. 접근 토큰
 

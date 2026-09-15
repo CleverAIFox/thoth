@@ -352,6 +352,10 @@ def _usage_lines(caplog):
 def test_토큰_사용량을_호출마다_남긴다(monkeypatch, caplog):
     # ★ 상한은 원문만 세고 과금은 입력 토큰으로 매겨져 두 수가 7배 갈린다
     #   (DECISIONS §78). 비용을 판단할 단위가 어딘가에 남아야 한다.
+    #
+    # ★ **이 검사는 줄의 내용만 본다.** `caplog` 가 레벨을 올리고 자기 핸들러를
+    #   걸므로 배선이 없어도 통과한다 — 실제로 그렇게 통과하면서 로그가 한 줄도
+    #   안 나가는 것을 못 봤다(§79). 배선은 `test_logging.py` 가 본다.
     import logging
     _fake_bedrock(monkeypatch, {"inputTokens": 1234, "outputTokens": 567},
                   {"latencyMs": 890})
