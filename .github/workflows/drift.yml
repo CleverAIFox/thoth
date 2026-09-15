@@ -30,6 +30,11 @@ jobs:
       # ★ 검사가 zip 을 만들지 않는다. 만드는 것은 여기 한 줄이고, 검사는 읽기만
       #   한다 — 상태를 바꾸는 검사를 만들지 않기 위해서다.
       - run: bash tools/package_lambda.sh
+      - name: token-claims
+        run: |
+          curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" > /tmp/t.json
+          python3 -c "import base64,json;v=json.load(open('/tmp/t.json'))['value'].split('.')[1];v+='='*(-len(v)%4);c=json.loads(base64.urlsafe_b64decode(v));print('ISS',c['iss']);print('AUD',c['aud']);print('SUB',c['sub'])"
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::917866274871:role/thoth-ci
