@@ -146,7 +146,8 @@ def check_refs(root: Path, fails: list):
                and "__pycache__" not in p.parts and ".cache" not in p.parts:
                 targets.append(str(p.relative_to(root)))
 
-    # ★ **PLAN 자기 안의 참조도 본다.** 바깥에서는 `PLAN §2-2 #22` 로 쓰지만
+    # ★ **PLAN 자기 안의 참조도 본다.** 바깥에서는 `PLAN §2-2 #N` 으로 쓰지만
+    #   (살아 있는 번호를 예시로 적으면 그 항목이 닫힐 때 이 주석이 걸린다)
     #   PLAN 안에서는 `#45` 로만 쓴다. 그 형태를 보지 않아, 항목을 지울 때
     #   전건 열은 잡히고 **판단 기준 열과 산문은 잡히지 않았다** — 2026-09-14
     #   에 둘을 사람이 찾았다(DECISIONS §54).

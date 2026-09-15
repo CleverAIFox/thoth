@@ -1,4 +1,8 @@
 // 워커 계약 : POST /translate {texts[], target} -> {translations[], cached[], version}
+// ★ **배포본 URL 을 박지 않는다**(DECISIONS §84). 토큰이 없으면 401 이므로
+//   URL 만 박아 봐야 설치한 사람이 그대로 쓰지 못한다 — 편의는 0 이고 공개
+//   저장소에 엔드포인트만 실린다. 토큰까지 박으면 비밀값을 공개 저장소에
+//   커밋하는 일이고 남이 상한을 태운다. **워커는 각자 띄운다.**
 globalThis.ST.DEFAULT_ENDPOINT = "http://127.0.0.1:8000/translate";
 // ★ 워커의 OLLAMA_TIMEOUT(700s)보다 짧다. 일부러다 — 이것은 **사용자가
 //   기다리는 시간**이고, 브라우저에서 10분을 기다리게 할 수는 없다. 확장은
