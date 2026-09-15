@@ -68,7 +68,7 @@ data "aws_iam_policy_document" "ci_assume" {
     condition {
       test     = "StringLike"
       variable = "${local.github_host}:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values   = ["repo:${var.github_repo}:*", "repo:${var.github_repo}:ref:refs/heads/main"]
     }
   }
 }
