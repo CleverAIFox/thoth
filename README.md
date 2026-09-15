@@ -24,7 +24,7 @@ flowchart LR
   end
   E --- DB[("DynamoDB<br/>번역 · 사용량")]
   H --> BR["Bedrock<br/>Nova Lite"]
-  H -.->|번역 삽입| A
+  C -.->|번역 삽입| A
 ```
 
 **한 방향으로만 흐른다.** 어댑터가 모은 것이 브로커에서 묶이고, 워커가 캐시 →
