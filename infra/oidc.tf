@@ -17,6 +17,22 @@ variable "github_repo" {
   default     = "CleverAIFox/thoth"
 }
 
+variable "github_repo_sub" {
+  description = <<-EOT
+    OIDC 토큰의 `sub` 가 주장하는 저장소 식별자. `owner@<id>/repo@<id>` 다.
+
+    ★ **`owner/repo` 가 아니다.** GitHub 이 이름 변경으로 정책이 뚫리는 것을
+      막으려고 불변 숫자 ID 를 박아 보낸다. 옛 형식으로 쓴 문서가 많아 그대로
+      따르면 `Not authorized to perform sts:AssumeRoleWithWebIdentity` 가 나고,
+      **그 문구는 조건 불일치와 지문 오류를 구별해 주지 않는다.**
+
+    ★ **이 값은 실측이다**(2026-09-15). 워크플로에서 토큰을 받아 클레임을 찍어
+      읽었다. 다시 재는 법은 DECISIONS §87 에 있다.
+  EOT
+  type        = string
+  default     = "CleverAIFox@314908905/thoth@1366448765"
+}
+
 variable "github_oidc_provider_arn" {
   description = <<-EOT
     이미 있는 GitHub OIDC 프로바이더의 ARN. 비우면 새로 만든다.
@@ -68,7 +84,7 @@ data "aws_iam_policy_document" "ci_assume" {
     condition {
       test     = "StringLike"
       variable = "${local.github_host}:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values   = ["repo:${var.github_repo_sub}:*"]
     }
   }
 }
