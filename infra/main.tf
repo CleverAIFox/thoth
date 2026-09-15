@@ -20,6 +20,13 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+
+    # ★ OIDC 프로바이더의 지문을 현재 인증서에서 읽는다. 손으로 적으면
+    #   갱신되는 날 늙는다(infra/oidc.tf).
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 

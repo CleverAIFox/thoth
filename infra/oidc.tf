@@ -1,0 +1,100 @@
+# GitHub Actions 가 AWS 에 키 없이 인증한다.
+#
+# ★ **장기 액세스 키를 시크릿에 넣지 않는다.** 저장소가 공개이고 시크릿은
+#   워크플로 수정 한 번으로 찍어 볼 수 있다. OIDC 는 실행마다 짧은 토큰을
+#   받으므로 저장소에 남는 비밀이 0 이다.
+#
+# ★ **읽기 역할만 세운다.** 배포 역할은 `terraform apply` 에 필요한 권한이
+#   IAM 쓰기까지 닿고, 그것은 자기 역할을 고칠 수 있다는 뜻이다. 실제 `apply`
+#   로그에서 필요한 액션을 뽑아 좁힌 뒤 #21 에서 세운다.
+#
+# ★ **지문을 손으로 적지 않는다.** `tls_certificate` 가 현재 인증서에서 읽는다.
+#   적어 두면 갱신되는 날 늙고, 그때 실패는 "인증이 안 된다" 로만 보인다(§62).
+
+variable "github_repo" {
+  description = "OIDC 를 허용할 저장소. owner/repo"
+  type        = string
+  default     = "CleverAIFox/thoth"
+}
+
+variable "github_oidc_provider_arn" {
+  description = <<-EOT
+    이미 있는 GitHub OIDC 프로바이더의 ARN. 비우면 새로 만든다.
+
+    ★ **계정에 하나만 존재할 수 있다.** 이웃 저장소가 이미 만들어 뒀다면
+      `apply` 가 EntityAlreadyExists 로 멈춘다. 그때 그 ARN 을 여기 넣는다.
+  EOT
+  type        = string
+  default     = ""
+}
+
+locals {
+  create_oidc = var.github_oidc_provider_arn == ""
+  oidc_arn    = local.create_oidc ? aws_iam_openid_connect_provider.github[0].arn : var.github_oidc_provider_arn
+  github_host = "token.actions.githubusercontent.com"
+}
+
+data "tls_certificate" "github" {
+  count = local.create_oidc ? 1 : 0
+  url   = "https://${local.github_host}"
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  count           = local.create_oidc ? 1 : 0
+  url             = "https://${local.github_host}"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.github[0].certificates[0].sha1_fingerprint]
+}
+
+data "aws_iam_policy_document" "ci_assume" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_arn]
+    }
+
+    # ★ **`aud` 를 반드시 건다.** 빼면 다른 곳에서 발급된 토큰도 받는다.
+    condition {
+      test     = "StringEquals"
+      variable = "${local.github_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    # ★ **저장소를 못 박는다.** `repo:*` 로 두면 GitHub 의 아무 저장소나
+    #   이 역할을 가져간다. 브랜치까지 좁히지 않는 것은 이 역할이 읽기
+    #   전용이고 PR 에서도 돌아야 하기 때문이다.
+    condition {
+      test     = "StringLike"
+      variable = "${local.github_host}:sub"
+      values   = ["repo:${var.github_repo}:*"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ci" {
+  name               = "${local.name}-ci"
+  description        = "GitHub Actions 읽기 전용. 배포본 드리프트 검사"
+  assume_role_policy = data.aws_iam_policy_document.ci_assume.json
+}
+
+# ★ 코드가 실제로 부르는 것만 적는다. `deploy_drift.py` 는 `get-function` 하나다.
+data "aws_iam_policy_document" "ci" {
+  statement {
+    sid       = "ReadFunction"
+    actions   = ["lambda:GetFunction"]
+    resources = [aws_lambda_function.worker.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ci" {
+  name   = "${local.name}-ci"
+  role   = aws_iam_role.ci.id
+  policy = data.aws_iam_policy_document.ci.json
+}
+
+output "ci_role_arn" {
+  description = "워크플로의 role-to-assume 에 넣는 값"
+  value       = aws_iam_role.ci.arn
+}

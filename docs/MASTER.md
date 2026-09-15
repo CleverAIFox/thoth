@@ -707,7 +707,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->218건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->226건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1157,6 +1157,28 @@ python3 tools/usage_report.py --drop-warmup /tmp/w3.log
 ★ **로그는 stdout 으로 나간다.** 배선은 `worker/app/__init__.py` 에 있고 두
 진입점이 같은 것을 쓴다. 배포본에서는 Lambda 가 stdout 을 CloudWatch 로 담으므로
 같은 줄을 Logs Insights 로 모은다.
+
+### 11-14. 배포본 드리프트
+
+```bash
+bash tools/package_lambda.sh
+python3 tools/deploy_drift.py
+```
+
+Lambda 가 들고 있는 `CodeSha256` 과 방금 만든 zip 의 해시를 비교한다. zip 이
+결정적이라(§11-10) 두 수가 같으면 배포본이 이 커밋의 코드다.
+
+★ **CI 가 이것을 돌린다**(`.github/workflows/drift.yml`). 푸시마다 한 번, 하루에
+한 번. **드리프트는 커밋이 아니라 시간이 만든다.**
+
+★ **`doctor` 는 부르지 않는다.** 로컬에서는 네트워크 · 자격증명 · zip 유무가
+제각각이라 "못 쟀다" 가 기본값이 되고, 기본값이 된 경고는 읽히지 않는다
+(DECISIONS §86).
+
+★ **못 재면 실패다.** CI 에서는 전제가 항상 참이므로 못 잰 것은 고칠 일이지
+넘어갈 일이 아니다. 종료 코드는 0 같다 · 1 못 쟀다 · 2 다르다.
+
+★ **해시는 base64 다.** `sha256sum` 의 16진수와 비교하면 영원히 다르다.
 
 ## 12. 접근 토큰
 
