@@ -32,6 +32,6 @@ jobs:
       - run: bash tools/package_lambda.sh
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_CI_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::917866274871:role/thoth-ci
           aws-region: ap-northeast-2
       - run: python3 tools/deploy_drift.py

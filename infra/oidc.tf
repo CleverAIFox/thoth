@@ -43,7 +43,7 @@ resource "aws_iam_openid_connect_provider" "github" {
   count           = local.create_oidc ? 1 : 0
   url             = "https://${local.github_host}"
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github[0].certificates[0].sha1_fingerprint]
+  thumbprint_list = [data.tls_certificate.github[0].certificates[length(data.tls_certificate.github[0].certificates) - 1].sha1_fingerprint]
 }
 
 data "aws_iam_policy_document" "ci_assume" {
@@ -75,7 +75,7 @@ data "aws_iam_policy_document" "ci_assume" {
 
 resource "aws_iam_role" "ci" {
   name               = "${local.name}-ci"
-  description        = "GitHub Actions 읽기 전용. 배포본 드리프트 검사"
+  description        = "GitHub Actions read-only. deploy drift check"
   assume_role_policy = data.aws_iam_policy_document.ci_assume.json
 }
 
