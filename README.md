@@ -6,13 +6,25 @@
 AWS Certified Data Engineer(DEA-C01) 문제를 풀면서 직접 쓰려고 만들었다.
 이름은 문자와 언어의 신 토트에서 왔다.
 
+**돌고 있다.** Lambda 에 올라가 있고 Udemy 실사이트에서 확인했다 — 문항 하나가
+**5.2초**(로컬 엔진은 80.7초), 45유닛 골든셋에서 용어 위반 2건, 환각·문체 위반
+0건이다. 고유명사는 영어로 남는다.
+
 ```
 [확장]  어댑터 → 브로커 → 클라이언트
-           │                  │  POST /translate
+           │                  │  POST /translate  (+ X-Thoth-Token)
            │                  ▼
-[워커]     │            캐시 → 가드 → 용어집 → 엔진
-           │                  │
-        DOM 에 삽입  ◀────────┘
+[워커]     │     계약 → 캐시 → 가드 → 용어집 → 엔진
+           │                  │        │        │
+        DOM 에 삽입  ◀────────┘    DynamoDB   Bedrock
+```
+
+로컬은 FastAPI 로 같은 계약을 돌리고, 배포본은 Lambda + Function URL 이다.
+**두 경로가 같은 `contract.py` 를 부르므로 같은 입력에 같은 답이 나온다.**
+
+```
+[로컬]   uvicorn  →  app/main.py            →  contract.py
+[배포]   Function URL  →  app/lambda_handler.py  ↗
 ```
 
 ---
@@ -190,6 +202,22 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 
 ---
 
+## 지금 어디까지 왔나
+
+| | |
+|---|---|
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->43건 · 워커 <!--count:worker_tests-->198건 |
+| 번역 품질 | 45유닛 골든셋에서 위반 2. 실사이트 확인 완료 |
+| 속도 | 문항당 5.2초. 체감 지연 없음 |
+| 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |
+| 비용 실측 | **아직 없다.** 분석 경로(#24)가 그것을 잰다 |
+| UI | 동작 수준. 다듬은 적 없다 |
+| 공개 | 저장소가 아직 비공개다 |
+
+다음에 할 일은 `docs/PLAN.md` §0 에 한 줄로 적혀 있다.
+
+---
+
 ## 문서
 
 | | |
@@ -197,3 +225,8 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 | [`docs/PLAN.md`](docs/PLAN.md) | 남은 일 · 미결정 · 범위 밖 |
 | [`docs/MASTER.md`](docs/MASTER.md) | 계약 · 운영 · 비용 |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 왜 그렇게 됐나 |
+| [`infra/`](infra) | Terraform. Lambda · Function URL · DynamoDB · IAM |
+| [`docs/bench/baseline.json`](docs/bench/baseline.json) | 엔진별 기준선. 비교의 정본 |
+
+**새 세션은 `PLAN` §0 부터 읽는다.** 다음 한 수가 거기 한 줄로 있고, 그것이
+왜 다음인지도 함께 적혀 있다.
