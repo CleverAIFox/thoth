@@ -17,7 +17,7 @@
 #   `AWS_PROFILE` 을 export 하지 않은 셸에서 죽었다.
 #
 #   0  오늘 쌍이 있고 진짜 오류가 없다
-#   1  쌍이 든 변환 오류가 있다 · Athena 가 실패했다
+#   1  쌍이 든 변환 오류 · 못 읽은 오류 · Athena 실패
 #   3  오늘 쌍이 없다 — 못 잼이지 통과가 아니다
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -41,18 +41,27 @@ else
 fi
 
 echo "== errors/ · dt=$DAY =="
-REAL=0; CTRL=0
+# ★ **셈을 파이썬이 한다**(`pairs_errors.py`). 첫 판은 jq 로 셌고 jq 가 없는 기계에서
+#   오류 객체가 있는데도 `0 · 0` 을 냈다(DECISIONS §99).
+CTRL=0; REAL=0; UNREAD=0; OBJS=0
 while read -r key; do
   [ -n "$key" ] || continue
-  # 한 객체에 레코드가 여러 줄일 수 있다. rawData 가 빈 줄만 제어 메시지로 본다.
-  counts="$(aws s3 cp "s3://$B/$key" - 2>/dev/null \
-    | jq -r 'if (.rawData // "") == "" then "ctrl" else "real" end' 2>/dev/null | sort | uniq -c)"
-  CTRL=$(( CTRL + $(printf '%s\n' "$counts" | awk '$2=="ctrl"{print $1}' | head -1 | grep -E '^[0-9]+$' || echo 0) ))
-  REAL=$(( REAL + $(printf '%s\n' "$counts" | awk '$2=="real"{print $1}' | head -1 | grep -E '^[0-9]+$' || echo 0) ))
+  OBJS=$((OBJS + 1))
+  line="$(aws s3 cp "s3://$B/$key" - 2>/dev/null | python3 "$ROOT/tools/pairs_errors.py")"
+  # ★ 도구가 줄을 못 냈으면 객체 하나를 통째로 못 읽은 것이다. 0 으로 두지 않는다.
+  if ! [[ "$line" =~ ctrl=([0-9]+)\ real=([0-9]+)\ unparsed=([0-9]+) ]]; then
+    UNREAD=$((UNREAD + 1)); continue
+  fi
+  CTRL=$((CTRL + BASH_REMATCH[1]))
+  REAL=$((REAL + BASH_REMATCH[2]))
+  UNREAD=$((UNREAD + BASH_REMATCH[3]))
 done < <(aws s3 ls "s3://$B/errors/" --recursive 2>/dev/null | awk '{print $4}' | grep "dt=$DAY/")
-echo "  제어 메시지(무해) $CTRL · 쌍이 든 오류 $REAL"
+echo "  객체 $OBJS · 제어 메시지(무해) $CTRL · 쌍이 든 오류 $REAL · 못 읽음 $UNREAD"
 if [ "$REAL" -gt 0 ]; then
   echo "  aws logs tail /aws/kinesisfirehose/thoth-pairs --since 1h 로 이유를 본다"
+  RC=1
+elif [ "$UNREAD" -gt 0 ]; then
+  echo "  못 읽은 오류가 있다 — 통과로 세지 않는다"
   RC=1
 fi
 

@@ -821,7 +821,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->260건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->265건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1479,8 +1479,11 @@ bash tools/pairs_check.sh 2026-09-16
 | 종료 코드 | 뜻 |
 |---|---|
 | 0 | 쌍이 있고 Athena 가 읽는다 · 쌍이 든 오류 없음 |
-| 1 | 쌍이 든 변환 오류가 있다 · Athena 실패 |
+| 1 | 쌍이 든 변환 오류 · 못 읽은 오류 객체 · Athena 실패 |
 | 3 | 그날 쌍이 없다 — 못 잼 |
+
+★ **오류 객체는 `tools/pairs_errors.py` 가 가른다.** 제어 메시지 · 쌍이 든 오류 ·
+못 읽음 셋이다. jq 를 쓰지 않는다(DECISIONS §99).
 
 ★ **첫 실측**(2026-09-16). probe 한 건이 12:56 UTC 배치로 Parquet 3,440바이트가
 됐고 Athena 가 `bedrock · apac.amazon.nova-lite-v1:0 · probe.local · curl · n=1`
