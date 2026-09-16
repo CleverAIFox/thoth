@@ -7,6 +7,32 @@
   ST.__running = true;
 
   const CLS = "st-translation";
+
+  // ★ **테마를 추측하지 않고 잰다.** `prefers-color-scheme` 은 OS 설정이라
+  //   크롬이 어두운데 사이트가 밝으면 어긋난다 — 흰 바탕에 흰 글씨가 났다
+  //   (DECISIONS §92). 앵커에서 위로 올라가며 **실제로 칠해진 첫 배경색**을
+  //   찾아 밝기를 재고, `html[data-st-theme]` 로 남긴다. CSS 는 그것만 본다.
+  //
+  // ★ 투명한 배경은 건너뛴다. 대부분의 요소가 `rgba(0,0,0,0)` 이고 그것을
+  //   검정으로 읽으면 모든 사이트가 어두운 것이 된다.
+  const RGB = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/;
+
+  const paintedBg = (el) => {
+    for (let n = el; n instanceof Element; n = n.parentElement) {
+      const m = RGB.exec(getComputedStyle(n).backgroundColor || "");
+      if (m && (m[4] === undefined || Number(m[4]) > 0.05)) {
+        return [+m[1], +m[2], +m[3]];
+      }
+    }
+    return [255, 255, 255];   // 아무도 칠하지 않았으면 흰 바탕이다
+  };
+
+  const markTheme = (el) => {
+    const [r, g, b] = paintedBg(el);
+    // 상대 휘도. 사람 눈은 초록에 제일 민감하다.
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    document.documentElement.dataset.stTheme = lum < 0.45 ? "dark" : "light";
+  };
   // 배치 크기는 엔진에 달렸다. 코드에 박지 않고 chrome.storage 의 stBatch 로
   // 둔다(DECISIONS §80).
   //
@@ -185,6 +211,7 @@
       if (alreadyKorean(body)) continue;   // 이미 한국어다
       u.body = body;
       u.urls = urls;
+      markTheme(u.el);
       u.node = document.createElement("div");
       // ★ 기다리는 상태를 클래스로 남긴다. 한 문항이 5초이고 그동안 표시가
       //   없으면 눌렀는지조차 알 수 없다. 글자가 아니라 클래스로 두는 이유는

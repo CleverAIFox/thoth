@@ -1,45 +1,70 @@
 /* 번역 박스.
  *
- * ★ **상자를 그리지 않는다.** 바탕을 깔면 Udemy 보기 카드 안에 상자가 둘
- *   겹친다 — 인용문 안의 인용문이다. 구분은 **작은 이름표와 글자 무게**가
- *   한다. 한국어라는 것 자체가 이미 가장 강한 구분 신호다.
+ * ★ **테마를 추측하지 않는다.** `prefers-color-scheme` 은 OS 설정이라 크롬이
+ *   어두운데 사이트가 밝으면 어긋난다(DECISIONS §92). 브로커가 앵커의 실제
+ *   배경 밝기를 재어 `html[data-st-theme]` 를 붙이고, 여기서는 그것만 본다.
  *
- * ★ **번역이 주인공이다.** 원문보다 진하고 무겁게 둔다. 원문은 이미 읽었거나
- *   대조용으로 곁에 있는 것이고, 눈이 먼저 닿아야 하는 쪽은 한국어다.
- *
- * ★ **이름표를 DOM 이 아니라 `::before` 로 둔다.** 요소를 늘리면 브로커가
- *   textContent 를 갈아 끼울 때 같이 지워지고, 스크립트와 스타일이 한 쌍 더
- *   생긴다(DECISIONS §91).
+ * ★ **분기를 확실히 가른다.** 밝은 쪽은 흰 면에 그림자로 띄우고, 어두운 쪽은
+ *   바탕보다 한 단계 밝은 면에 안쪽 하이라이트로 세운다. 어두운 데서 그림자는
+ *   보이지 않는다.
  *
  * ★ **명시도로 이긴다. `!important` 를 쓰지 않는다.** 클래스를 두 번 적어
- *   (0,2,0) 을 만든다.
- *
- * ★ **색을 상속받는다. `prefers-color-scheme` 를 쓰지 않는다.** 그것은 OS
- *   설정이지 이 페이지의 배경이 아니다 — 크롬이 어두운 설정이고 Udemy 가
- *   밝은 테마이면 흰 바탕에 흰 글씨가 나온다(2026-09-16 에 실제로 났다).
- *   부모의 `color` 를 물려받으면 사이트가 어느 테마든 저절로 맞는다.
+ *   (0,2,0) 을 만든다. 테마 분기는 `html[data-st-theme]` 가 앞에 붙어 더 높다.
  *
  * ★ **글자 크기를 px 로 박는다.** `em` 은 부모를 따라가는데 문항 · 보기 ·
  *   해설의 부모 크기가 제각각이라 같은 번역이 자리마다 다른 크기로 나왔다.
+ *
+ * ★ **글꼴을 싣는다.** 윈도우 크롬에서 한글은 `Malgun Gothic` 으로 떨어지고
+ *   그것이 화면을 낡아 보이게 하는 가장 큰 이유였다. 시스템에 없는 글꼴을
+ *   이름으로만 적는 것은 적지 않은 것과 같다.
+ *
+ * ★ **가변 글꼴을 좁혀 실었다.** 원본 2.0MB 를 `wght 400-700` 으로 인스턴싱하고
+ *   라틴 + 상용 한글로 부분집합해 603KB 가 됐다. 없는 음절은 시스템 글꼴로
+ *   떨어지므로 깨지지 않는다.
+ *
+ * ★ **SIL OFL 1.1.** 사본을 `fonts/LICENSE.txt` 에 함께 둔다 — 재배포 조건이다.
  */
 
+@font-face {
+  font-family: "Pretendard st";
+  src: url("fonts/Pretendard.subset.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 .st-translation.st-translation {
-  --st-accent: #3182f6;
+  --st-surface: #ffffff;
+  --st-border: #e6e9ee;
+  --st-text: #16181d;
+  --st-muted: #868d97;
+  --st-accent: #2b6ff6;
+  --st-chip: #edf3ff;
+  --st-lift:
+    0 0 0 1px rgba(16, 24, 40, .03),
+    0 1px 2px rgba(16, 24, 40, .06),
+    0 10px 24px -8px rgba(16, 24, 40, .12);
+  --st-inset: none;
+  --st-skel: #eef1f5;
 
   box-sizing: border-box;
   width: 100%;
-  margin: 12px 0 14px;
-  padding: 0;
-  border: 0;
-  background: none;
+  margin: 12px 0 16px;
+  padding: 15px 18px 17px;
+  border: 1px solid var(--st-border);
+  border-radius: 16px;
+  background: var(--st-surface);
+  box-shadow: var(--st-lift), var(--st-inset);
 
-  color: inherit;
-  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
-               "Malgun Gothic", system-ui, sans-serif;
+  color: var(--st-text);
+  font-family: "Pretendard st", -apple-system, BlinkMacSystemFont,
+               "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   font-size: 15.5px;
-  font-weight: 500;
-  line-height: 1.68;
-  letter-spacing: -.014em;
+  font-weight: 450;
+  line-height: 1.74;
+  letter-spacing: -.017em;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis: none;   /* 없는 굵기를 흉내내 뭉개지 않는다 */
   text-align: left;
 
   white-space: pre-wrap;        /* innerText 의 줄바꿈을 살린다 */
@@ -48,60 +73,95 @@
   text-wrap: pretty;            /* 마지막 줄에 한 어절만 남는 것을 줄인다 */
 }
 
-/* 이름표. 상자 대신 이것이 경계를 만든다. */
+/* 이름표. DOM 이 아니라 `::before` 다 — 요소를 늘리면 브로커가 textContent 를
+ * 갈아 끼울 때 같이 지워진다. */
 .st-translation.st-translation::before {
   content: "한글";
-  display: block;
-  margin-bottom: 3px;
-  color: color-mix(in srgb, currentColor 52%, transparent);
+  display: inline-block;
+  margin-bottom: 9px;
+  padding: 2px 8px 3px;
+  border-radius: 7px;
+  background: var(--st-chip);
+  color: var(--st-accent);
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: .09em;
-  line-height: 1.4;
+  letter-spacing: .08em;
+  line-height: 1.45;
+  vertical-align: top;
+}
+
+/* ── 어두운 면 ────────────────────────────────────────────────────────────
+ * ★ 그림자 대신 **안쪽 하이라이트**로 세운다. 검은 바탕에서 그림자는 아무것도
+ *   하지 않고, 위쪽 1px 밝은 선이 면을 들어 올린다. */
+html[data-st-theme="dark"] .st-translation.st-translation {
+  --st-surface: #1e232c;
+  --st-border: rgba(255, 255, 255, .08);
+  --st-text: #e7eaf0;
+  --st-muted: #8a93a3;
+  --st-accent: #7aa9ff;
+  --st-chip: rgba(122, 169, 255, .15);
+  --st-lift: 0 1px 2px rgba(0, 0, 0, .35);
+  --st-inset: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --st-skel: rgba(255, 255, 255, .07);
 }
 
 .st-translation.st-translation::selection,
 .st-translation.st-translation *::selection {
-  background: color-mix(in srgb, var(--st-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--st-accent) 26%, transparent);
 }
 
 /* 링크 — 원문에서 떼어낸 URL 이 뒤에 붙는다(splitUrls).
- * ★ 본문과 같은 무게면 번역문처럼 읽힌다. 한 단계 가볍게 둔다. */
+ * ★ 본문과 같은 무게면 번역문처럼 읽힌다. 한 단계 가볍고 작게 둔다. */
 .st-translation.st-translation a {
+  display: inline-block;
+  margin: 3px 0 0;
+  padding: 2px 8px 3px;
+  border: 1px solid var(--st-border);
+  border-radius: 7px;
+  background: transparent;
   color: var(--st-accent);
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  margin-left: 6px;
   word-break: break-all;
+  transition: background .12s ease, border-color .12s ease;
 }
 
 .st-translation.st-translation a:hover {
-  border-bottom-color: currentColor;
+  border-color: var(--st-accent);
+  background: var(--st-chip);
 }
 
-/* ★ 기다리는 동안. **본문이 아니라 이름표가 말한다.** 상자가 없으니 흔들
- *   것도 없고, 번역이 도착하면 이름표만 조용히 제자리로 돌아온다. */
+/* ── 기다리는 동안 ────────────────────────────────────────────────────────
+ * ★ **글자를 흘리지 않는다.** 자리를 뼈대로 잡아 두면 번역이 도착할 때 높이가
+ *   튀지 않고, 무엇을 기다리는지가 한눈에 보인다. */
 .st-translation--loading.st-translation--loading {
-  color: color-mix(in srgb, currentColor 45%, transparent);
-  font-weight: 400;
+  min-height: 104px;
+  color: transparent;
+  background-image:
+    linear-gradient(var(--st-skel) 0 0),
+    linear-gradient(var(--st-skel) 0 0),
+    linear-gradient(var(--st-skel) 0 0);
+  background-size: calc(100% - 32px) 11px, calc(100% - 56px) 11px, calc(60% - 32px) 11px;
+  background-position: 16px 48px, 16px 72px, 16px 96px;
+  background-repeat: no-repeat;
 }
 
 .st-translation--loading.st-translation--loading::before {
   content: "번역 중";
-  color: var(--st-accent);
-  animation: st-pulse 1.4s ease-in-out infinite;
+  animation: st-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes st-pulse {
-  0%, 100% { opacity: .4; }
+  0%, 100% { opacity: .45; }
   50%      { opacity: 1; }
 }
 
-/* ★ 움직임을 줄이라고 한 사람에게는 움직이지 않는다. 글자는 그대로 남는다. */
+/* ★ 움직임을 줄이라고 한 사람에게는 움직이지 않는다. 뼈대는 그대로 남는다. */
 @media (prefers-reduced-motion: reduce) {
   .st-translation--loading.st-translation--loading::before { animation: none; }
+  .st-translation.st-translation a { transition: none; }
 }
 
 html.st-off .st-translation { display: none !important; }

@@ -15,14 +15,16 @@
     안에 있다. 카드 안에서 상자가 겹치는지가 이 화면으로 보인다.
 -->
 <link rel="stylesheet" href="content.css">
+<!-- ★ 확장 안에서는 `content.css` 의 상대 경로가 확장 오리진으로 풀린다.
+     파일로 열 때도 같은 폴더라 그대로 맞는다. -->
 <style>
   /* 미리보기 뼈대. 번역 박스 스타일은 content.css 가 갖는다. */
   :root { --page: #fff; --ink: #1c1d1f; --line: #d1d7dc; }
+  html[data-st-theme="dark"] { --page: #14161a; --ink: #e9eaeb; --line: #33383f; }
   body {
     margin: 0; padding: 32px; background: var(--page); color: var(--ink);
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Pretendard", system-ui, sans-serif;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   }
-  .dark { --page: #1c1d1f; --ink: #e9eaeb; --line: #3e4143; }
   .bar {
     position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; align-items: center;
     margin: -32px -32px 24px; padding: 12px 32px;
@@ -94,10 +96,14 @@
 
 <script>
   const $ = (id) => document.getElementById(id);
+  // ★ 실제로는 브로커가 배경 밝기를 재어 이 속성을 붙인다(broker.js markTheme).
+  //   여기서는 손으로 바꿔 양쪽을 나란히 본다.
+  const root = document.documentElement;
+  root.dataset.stTheme = "light";
   $("theme").onclick = () => {
-    document.documentElement.classList.toggle("dark");
-    document.body.classList.toggle("dark");
-    $("theme").textContent = document.body.classList.contains("dark") ? "밝게" : "어둡게";
+    const dark = root.dataset.stTheme === "dark";
+    root.dataset.stTheme = dark ? "light" : "dark";
+    $("theme").textContent = dark ? "어둡게" : "밝게";
   };
   $("wide").onclick = () => {
     const narrow = document.body.style.maxWidth === "560px";

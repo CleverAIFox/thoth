@@ -22,5 +22,15 @@
   },
   "background": {
     "service_worker": "src/background.js"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "fonts/Pretendard.subset.woff2"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }
