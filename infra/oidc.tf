@@ -223,7 +223,6 @@ data "aws_iam_policy_document" "deploy" {
     sid = "LogGroup"
 
     actions = [
-      "logs:DescribeLogGroups",
       "logs:ListTagsForResource",
       "logs:PutRetentionPolicy",
       "logs:TagResource",
@@ -251,6 +250,14 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:iam::${data.aws_caller_identity.me.account_id}:role/${local.name}-*",
       local.oidc_arn,
     ]
+  }
+
+  # 목록 API 는 리소스 수준 권한을 받지 않는다. 특정 그룹에 걸면
+  # "log-group::log-stream:" 으로 평가돼 거절된다.
+  statement {
+    sid       = "LogGroupList"
+    actions   = ["logs:DescribeLogGroups"]
+    resources = ["*"]
   }
 
   statement {
