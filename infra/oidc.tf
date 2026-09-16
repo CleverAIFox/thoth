@@ -114,3 +114,159 @@ output "ci_role_arn" {
   description = "워크플로의 role-to-assume 에 넣는 값"
   value       = aws_iam_role.ci.arn
 }
+
+# ── 배포 역할 ───────────────────────────────────────────────────────────────
+#
+# ★ **IAM 쓰기를 주지 않는다.** `terraform apply` 전체를 CI 에 주면 그 역할이
+#   자기 신뢰 정책을 고칠 수 있다. 읽기만 준다 — refresh 에 필요한 것은 읽기다.
+#   IAM 을 바꾸는 변경은 CI 에서 `AccessDenied` 로 멈추고 손으로 `apply` 한다.
+#   **그것이 결함이 아니라 경계다.**
+#
+# ★ **`production` Environment 로 좁힌다.** `sub` 가
+#   `...:environment:production` 일 때만 받는다. 읽기 역할(`:*`)보다 좁고,
+#   승인 없이는 그 `sub` 가 발급되지 않는다.
+#
+# ★ **상태 버킷을 여기 적지 않는다.** 이름이 저장소에 없기 때문이다
+#   (MASTER §11-16). 변수로 받는다.
+
+variable "state_bucket" {
+  description = "terraform 상태 버킷. bootstrap_backend.sh 가 만든 이름"
+  type        = string
+  default     = ""
+}
+
+locals {
+  state_bucket = var.state_bucket != "" ? var.state_bucket : "thoth-tfstate-${data.aws_caller_identity.me.account_id}"
+}
+
+data "aws_iam_policy_document" "deploy_assume" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.github_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.github_host}:sub"
+      values   = ["repo:${var.github_repo_sub}:environment:production"]
+    }
+  }
+}
+
+resource "aws_iam_role" "deploy" {
+  name               = "${local.name}-deploy"
+  description        = "GitHub Actions deploy. terraform apply without IAM writes"
+  assume_role_policy = data.aws_iam_policy_document.deploy_assume.json
+}
+
+data "aws_iam_policy_document" "deploy" {
+  # 상태. 잠금 파일도 같은 접두사 아래 있다.
+  statement {
+    sid       = "StateObjects"
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = ["arn:aws:s3:::${local.state_bucket}/thoth/*"]
+  }
+
+  statement {
+    sid       = "StateBucket"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::${local.state_bucket}"]
+  }
+
+  statement {
+    sid = "Function"
+
+    actions = [
+      "lambda:GetFunction",
+      "lambda:GetFunctionConfiguration",
+      "lambda:GetFunctionUrlConfig",
+      "lambda:GetPolicy",
+      "lambda:ListVersionsByFunction",
+      "lambda:UpdateFunctionCode",
+      "lambda:UpdateFunctionConfiguration",
+      "lambda:UpdateFunctionUrlConfig",
+      "lambda:TagResource",
+      "lambda:UntagResource",
+      "lambda:ListTags",
+    ]
+
+    resources = [aws_lambda_function.worker.arn]
+  }
+
+  statement {
+    sid = "Table"
+
+    actions = [
+      "dynamodb:DescribeTable",
+      "dynamodb:DescribeTimeToLive",
+      "dynamodb:DescribeContinuousBackups",
+      "dynamodb:ListTagsOfResource",
+      "dynamodb:UpdateTable",
+      "dynamodb:UpdateTimeToLive",
+      "dynamodb:TagResource",
+      "dynamodb:UntagResource",
+    ]
+
+    resources = [aws_dynamodb_table.translations.arn]
+  }
+
+  statement {
+    sid = "LogGroup"
+
+    actions = [
+      "logs:DescribeLogGroups",
+      "logs:ListTagsForResource",
+      "logs:PutRetentionPolicy",
+      "logs:TagResource",
+      "logs:UntagResource",
+    ]
+
+    resources = ["${aws_cloudwatch_log_group.worker.arn}:*", aws_cloudwatch_log_group.worker.arn]
+  }
+
+  # ★ **읽기만이다.** refresh 가 역할과 정책을 읽어야 계획이 선다. 쓰기는
+  #   주지 않으므로 IAM 변경은 CI 에서 멈춘다.
+  statement {
+    sid = "IamRead"
+
+    actions = [
+      "iam:GetRole",
+      "iam:GetRolePolicy",
+      "iam:ListRolePolicies",
+      "iam:ListAttachedRolePolicies",
+      "iam:ListInstanceProfilesForRole",
+      "iam:GetOpenIDConnectProvider",
+    ]
+
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.me.account_id}:role/${local.name}-*",
+      local.oidc_arn,
+    ]
+  }
+
+  statement {
+    sid       = "Whoami"
+    actions   = ["sts:GetCallerIdentity"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "deploy" {
+  name   = "${local.name}-deploy"
+  role   = aws_iam_role.deploy.id
+  policy = data.aws_iam_policy_document.deploy.json
+}
+
+output "deploy_role_arn" {
+  description = "deploy 워크플로의 role-to-assume 에 넣는 값"
+  value       = aws_iam_role.deploy.arn
+}

@@ -40,23 +40,22 @@
 
 ## 0. 다음 한 수
 
-**#53 상태를 S3 로 옮긴다.** 코드는 섰고 남은 것은 부트스트랩이다.
+**#21 을 켠다.** 코드는 섰고 남은 것은 `apply` 와 시크릿 셋이다.
 
 ```bash
-bash tools/bootstrap_backend.sh
-bash tools/tf.sh init -migrate-state
-bash tools/tf.sh plan                 # No changes 여야 한다
+bash tools/tf.sh apply                    # deploy_role_arn 이 출력된다
+gh api -X PUT repos/CleverAIFox/thoth/environments/production
+gh secret set AWS_DEPLOY_ROLE_ARN --body "$(bash tools/tf.sh output -raw deploy_role_arn)"
+gh secret set AWS_STATE_BUCKET   --body "$(grep -oP 'bucket\s*=\s*"\K[^"]+' infra/backend.hcl)"
+gh secret set WORKER_TOKEN       --body "$(grep -oP 'worker_token\s*=\s*"\K[^"]+' infra/terraform.tfvars)"
+git tag v0.1.0 && git push --tags
 ```
 
-- **`plan` 이 `No changes` 가 아니면 멈춘다.** 상태가 안 옮겨졌다는 뜻이고,
-  그대로 `apply` 하면 **이미 있는 리소스를 다시 만든다**
-- 이전이 끝나야 `#21` 이 가능하다. CI 는 로컬 상태 파일을 읽지 못한다
-- `infra/terraform.tfstate` 는 이전 뒤에도 남는다. **지우지 말고 둔다** —
-  잘못되면 그것이 유일한 되돌릴 길이다
-
-★ **`doctor` 가 그전까지 FAIL 한다.** 백엔드 블록이 생겼는데 `.terraform/` 은
-아직 로컬로 초기화돼 있어 `terraform validate` 가 거절한다. 순서가 정해져 있다 —
-부트스트랩 · `init` 이 먼저고 `doctor` 는 그 뒤다.
+- **`AccessDenied` 가 나면 그 액션 이름을 정책에 넣는다.** 넓은 권한으로 덮지
+  않는다. 액션 목록은 경험으로 적은 것이고 **첫 배포가 그 유일한 검사다**(§73)
+- IAM 을 바꾸는 변경은 CI 에서 멈춘다. **경계이지 결함이 아니다**(§89)
+- `production` Environment 에 승인자를 걸지 말지는 열려 있다. 혼자 쓰는 저장소라
+  지금은 승인 없이 통과해도 `sub` 조건은 그대로 선다
 
 ★ 이 절은 새 세션이 문맥 없이 시작할 때 읽는 자리다. 한 수가 정해지면
 갱신하고, 해결되면 지운다.
@@ -358,8 +357,7 @@ DECISIONS §20.
 
 | # | 상태 | 항목 | 전건 |
 |---|---|---|---|
-| 53 | 🟡 | 상태를 S3 로 — **코드는 섰다.** 부트스트랩과 이전만 남았다 | |
-| 21 | 📄 | 배포 워크플로 — **태그 푸시에서만**. 배포 역할 · `production` Environment 도 여기서 | 53 |
+| 21 | 🟡 | 배포 워크플로 — **코드는 섰다.** `apply` 와 시크릿 셋만 남았다 | |
 
 ★ **`infra/` 가 섰다**(2026-09-14). Lambda · Function URL · DynamoDB(TTL) ·
 IAM 넷이고 동시 실행도 고정했다. `terraform fmt` 는 `doctor` 와 CI 가 보고
@@ -388,7 +386,10 @@ application` 이 등재 표기로 나왔다 — **골든셋 밖의 첫 확인이
 ★ **#20 을 지웠다**(2026-09-15). OIDC 프로바이더와 `thoth-ci` 역할이 섰고
 드리프트 검사가 17초에 돈다. `sub` 형식으로 반나절을 썼다(DECISIONS §87).
 
-★ **#21 을 A 안이 아니라 B 안으로 간다.** CI 에 `lambda:UpdateFunctionCode`
+★ **#53 을 지웠다**(2026-09-16). 상태가 S3 에 있고 `plan` 이 `No changes` 로
+이전을 확인했다. 잠금은 S3 가 한다.
+
+★ **#21 을 A 안이 아니라 B 안으로 갔다.** CI 에 `lambda:UpdateFunctionCode`
 하나만 주고 zip 만 올리는 길이 더 좁고 빠르지만, **코드와 인프라의 상태가 두
 곳으로 갈린다**(DECISIONS §88). 그래서 #53 이 전건이 됐다.
 

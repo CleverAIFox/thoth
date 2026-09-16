@@ -1,0 +1,49 @@
+# 태그를 밀면 배포한다.
+#
+# ★ **태그에서만 돈다.** main 푸시마다 배포하면 배포가 커밋과 같은 말이 되고,
+#   무엇이 배포됐는지 가리키는 이름이 없어진다.
+#
+# ★ **`production` Environment 를 거친다.** 승인이 없으면 토큰의 `sub` 가
+#   `:environment:production` 으로 발급되지 않고, 배포 역할은 그 `sub` 만 받는다
+#   (infra/oidc.tf). 승인이 곧 자격증명의 조건이다.
+#
+# ★ **IAM 변경은 여기서 멈춘다.** 배포 역할에 IAM 쓰기가 없다. `AccessDenied`
+#   가 나면 그 변경은 손으로 `apply` 할 것이라는 뜻이다(DECISIONS §89).
+name: deploy
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_wrapper: false }
+      - run: bash tools/package_lambda.sh
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-2
+      # ★ 백엔드 설정이 저장소에 없다(MASTER §11-16). 버킷 이름만 넘긴다.
+      - run: |
+          terraform -chdir=infra init \
+            -backend-config="bucket=${{ secrets.AWS_STATE_BUCKET }}" \
+            -backend-config="key=thoth/terraform.tfstate" \
+            -backend-config="region=ap-northeast-2"
+      # ★ **계획을 먼저 남긴다.** 적용이 실패해도 무엇을 하려 했는지는 남는다.
+      - run: terraform -chdir=infra plan -input=false -out=tfplan
+        env:
+          TF_VAR_worker_token: ${{ secrets.WORKER_TOKEN }}
+      - run: terraform -chdir=infra apply -input=false tfplan
+      # ★ 배포본이 이 태그의 코드인지 같은 검사로 확인한다.
+      - run: python3 tools/deploy_drift.py

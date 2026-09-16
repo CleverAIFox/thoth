@@ -1227,6 +1227,26 @@ workflows named ..." 를 내는데, 그 문구는 파일이 아예 없을 때와
 ★ **이전 뒤 `plan` 이 `No changes` 여야 한다.** 아니면 상태가 옮겨지지 않았고,
 그 상태로 `apply` 하면 **이미 있는 리소스를 다시 만든다.**
 
+### 11-17. 태그 배포
+
+```bash
+git tag v0.1.0 && git push --tags
+```
+
+`production` Environment 의 승인을 거쳐 `terraform apply` 가 돈다. 끝나면
+드리프트 검사가 같은 워크플로 안에서 배포본을 확인한다.
+
+★ **승인이 곧 자격증명의 조건이다.** 배포 역할은 `sub` 가
+`...:environment:production` 인 토큰만 받고, 그 `sub` 는 Environment 를 거쳐야
+발급된다. 승인을 건너뛰면 권한이 없다.
+
+★ **IAM 변경은 CI 에서 멈춘다.** 배포 역할에 IAM 쓰기가 없다. `AccessDenied` 가
+나면 그 변경은 손으로 `apply` 하라는 뜻이다 — **결함이 아니라 경계다**
+(DECISIONS §89).
+
+★ 필요한 시크릿 셋 — `AWS_DEPLOY_ROLE_ARN` · `AWS_STATE_BUCKET` ·
+`WORKER_TOKEN`. 앞의 둘은 `tf.sh output` 과 `infra/backend.hcl` 에 있다.
+
 ## 12. 접근 토큰
 
 `WORKER_TOKEN` 이 비면 워커가 열린다. 채우면 `X-Thoth-Token` 헤더를 요구하고
