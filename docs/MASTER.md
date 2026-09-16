@@ -1247,6 +1247,13 @@ git tag v0.1.0 && git push --tags
 ★ 필요한 시크릿 셋 — `AWS_DEPLOY_ROLE_ARN` · `AWS_STATE_BUCKET` ·
 `WORKER_TOKEN`. 앞의 둘은 `tf.sh output` 과 `infra/backend.hcl` 에 있다.
 
+★ **쓰기 경로는 아직 지나가지 않았다.** `v0.1.0`~`v0.1.2` 가 전부 코드 변경
+없는 태그여서 `apply` 가 `0 changed` 로 끝났다. `lambda:UpdateFunctionCode` 는
+**처음으로 `worker/app` 을 고쳐 태그를 달 때** 검증된다(DECISIONS §90).
+
+★ **정책이 프로바이더 버전에 묶여 있다.** refresh 가 부르는 읽기 액션은
+`aws` 프로바이더가 정한다. `~> 6.0` 을 올릴 때 배포 역할을 함께 본다.
+
 ## 12. 접근 토큰
 
 `WORKER_TOKEN` 이 비면 워커가 열린다. 채우면 `X-Thoth-Token` 헤더를 요구하고

@@ -40,22 +40,27 @@
 
 ## 0. 다음 한 수
 
-**#21 을 켠다.** 코드는 섰고 남은 것은 `apply` 와 시크릿 셋이다.
+**실사용 데이터.** 남은 미지가 거기 하나뿐이다.
+
+배포본은 최신이고 `usage` 로그가 CloudWatch 에 찍힌다. 그런데 `chars_used` 가
+2,535자다 — **실제로 쓴 적이 거의 없다.** Udemy 에서 확장을 배포본에 붙여
+(팝업 고급에 URL 과 토큰) 몇 문항 돌리면 쌓인다.
 
 ```bash
-bash tools/tf.sh apply                    # deploy_role_arn 이 출력된다
-gh api -X PUT repos/CleverAIFox/thoth/environments/production
-gh secret set AWS_DEPLOY_ROLE_ARN --body "$(bash tools/tf.sh output -raw deploy_role_arn)"
-gh secret set AWS_STATE_BUCKET   --body "$(grep -oP 'bucket\s*=\s*"\K[^"]+' infra/backend.hcl)"
-gh secret set WORKER_TOKEN       --body "$(grep -oP 'worker_token\s*=\s*"\K[^"]+' infra/terraform.tfvars)"
-git tag v0.1.0 && git push --tags
+aws logs tail /aws/lambda/thoth-worker --since 1h --region ap-northeast-2 --profile fox > /tmp/prod.log
+python3 tools/usage_report.py /tmp/prod.log        # --drop-warmup 을 주지 않는다
 ```
 
-- **`AccessDenied` 가 나면 그 액션 이름을 정책에 넣는다.** 넓은 권한으로 덮지
-  않는다. 액션 목록은 경험으로 적은 것이고 **첫 배포가 그 유일한 검사다**(§73)
-- IAM 을 바꾸는 변경은 CI 에서 멈춘다. **경계이지 결함이 아니다**(§89)
-- `production` Environment 에 승인자를 걸지 말지는 열려 있다. 혼자 쓰는 저장소라
-  지금은 승인 없이 통과해도 `sub` 조건은 그대로 선다
+그 줄들이 셋을 한꺼번에 준다.
+
+- **실사용 토큰** — MASTER §7-0-2 의 환산을 실측으로 바꾼다
+- **실제 배치 분포** — 브로커가 실제로 몇 개씩 묶는지
+- **개별 폴백 빈도** — 실사이트 문장에서 배치 파싱이 깨지는지
+
+★ **프롬프트 머리는 상수가 아니다.** 스모크에서 `sys_chars` 가 골든셋 1,149 가
+아니라 595 였다. 용어집이 원문에 나오는 용어만 골라 싣는다.
+
+★ 대안 — `#30`(크롬 웹스토어) · 콜드패스(#23~#26) · UI. **UI 는 번호가 없다.**
 
 ★ 이 절은 새 세션이 문맥 없이 시작할 때 읽는 자리다. 한 수가 정해지면
 갱신하고, 해결되면 지운다.
@@ -357,7 +362,6 @@ DECISIONS §20.
 
 | # | 상태 | 항목 | 전건 |
 |---|---|---|---|
-| 21 | 🟡 | 배포 워크플로 — **코드는 섰다.** `apply` 와 시크릿 셋만 남았다 | |
 
 ★ **`infra/` 가 섰다**(2026-09-14). Lambda · Function URL · DynamoDB(TTL) ·
 IAM 넷이고 동시 실행도 고정했다. `terraform fmt` 는 `doctor` 와 CI 가 보고
@@ -385,6 +389,10 @@ application` 이 등재 표기로 나왔다 — **골든셋 밖의 첫 확인이
 
 ★ **#20 을 지웠다**(2026-09-15). OIDC 프로바이더와 `thoth-ci` 역할이 섰고
 드리프트 검사가 17초에 돈다. `sub` 형식으로 반나절을 썼다(DECISIONS §87).
+
+★ **#21 을 지웠다**(2026-09-16). 태그를 밀면 `production` 승인을 거쳐
+`terraform apply` 가 돌고 드리프트 검사가 뒤따른다. `v0.1.2` 가 39초에
+통과했다. **쓰기 경로는 아직 미검증이다**(DECISIONS §90).
 
 ★ **#53 을 지웠다**(2026-09-16). 상태가 S3 에 있고 `plan` 이 `No changes` 로
 이전을 확인했다. 잠금은 S3 가 한다.
