@@ -20,6 +20,10 @@
 
 ★ **레벨을 환경변수로 열지 않는다.** 키를 늘리면 `.env.example` 과 `.env` 가
   갈려 `doctor` 가 다른 기계에서 FAIL 한다. 끌 이유가 생기면 그때 연다.
+
+★ **`thoth.pair` 는 메시지만 낸다.** 그 줄은 사람이 아니라 Firehose 가 읽고,
+  접두사가 붙으면 JSON 이 아니게 되어 Parquet 변환이 전부 실패한다(`pairs.py`).
+  `thoth` 의 자식이지만 `propagate` 를 꺼서 부모 포맷터로 두 번 나가지 않는다.
 """
 import logging
 import sys
@@ -31,3 +35,11 @@ if not log.handlers:
     _h.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
     log.addHandler(_h)
 log.propagate = False
+
+pair = logging.getLogger("thoth.pair")
+pair.setLevel(logging.INFO)
+if not pair.handlers:
+    _p = logging.StreamHandler(sys.stdout)
+    _p.setFormatter(logging.Formatter("%(message)s"))
+    pair.addHandler(_p)
+pair.propagate = False

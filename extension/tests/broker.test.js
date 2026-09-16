@@ -153,6 +153,39 @@ test("엔드포인트 설정이 기본값을 이긴다", need, async () => {
   assert.equal(fetch.calls[0].url, "https://w.test/translate");
 });
 
+test("source 를 본문에 싣는다", need, async () => {
+  // 쌍 로그가 사이트 · 어댑터별로 갈리는 열이다(PLAN #23).
+  const { translate, fetch } = await client(
+    [{ ok: true, body: { translations: ["가"] } }]);
+  await translate(["a"], { site: "www.udemy.com", adapter: "udemy" });
+  assert.deepEqual(fetch.calls[0].body.source, { site: "www.udemy.com", adapter: "udemy" });
+});
+
+test("source 가 비면 키를 싣지 않는다", need, async () => {
+  // 옛 워커도 받는다. `""` 과 null 이 한 열에 섞이지 않게 한다.
+  const { translate, fetch } = await client(
+    [{ ok: true, body: { translations: ["가"] } }]);
+  await translate(["a"], { site: "", adapter: undefined });
+  assert.ok(!("source" in fetch.calls[0].body));
+  await translate(["a"]);
+  assert.ok(!("source" in fetch.calls[1].body));
+});
+
+test("브로커가 호스트와 어댑터 이름을 넘긴다", need, async () => {
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome, fakeFetch } = harness;
+  await loadAdapters(["generic"]);
+  makeDoc("<p>A shard stores records for the stream in this sentence.</p>");
+  globalThis.chrome = fakeChrome().api;
+  const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
+  globalThis.fetch = f;
+  const b = await loadBroker();
+  await new Promise((r) => setTimeout(r, 2000));
+  b.stop();
+  assert.ok(f.calls.length >= 1, "요청이 나가지 않았다");
+  assert.equal(f.calls[0].body.source.adapter, "generic");
+  assert.ok(!("url" in f.calls[0].body.source), "경로는 싣지 않는다");
+});
+
 // ---------- 배치 기본값 ----------
 
 test("배치 기본값이 실측 최적점이다", need, async () => {

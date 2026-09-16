@@ -306,8 +306,60 @@ def _llm_batch(texts: list[str], call) -> list[str]:
     return [call(t, system) for t in texts]
 
 
+def translate_detail(texts: list[str]) -> tuple[list[str], list[str]]:
+    """(후처리 결과, 모델 출력). 계약이 이것을 부른다.
+
+    ★ **모델 출력을 버리지 않는다.** 사용자에게 가는 것은 후처리 결과지만 학습
+      데이터로는 둘 다 필요하다. `_fix_endings` · `_truncate_after_question` 이
+      고친 자리가 곧 **모델이 틀린 자리**이고, 후처리 결과만 남기면 모델의
+      실수와 규칙의 교정이 한 값으로 뭉개진다(DECISIONS §97).
+    """
+    raw = _raw_batch(texts)
+    return [postprocess(src, r) for src, r in zip(texts, raw)], raw
+
+
 def translate_batch(texts: list[str]) -> list[str]:
-    return [postprocess(src, ko) for src, ko in zip(texts, _raw_batch(texts))]
+    return translate_detail(texts)[0]
+
+
+def model_name() -> str:
+    """지금 엔진이 실제로 부르는 모델. 쌍 로그가 조건을 가르는 열이다."""
+    return {
+        "bedrock": BEDROCK_MODEL,
+        "local": OLLAMA_MODEL,
+        "translate": "aws-translate",
+    }.get(ENGINE, ENGINE)
+
+
+def prompt_fingerprint(batch: int | None = None) -> str:
+    """번역 결과를 정하는 입력의 지문.
+
+    ★ **워커로 옮겼다.** 전에는 `tools/bench_golden.py` 에만 있었는데, 쌍 로그가
+      같은 지문을 달아야 골든셋 기준선과 운영 로그를 한 조건으로 묶는다. 두
+      곳에 같은 계산을 두면 언젠가 갈린다(DECISIONS §14). 벤치는 이것을 부른다.
+
+    ★ 엔진 구현이 아니라 **모델이 보는 것**만 넣는다. 배치 파싱이나 후처리를
+      고쳐도 지문이 흔들리면 관계없는 재측정을 요구하게 된다(DECISIONS §22).
+
+    ★ **데이터만 넣으면 조립 로직의 변경을 놓친다.** 고정 표본을 한 번 조립해
+      그 결과를 함께 해시한다(DECISIONS §33).
+
+    ★ **배치 크기도 결과를 정하는 입력이다**(DECISIONS §51 · §57). 쌍 로그는
+      배치를 따로 싣고 여기에는 넣지 않는다 — 요청마다 크기가 달라 지문이
+      잘게 쪼개지면 조건으로 묶이지 않는다.
+    """
+    import hashlib
+
+    parts = [SYSTEM, BATCH_RULE]
+    books = glossary._load()
+    for name in sorted(books):
+        parts.append(name)
+        parts += [f"{en}={ko}" for en, ko in sorted(books[name].items())]
+    parts.append(glossary.as_prompt(
+        {"record": "레코드", "catalog": "카탈로그", "data catalog": "Data Catalog"}))
+    if batch is not None:
+        parts.append(f"batch={batch}")
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
 def _raw_batch(texts: list[str]) -> list[str]:

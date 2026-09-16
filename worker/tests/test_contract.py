@@ -52,7 +52,7 @@ def test_지원하지_않는_대상언어는_400():
 def test_엔진이_짧게_돌려주면_502_다(monkeypatch):
     # zip 은 짧은 쪽에 맞춰 조용히 자른다. 잘린 채로 나가면 확장이 1번 보기에
     # 2번 번역을 붙인다. 없는 것보다 나쁘다(DECISIONS §1).
-    monkeypatch.setattr(engine, "translate_batch", lambda ts: ["하나만"])
+    monkeypatch.setattr(engine, "translate_detail", lambda ts: (["하나만"], ["하나만"]))
     r = post(["first text here", "second text here"])
     assert r.status_code == 502 and r.json()["detail"] == "length_mismatch"
 
@@ -60,14 +60,14 @@ def test_엔진이_짧게_돌려주면_502_다(monkeypatch):
 def test_엔진_예외는_502_로_감싼다(monkeypatch):
     def boom(ts):
         raise RuntimeError("nope")
-    monkeypatch.setattr(engine, "translate_batch", boom)
+    monkeypatch.setattr(engine, "translate_detail", boom)
     r = post(["hello world"])
     assert r.status_code == 502 and r.json()["error"] == "engine_failed"
 
 
 def test_에러응답에도_CORS_헤더가_있다(monkeypatch):
     # 예외가 미들웨어를 건너뛰면 브라우저는 원인을 CORS 로 오인한다.
-    monkeypatch.setattr(engine, "translate_batch", lambda ts: ["짧다"])
+    monkeypatch.setattr(engine, "translate_detail", lambda ts: (["짧다"], ["짧다"]))
     r = client.post(
         "/translate",
         json={"texts": ["a" * 25, "b" * 25], "target": "ko"},
@@ -279,7 +279,7 @@ def test_엔진_실패는_부분_응답이_아니다(monkeypatch):
 
     def boom(ts):
         raise RuntimeError("nope")
-    monkeypatch.setattr(engine, "translate_batch", boom)
+    monkeypatch.setattr(engine, "translate_detail", boom)
     r = post(["cached text here", "brand new text here"])
     assert r.status_code == 502
 

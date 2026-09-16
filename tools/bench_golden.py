@@ -12,7 +12,6 @@
   python3 tools/bench_golden.py --json out.json    # 비교용 기록
 """
 import argparse
-import hashlib
 import json
 import os
 import pathlib
@@ -96,38 +95,15 @@ def translate(url: str, texts: list[str], timeout: int) -> tuple[list[str], floa
 
 
 def prompt_fingerprint(batch: int | None = None) -> str:
-    """번역 결과를 정하는 입력의 지문.
+    """번역 결과를 정하는 입력의 지문. **정본은 `engine.prompt_fingerprint` 다.**
 
-    ★ 기준선이 늙었는지를 사람이 기억해서 표시하게 두면, 표시하지 않은 날은
-      아무도 모른다. 프롬프트와 용어집이 바뀌면 위반 수가 바뀌므로, 그 둘을
-      해시해 기준선에 박아 둔다. 코드가 스스로 늙었다고 말하게 한다.
-
-    ★ 엔진 구현이 아니라 **모델이 보는 것**만 넣는다. 배치 파싱이나 후처리를
-      고쳐도 지문이 흔들리면 관계없는 재측정을 요구하게 된다(DECISIONS §22).
-
-    ★ **데이터만 넣으면 조립 로직의 변경을 놓친다.** `as_prompt` 가 용어를
-      어떻게 배치하는지도 모델이 보는 것의 일부인데, 2026-09-13 에 그 로직을
-      고쳤을 때 지문이 흔들리지 않았다. 고정 표본을 한 번 조립해 그 결과를
-      함께 해시한다 — 로직이 바뀌면 출력이 바뀌고, 무관한 수정에는 흔들리지
-      않는다(DECISIONS §33).
+    ★ 쌍 로그가 같은 지문을 달아야 기준선과 운영 로그가 한 조건으로 묶인다.
+      계산을 두 곳에 두지 않으려고 워커로 옮겼다(DECISIONS §97). 근거 주석도
+      그쪽에 있다.
     """
-    from app import engine, glossary
+    from app import engine
 
-    parts = [engine.SYSTEM, engine.BATCH_RULE]
-    for name in sorted(glossary._load()):
-        book = glossary._load()[name]
-        parts.append(name)
-        parts += [f"{en}={ko}" for en, ko in sorted(book.items())]
-    # 조립 로직의 지문. 값이 아니라 형태를 본다.
-    parts.append(glossary.as_prompt(
-        {"record": "레코드", "catalog": "카탈로그", "data catalog": "Data Catalog"}))
-    # ★ **배치 크기도 결과를 정하는 입력이다.** 같은 프롬프트라도 몇 유닛을
-    #   묶느냐에 따라 위반이 U자를 그린다 — 1·2·3·6·9 에서 9·6·3·5·6 이다
-    #   (DECISIONS §51). 지문에 넣지 않으면 기준선이 다른 배치의 값인데도
-    #   `doctor` 가 통과한다(DECISIONS §57).
-    if batch is not None:
-        parts.append(f"batch={batch}")
-    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
+    return engine.prompt_fingerprint(batch)
 
 
 def warmup(url: str, timeout: int) -> float:

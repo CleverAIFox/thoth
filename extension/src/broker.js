@@ -273,7 +273,8 @@
       for (const batch of chunk(list, MAX_BATCH)) {
         if (halted) { batch.forEach((u) => drop(u, true)); continue; }
         try {
-          const { translations: out, partial } = await ST.translate(batch.map((u) => u.body));
+          const { translations: out, partial } = await ST.translate(
+            batch.map((u) => u.body), { site: location.hostname, adapter: ad.name });
           streak = 0;
           batch.forEach((u, i) => (out[i] ? finish(u, out[i]) : drop(u, true)));
           // ★ 부분 응답은 200 이지만 사유는 재시도로 풀리지 않는다. 여기서

@@ -253,11 +253,68 @@ data "aws_iam_policy_document" "deploy" {
     ]
   }
 
+  # ★ **콜드패스는 읽기만 준다**(analytics.tf). refresh 가 통과해야 워커 코드만
+  #   바뀐 태그가 배포된다. 쓰기를 주지 않는 이유는 IAM 과 같다 — 이 파일이
+  #   IAM 을 만들어 어차피 첫 `apply` 는 손으로 한다.
+  #
+  # ★ **실측이 아니다.** 프로바이더가 refresh 에 부르는 액션을 문서로 추렸다.
+  #   빠진 것이 있으면 CI 가 `is not authorized to perform: <액션>` 으로 **이름을
+  #   댄다**(§90) — 그 이름을 여기 더한다. `AssumeRoleWithWebIdentity` 처럼 말하지
+  #   않는 실패가 아니다.
+  statement {
+    sid = "PairsBucketRead"
+
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucket*",
+      "s3:GetAccelerateConfiguration",
+      "s3:GetEncryptionConfiguration",
+      "s3:GetLifecycleConfiguration",
+      "s3:GetReplicationConfiguration",
+    ]
+
+    resources = [aws_s3_bucket.pairs.arn]
+  }
+
+  statement {
+    sid     = "PairsCatalogRead"
+    actions = ["glue:GetDatabase", "glue:GetTable", "glue:GetTags"]
+
+    resources = [
+      "arn:aws:glue:${var.region}:${data.aws_caller_identity.me.account_id}:catalog",
+      aws_glue_catalog_database.thoth.arn,
+      aws_glue_catalog_table.pairs.arn,
+    ]
+  }
+
+  statement {
+    sid     = "PairsStreamRead"
+    actions = ["firehose:DescribeDeliveryStream", "firehose:ListTagsForDeliveryStream"]
+
+    resources = [aws_kinesis_firehose_delivery_stream.pairs.arn]
+  }
+
+  statement {
+    sid = "PairsLogsRead"
+
+    actions = [
+      "logs:DescribeSubscriptionFilters",
+      "logs:ListTagsForResource",
+    ]
+
+    resources = [
+      aws_cloudwatch_log_group.worker.arn,
+      "${aws_cloudwatch_log_group.worker.arn}:*",
+      aws_cloudwatch_log_group.firehose.arn,
+      "${aws_cloudwatch_log_group.firehose.arn}:*",
+    ]
+  }
+
   # 목록 API 는 리소스 수준 권한을 받지 않는다. 특정 그룹에 걸면
   # "log-group::log-stream:" 으로 평가돼 거절된다.
   statement {
     sid       = "LogGroupList"
-    actions   = ["logs:DescribeLogGroups"]
+    actions   = ["logs:DescribeLogGroups", "logs:DescribeLogStreams"]
     resources = ["*"]
   }
 

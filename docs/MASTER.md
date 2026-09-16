@@ -184,11 +184,13 @@ pydantic 이 들어가고 콜드스타트가 1초 넘게 붙는다. 첫 문항 5
 
 ```
 POST /translate
-req : { "texts": ["...", "..."], "target": "ko" }      texts 는 1~50개
+req : { "texts": ["...", "..."], "target": "ko",
+        "source": { "site": "호스트", "adapter": "이름" } }   texts 는 1~50개 · source 는 선택
 hdr : X-Thoth-Token: <값>                              WORKER_TOKEN 이 설정된 경우만
 res : { "translations": [...], "cached": [bool, ...], "version": "0.1.0" }
 
 400 : { "error": "unsupported_target", "detail": "..." }   target 이 ko 가 아니다
+400 : { "error": "bad_request", "detail": "source_..." }  source 모양이 틀렸다
 401 : { "error": "unauthorized" }      토큰 불일치 (§12)
 429 : { "error": "quota_exceeded" }    월 문자 상한 초과
 413 : { "error": "too_long" }          단일 텍스트가 상한 초과
@@ -819,7 +821,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->242건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->260건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1388,6 +1390,55 @@ git tag v0.1.0 && git push --tags
 
 ★ **정책이 프로바이더 버전에 묶여 있다.** refresh 가 부르는 읽기 액션은
 `aws` 프로바이더가 정한다. `~> 6.0` 을 올릴 때 배포 역할을 함께 본다.
+
+### 11-18. 콜드패스 — 쌍 로그
+
+캐시 미스 한 건이 stdout 에 JSON 한 줄로 나가고 `infra/analytics.tf` 가 그것을
+S3 Parquet 로 옮긴다. **자체 번역 모델의 학습 데이터가 쌓이는 자리다**
+(DECISIONS §97).
+
+```
+Lambda stdout ─ 로그 그룹 ─ 구독 필터 { $.k = "pair" }
+  ─ Firehose (GZIP 해제 · 메시지 추출 · JSON→Parquet)
+  ─ s3://thoth-pairs-<계정>/pairs/dt=YYYY-MM-DD/
+  ─ Glue thoth.pairs (파티션 투영) ─ Athena
+```
+
+| 열 | 뜻 |
+|---|---|
+| `k` · `v` | 판별자 `pair` · 스키마 버전 |
+| `ts` · `h` | 에포크 ms · `sha256(src)` — 캐시 키와 같다 |
+| `src` · `raw` · `ko` | 원문 · **모델 출력** · 후처리 결과 |
+| `engine` · `model` · `prompt` | 조건. `prompt` 는 골든셋 기준선과 같은 지문이다(배치 제외) |
+| `book` · `n` | 고른 용어집 · 한 번에 번역한 미스 수 |
+| `site` · `adapter` | 확장이 보낸 호스트와 어댑터. 옛 클라이언트는 null |
+| `ver` | 워커 계약 버전 |
+
+★ **줄 전체가 JSON 이다.** `thoth.pair` 로거가 접두사 없이 쓴다. 접두사가
+붙으면 Parquet 변환이 전부 `errors/` 로 간다.
+
+★ **캐시 히트는 적지 않는다.** 같은 원문의 쌍은 처음 번역될 때 한 번이다.
+
+★ **검사 축을 쓸 때 돌리지 않는다.** 위반 판정은 읽을 때 `bench_golden.py` 의
+함수로 한다. 축이 늘면 옛 데이터에도 새 자를 댈 수 있다.
+
+★ **쌍은 학습용이다.** 원문은 사이트의 저작물이고 저장소는 공개다. 버킷도
+데이터셋도 공개하지 않는다.
+
+★ **첫 `apply` 는 손으로 한다.** 이 파일이 IAM 역할 둘을 만들고 배포 역할에는
+IAM 쓰기가 없다(§11-17). 그 뒤 태그 배포는 콜드패스를 읽기만 한다.
+
+★ **배포 역할의 콜드패스 읽기 권한은 실측이 아니다.** 프로바이더 문서로 추렸다.
+빠진 액션이 있으면 CI 가 이름을 댄다(DECISIONS §90).
+
+★ **`destroy` 는 쌍 버킷에서 멈춘다.** `force_destroy` 가 꺼져 있다. 다시 만들 수
+없는 데이터라 의도한 동작이다.
+
+확인은 로그가 아니라 버킷을 본다.
+
+```bash
+bash tools/tf.sh output -raw verify_pairs
+```
 
 ## 12. 접근 토큰
 

@@ -1,6 +1,6 @@
 """워커 계약. **프레임워크를 모른다.**
 
-  POST /translate {texts[], target} -> {translations[], cached[], version}
+  POST /translate {texts[], target, source?} -> {translations[], cached[], version}
   GET  /health                      -> {status, version, engine, cache, auth}
 
 ★ **FastAPI 라우트와 Lambda 핸들러가 같은 함수를 부른다.** 배포본을 Lambda 로
@@ -26,13 +26,17 @@ import os
 import secrets
 from typing import NamedTuple
 
-from . import cache, engine, guard
+from . import cache, engine, glossary, guard, pairs
 
 log = logging.getLogger("thoth")
 
 VERSION = "0.1.0"
 TARGETS = {"ko"}
 MAX_TEXTS = 50
+# ★ **`source` 는 선택이다.** 옛 확장 · 벤치 · smoke 는 보내지 않고 그래도 번역은
+#   된다. 보내면 모양을 본다 — 쌍 로그의 열이 되므로 아무 값이나 받으면 Athena
+#   에서 사이트별로 가를 수 없다. 길이 상한은 호스트명 규격(253)과 어댑터 이름이다.
+SOURCE_KEYS = {"site": 253, "adapter": 32}
 
 # ★ 토큰이 비면 열린다. 로컬 개발의 기본값이고, 배포에서는 doctor 가 막는다.
 #   확장에 심는 토큰은 사용자가 꺼내볼 수 있으므로 이것은 비밀이 아니라
@@ -87,6 +91,15 @@ def validate(payload: object) -> tuple[str, dict] | None:
         return "bad_request", {"detail": "target_not_string"}
     if target not in TARGETS:
         return "unsupported_target", {"detail": target}
+    source = payload.get("source")
+    if source is not None:
+        if not isinstance(source, dict):
+            return "bad_request", {"detail": "source_not_object"}
+        for k, v in source.items():
+            if k not in SOURCE_KEYS:
+                return "bad_request", {"detail": f"source_unknown_{k}"[:64]}
+            if not isinstance(v, str) or len(v) > SOURCE_KEYS[k]:
+                return "bad_request", {"detail": f"source_bad_{k}"}
     return None
 
 
@@ -153,7 +166,7 @@ def translate(payload: object, token_header: str | None) -> Result:
             partial = name
         else:
             try:
-                fresh = engine.translate_batch(misses)
+                fresh, raw = engine.translate_detail(misses)
             except Exception as e:
                 # ★ 엔진 실패는 부분 응답으로 내리지 않는다. 일시적이라 재시도가
                 #   맞는데 200 으로 내리면 확장이 그 자리를 영구 실패로 버린다.
@@ -163,12 +176,14 @@ def translate(payload: object, token_header: str | None) -> Result:
 
             # 엔진을 믿지 않는다. zip 은 짧은 쪽에 맞춰 조용히 자르고, 잘린 결과는
             # 아래에서 KeyError 로 터져 500 이 된다. 여기서 계약으로 잡는다.
-            if len(fresh) != len(misses) or any(not isinstance(x, str) for x in fresh):
+            if (len(fresh) != len(misses) or len(raw) != len(misses)
+                    or any(not isinstance(x, str) for x in fresh)):
                 log.error("engine returned %d for %d inputs", len(fresh), len(misses))
                 return err(502, "engine_failed", detail="length_mismatch")
 
             cache.put_many(dict(zip(misses, fresh)))
             hits.update(dict(zip(misses, fresh)))
+            _log_pairs(misses, raw, fresh, payload.get("source") or {})
 
     missed = set(misses)
     body = {
@@ -179,3 +194,24 @@ def translate(payload: object, token_header: str | None) -> Result:
     if partial:
         body["partial"] = partial
     return Result(200, body)
+
+
+def _log_pairs(src: list[str], raw: list[str], ko: list[str], source: dict) -> None:
+    """캐시에 쓴 **뒤에** 적는다. 캐시 쓰기가 죽으면 요청이 500 이고 그 번역은
+    사용자에게 가지 않았으므로 쌍으로 남길 이유도 없다.
+
+    ★ 용어집 이름을 다시 고른다. `glossary.match` 는 결정적이라 엔진 안에서
+      고른 것과 같은 값이고, 엔진 반환값을 늘리면 엔진마다 그것을 들고 다녀야 한다.
+
+    ★ **어떤 예외도 올리지 않는다.** 번역은 이미 끝났고 이것은 부산물이다.
+    """
+    try:
+        book, _ = glossary.match(src)
+        pairs.emit(pairs.records(
+            src, raw, ko,
+            engine=engine.ENGINE, model=engine.model_name(),
+            prompt=engine.prompt_fingerprint(), book=book,
+            site=source.get("site"), adapter=source.get("adapter"), ver=VERSION,
+        ))
+    except Exception:
+        log.exception("pair 로그 실패")

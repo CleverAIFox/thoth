@@ -73,3 +73,26 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "pairs_buffer_seconds" {
+  description = <<-EOT
+    Firehose 가 파일을 끊는 간격(초). 60~900.
+
+    ★ **짧게 잡으면 확인이 빨라지고 파일이 잘아진다.** Parquet 변환은 크기 하한이
+      64MB 라 이 트래픽에서는 언제나 간격이 끊는다. 배포 직후 도는지 볼 때만
+      낮추고 되돌린다.
+  EOT
+  type        = number
+  default     = 900
+
+  validation {
+    condition     = var.pairs_buffer_seconds >= 60 && var.pairs_buffer_seconds <= 900
+    error_message = "pairs_buffer_seconds 는 60~900 이다. Firehose 가 그 밖을 거절한다."
+  }
+}
+
+variable "pairs_error_retention_days" {
+  description = "변환 실패 객체(errors/) 보관 기간. 쌍 자체에는 만료가 없다"
+  type        = number
+  default     = 30
+}

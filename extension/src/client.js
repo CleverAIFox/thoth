@@ -1,4 +1,4 @@
-// 워커 계약 : POST /translate {texts[], target} -> {translations[], cached[], version}
+// 워커 계약 : POST /translate {texts[], target, source?} -> {translations[], cached[], version}
 // ★ **배포본 URL 을 박지 않는다**(DECISIONS §84). 토큰이 없으면 401 이므로
 //   URL 만 박아 봐야 설치한 사람이 그대로 쓰지 못한다 — 편의는 0 이고 공개
 //   저장소에 엔드포인트만 실린다. 토큰까지 박으면 비밀값을 공개 저장소에
@@ -30,7 +30,21 @@ globalThis.ST.WorkerError ??= class WorkerError extends Error {
   }
 };
 
-globalThis.ST.translate = async function (texts) {
+// ★ **`source` 는 쌍 로그의 열이다**(PLAN #23). 번역 결과를 바꾸지 않고, 어느
+//   사이트 · 어댑터에서 온 쌍인지를 학습 데이터에 남긴다. 범용성을 재는 축이다.
+//   **호스트만 보낸다** — 경로에는 강의 · 사용자 식별자가 섞인다.
+// ★ 빈 값은 싣지 않는다. 워커가 모양을 보므로 빈 문자열도 통과하지만 열에
+//   `""` 과 `null` 이 섞이면 Athena 에서 두 번 걸러야 한다.
+globalThis.ST.sourceBody = function (source) {
+  const out = {};
+  for (const k of ["site", "adapter"]) {
+    const v = source?.[k];
+    if (typeof v === "string" && v) out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+};
+
+globalThis.ST.translate = async function (texts, source) {
   const { stEndpoint, stToken } = await chrome.storage.local.get(["stEndpoint", "stToken"]);
   const url = stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;
   // ★ 팝업에서 넣은 값이 언제나 이긴다. 기계 기본값은 출발점일 뿐이다.
@@ -49,7 +63,7 @@ globalThis.ST.translate = async function (texts) {
     res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ texts, target: "ko" }),
+      body: JSON.stringify({ texts, target: "ko", source: globalThis.ST.sourceBody(source) }),
       signal: ctl.signal,
     });
   } finally {
