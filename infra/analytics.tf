@@ -1,4 +1,4 @@
-# 콜드패스(PLAN #23). 워커 로그의 쌍 줄 → Firehose → S3(Parquet) → Glue.
+# 콜드패스(DECISIONS §97). 워커 로그의 쌍 줄 → Firehose → S3(Parquet) → Glue.
 #
 #   Lambda stdout ─ 로그 그룹 ─ 구독 필터 { $.k = "pair" }
 #     ─ Firehose (GZIP 해제 · 메시지 추출 · JSON→Parquet)
@@ -75,6 +75,22 @@ resource "aws_s3_bucket_lifecycle_configuration" "pairs" {
 
     expiration {
       days = var.pairs_error_retention_days
+    }
+  }
+
+  # ★ **Athena 결과도 이 버킷에 떨어진다**(`tools/pairs_check.sh`). 쿼리마다 CSV
+  #   와 메타데이터가 남고 다시 읽을 일이 없다. 버킷을 따로 두면 리소스와 배포
+  #   역할의 읽기 권한이 또 는다.
+  rule {
+    id     = "athena-expire"
+    status = "Enabled"
+
+    filter {
+      prefix = "athena/"
+    }
+
+    expiration {
+      days = 7
     }
   }
 

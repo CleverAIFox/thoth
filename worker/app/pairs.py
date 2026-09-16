@@ -1,4 +1,4 @@
-"""원문 · 번역 쌍 로그. **자체 번역 모델의 학습 데이터가 여기서 난다**(PLAN #23).
+"""원문 · 번역 쌍 로그. **자체 번역 모델의 학습 데이터가 여기서 난다**(DECISIONS §97).
 
   캐시 미스 한 건 → stdout 한 줄(JSON) → CloudWatch Logs → 구독 필터
   → Firehose(해제 · 추출 · Parquet) → S3 → Glue 테이블 `pairs`

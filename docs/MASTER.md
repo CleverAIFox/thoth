@@ -1375,7 +1375,26 @@ git tag v0.1.0 && git push --tags
 
 ★ **승인이 곧 자격증명의 조건이다.** 배포 역할은 `sub` 가
 `...:environment:production` 인 토큰만 받고, 그 `sub` 는 Environment 를 거쳐야
-발급된다. 승인을 건너뛰면 권한이 없다.
+발급된다.
+
+★ **Environment 는 이름만으로 승인을 요구하지 않는다.** 보호 규칙이 있어야
+멈춘다. 지금 규칙은 둘이다 — required reviewers(`CleverAIFox`, 셀프 승인 허용)와
+배포 대상 제한(`v*` 태그만). 2026-09-16 까지는 둘 다 없었고 `v0.1.0`~`v0.1.3` 이
+승인 없이 돌았다(DECISIONS §98).
+
+```bash
+gh api repos/CleverAIFox/thoth/environments/production \
+  --jq '{rules: [.protection_rules[].type], branch: .deployment_branch_policy}'
+```
+
+★ 대기 중인 run 은 CLI 로도 승인된다.
+
+```bash
+RUN=<run id>
+ENV_ID=$(gh api repos/CleverAIFox/thoth/actions/runs/$RUN/pending_deployments --jq '.[0].environment.id')
+gh api -X POST repos/CleverAIFox/thoth/actions/runs/$RUN/pending_deployments \
+  -F "environment_ids[]=$ENV_ID" -f state=approved -f comment="<사유>"
+```
 
 ★ **IAM 변경은 CI 에서 멈춘다.** 배포 역할에 IAM 쓰기가 없다. `AccessDenied` 가
 나면 그 변경은 손으로 `apply` 하라는 뜻이다 — **결함이 아니라 경계다**
@@ -1384,9 +1403,13 @@ git tag v0.1.0 && git push --tags
 ★ 필요한 시크릿 셋 — `AWS_DEPLOY_ROLE_ARN` · `AWS_STATE_BUCKET` ·
 `WORKER_TOKEN`. 앞의 둘은 `tf.sh output` 과 `infra/backend.hcl` 에 있다.
 
-★ **쓰기 경로는 아직 지나가지 않았다.** `v0.1.0`~`v0.1.2` 가 전부 코드 변경
-없는 태그여서 `apply` 가 `0 changed` 로 끝났다. `lambda:UpdateFunctionCode` 는
-**처음으로 `worker/app` 을 고쳐 태그를 달 때** 검증된다(DECISIONS §90).
+★ **쓰기 경로가 지나갔다.** `v0.1.3` 이 `lambda:UpdateFunctionCode` 를 처음으로
+통과시켰다(CloudTrail `GitHubActions` 2026-09-16 11:46:40 UTC). 같은 `apply` 에서
+새 콜드패스 리소스 생성은 전부 거절됐다 — **terraform 은 병렬로 돌므로 한
+`apply` 안에서 성공과 거절이 섞인다**(DECISIONS §98).
+
+★ **IAM 이 섞인 변경은 손 `apply` 가 먼저다.** 태그를 먼저 밀면 코드는 올라가고
+나머지는 반쯤 멈춘다. 순서는 손 `plan -out` → 손 `apply` → 태그다.
 
 ★ **정책이 프로바이더 버전에 묶여 있다.** refresh 가 부르는 읽기 액션은
 `aws` 프로바이더가 정한다. `~> 6.0` 을 올릴 때 배포 역할을 함께 본다.
@@ -1428,17 +1451,40 @@ Lambda stdout ─ 로그 그룹 ─ 구독 필터 { $.k = "pair" }
 ★ **첫 `apply` 는 손으로 한다.** 이 파일이 IAM 역할 둘을 만들고 배포 역할에는
 IAM 쓰기가 없다(§11-17). 그 뒤 태그 배포는 콜드패스를 읽기만 한다.
 
-★ **배포 역할의 콜드패스 읽기 권한은 실측이 아니다.** 프로바이더 문서로 추렸다.
-빠진 액션이 있으면 CI 가 이름을 댄다(DECISIONS §90).
+★ **배포 역할은 콜드패스를 읽기만 한다.** `v0.1.3` 재실행에서 refresh · plan ·
+apply 가 `0 changed` 로 통과했다(2026-09-16). **쓰기는 없다** — 수명주기 규칙
+하나를 바꿔도 CI 가 아니라 손으로 `apply` 한다.
+
+★ **계정은 유료 플랜이다.** Free 플랜에서는 Firehose 생성이
+`SubscriptionRequiredException` 으로 막혔고, 플랜이 끝나면 계정이 닫혀 버킷도
+사라진다. 크레딧은 유료 전환 뒤에도 남는다. 예산 알림 `thoth-5usd` 가 월 $4 에서
+메일을 보낸다(DECISIONS §98).
+
+★ **구독 필터를 만들면 `errors/` 에 한 건이 생긴다.** CloudWatch Logs 의 제어
+메시지가 메시지 추출 뒤 빈 레코드가 되어 변환에 실패한 것이다(`rawData` 가
+비어 있다). `pairs_check.sh` 는 그것을 따로 센다.
+
+★ **Athena 결과는 같은 버킷 `athena/` 에 떨어지고 7일 뒤 지워진다.**
 
 ★ **`destroy` 는 쌍 버킷에서 멈춘다.** `force_destroy` 가 꺼져 있다. 다시 만들 수
 없는 데이터라 의도한 동작이다.
 
-확인은 로그가 아니라 버킷을 본다.
+확인은 로그가 아니라 버킷과 테이블을 본다.
 
 ```bash
-bash tools/tf.sh output -raw verify_pairs
+bash tools/pairs_check.sh            # 오늘(UTC)
+bash tools/pairs_check.sh 2026-09-16
 ```
+
+| 종료 코드 | 뜻 |
+|---|---|
+| 0 | 쌍이 있고 Athena 가 읽는다 · 쌍이 든 오류 없음 |
+| 1 | 쌍이 든 변환 오류가 있다 · Athena 실패 |
+| 3 | 그날 쌍이 없다 — 못 잼 |
+
+★ **첫 실측**(2026-09-16). probe 한 건이 12:56 UTC 배치로 Parquet 3,440바이트가
+됐고 Athena 가 `bedrock · apac.amazon.nova-lite-v1:0 · probe.local · curl · n=1`
+로 읽었다.
 
 ## 12. 접근 토큰
 

@@ -21,12 +21,10 @@ output "pairs_bucket" {
   value       = aws_s3_bucket.pairs.bucket
 }
 
-# ★ **쌓였는지는 로그가 아니라 버킷을 본다**(DECISIONS §96). 워커가 줄을 찍고
-#   필터가 있고 스트림이 ACTIVE 여도 변환이 실패하면 `pairs/` 는 비어 있다.
+# ★ **쌓였는지는 로그가 아니라 버킷과 테이블을 본다**(DECISIONS §96). 명령을
+#   여기에 적지 않는다 — 전에 적었던 `aws s3 ls` 는 프로파일 없이 돌아 `.env` 를
+#   읽지 않은 셸에서 죽었다(DECISIONS §98). 도구가 `.env` 를 읽는다.
 output "verify_pairs" {
-  description = "쌍이 실제로 쌓였는지. 요청 후 pairs_buffer_seconds 가 지난 뒤"
-  value       = <<-EOT
-    aws s3 ls s3://${aws_s3_bucket.pairs.bucket}/pairs/ --recursive | tail -3
-    aws s3 ls s3://${aws_s3_bucket.pairs.bucket}/errors/ --recursive | tail -3
-  EOT
+  description = "쌍이 실제로 쌓였는지. 새 문장을 번역하고 pairs_buffer_seconds 가 지난 뒤"
+  value       = "bash tools/pairs_check.sh"
 }

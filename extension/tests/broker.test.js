@@ -154,7 +154,7 @@ test("엔드포인트 설정이 기본값을 이긴다", need, async () => {
 });
 
 test("source 를 본문에 싣는다", need, async () => {
-  // 쌍 로그가 사이트 · 어댑터별로 갈리는 열이다(PLAN #23).
+  // 쌍 로그가 사이트 · 어댑터별로 갈리는 열이다(DECISIONS §97).
   const { translate, fetch } = await client(
     [{ ok: true, body: { translations: ["가"] } }]);
   await translate(["a"], { site: "www.udemy.com", adapter: "udemy" });
