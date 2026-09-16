@@ -1,20 +1,92 @@
-.st-translation {
-  background: #eef6ff;
-  border-left: 3px solid #2f6fdd;
-  padding: 8px 12px;
-  margin: 6px 0;
-  border-radius: 4px;
-  color: #1a1a2e;
-  font-size: 0.95em;
-  line-height: 1.5;
-  white-space: pre-wrap;   /* innerText 의 줄바꿈을 살린다 */
+/* 번역 박스.
+ *
+ * ★ **명시도로 이긴다. `!important` 를 쓰지 않는다.** 클래스를 두 번 적어
+ *   (0,2,0) 을 만든다. 남의 사이트 위에 그리는 이상 우리 규칙이 져서는 안
+ *   되는데, `!important` 로 이기면 다음에 덮을 방법이 없어진다. 어댑터가
+ *   JS 로 세 속성을 덮고 있는 것이 그 갈림의 흔적이다(udemy.js decorate).
+ *
+ * ★ **색을 변수로 둔다.** 라이트 · 다크가 같은 규칙을 쓰고 값만 갈린다.
+ *   Udemy 에 어두운 테마가 있고, 거기서 밝은 블록이 문제마다 튀었다.
+ *
+ * ★ **글자 크기를 px 로 박는다.** `em` 은 부모를 따라가는데 문항 · 보기 ·
+ *   해설의 부모 크기가 제각각이라 같은 번역이 자리마다 다른 크기로 나왔다.
+ *
+ * ★ **상태가 보여야 한다.** 한 문항이 5초다. 그동안 아무 표시가 없으면
+ *   눌렀는지 아닌지 모른다.
+ */
+
+.st-translation.st-translation {
+  --st-surface: #ffffff;
+  --st-border: #e5e8eb;
+  --st-text: #333d4b;
+  --st-accent: #3182f6;
+  --st-muted: #8b95a1;
+  --st-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--st-border);
+  border-left: 3px solid var(--st-accent);
+  border-radius: 10px;
+  background: var(--st-surface);
+  box-shadow: var(--st-shadow);
+
+  color: var(--st-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
+               "Malgun Gothic", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: -.01em;
+  text-align: left;
+
+  white-space: pre-wrap;        /* innerText 의 줄바꿈을 살린다 */
+  overflow-wrap: break-word;
+  word-break: keep-all;         /* 한국어는 어절 단위로 끊는 편이 읽기 쉽다 */
 }
 
-.st-translation a {
-  color: #2f6fdd;
-  text-decoration: underline;
+/* ★ 어두운 테마는 배경을 밝히지 않고 **한 단계 띄운다.** 검은 화면 위의 흰
+ *   상자는 문항보다 번역이 먼저 눈에 들어오게 만든다. */
+@media (prefers-color-scheme: dark) {
+  .st-translation.st-translation {
+    --st-surface: #1c1f23;
+    --st-border: #2b3038;
+    --st-text: #dde2e8;
+    --st-accent: #4d8dfb;
+    --st-muted: #7a838f;
+    --st-shadow: none;
+  }
+}
+
+/* 링크 — 원문에서 떼어낸 URL 이 뒤에 붙는다(splitUrls). */
+.st-translation.st-translation a {
+  color: var(--st-accent);
+  font-size: 13px;
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
   margin-left: 6px;
   word-break: break-all;
+}
+
+/* ★ 기다리는 동안. **글자를 바꾸지 않는다** — 자리만 잡아 두고 흐리게 둔다.
+ *   내용이 들어올 때 높이가 튀지 않도록 최소 높이를 준다. */
+.st-translation--loading.st-translation--loading {
+  min-height: 1.65em;
+  color: var(--st-muted);
+  border-left-color: var(--st-border);
+  animation: st-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes st-breathe {
+  0%, 100% { opacity: .45; }
+  50%      { opacity: .85; }
+}
+
+/* ★ 움직임을 줄이라고 한 사람에게는 움직이지 않는다. 상태는 색으로 남는다. */
+@media (prefers-reduced-motion: reduce) {
+  .st-translation--loading.st-translation--loading { animation: none; }
 }
 
 html.st-off .st-translation { display: none !important; }

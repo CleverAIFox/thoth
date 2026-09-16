@@ -79,6 +79,7 @@
 
   const finish = (u, text) => {
     if (!u.node.isConnected) return;   // 그 사이 SPA 가 갈아엎었다
+    u.node.classList.remove(`${CLS}--loading`);
     u.node.textContent = text;
     appendLinks(u.node, u.urls);
   };
@@ -185,7 +186,10 @@
       u.body = body;
       u.urls = urls;
       u.node = document.createElement("div");
-      u.node.className = CLS;
+      // ★ 기다리는 상태를 클래스로 남긴다. 한 문항이 5초이고 그동안 표시가
+      //   없으면 눌렀는지조차 알 수 없다. 글자가 아니라 클래스로 두는 이유는
+      //   번역이 도착할 때 내용이 갈리지 않게 하기 위해서다.
+      u.node.className = `${CLS} ${CLS}--loading`;
       u.node.textContent = "…";
       ad.decorate?.(u.node, u);
       const anchor = ad.anchorFor ? ad.anchorFor(u.el) : u.anchor;
