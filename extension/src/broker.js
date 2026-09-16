@@ -17,21 +17,56 @@
   //   검정으로 읽으면 모든 사이트가 어두운 것이 된다.
   const RGB = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/;
 
+  const parseRgb = (v) => {
+    const m = RGB.exec(v || "");
+    if (!m) return null;
+    if (m[4] !== undefined && Number(m[4]) <= 0.05) return null;  // 투명은 색이 아니다
+    return [+m[1], +m[2], +m[3]];
+  };
+
   const paintedBg = (el) => {
     for (let n = el; n instanceof Element; n = n.parentElement) {
-      const m = RGB.exec(getComputedStyle(n).backgroundColor || "");
-      if (m && (m[4] === undefined || Number(m[4]) > 0.05)) {
-        return [+m[1], +m[2], +m[3]];
-      }
+      const c = parseRgb(getComputedStyle(n).backgroundColor);
+      if (c) return c;
     }
     return [255, 255, 255];   // 아무도 칠하지 않았으면 흰 바탕이다
   };
 
+  // 상대 휘도. 사람 눈은 초록에 제일 민감하다.
+  const lum = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const css = ([r, g, b]) => `rgb(${r}, ${g}, ${b})`;
+
+  // WCAG 대비비. 1(같은 색)에서 21(검정 대 흰색)까지다.
+  const contrast = (a, b) => {
+    const [x, y] = [lum(a) + 0.05, lum(b) + 0.05];
+    return x > y ? x / y : y / x;
+  };
+
+  // ★ **색을 사이트에서 뽑는다.** 두 테마를 손으로 박아 두면 사이트마다 다른
+  //   배색에 맞출 수 없다. 배경과 글자색만 읽으면 면 · 테두리 · 뼈대가 전부
+  //   거기서 파생된다 — **사이트의 CSS 를 알 필요가 없다.**
+  //
+  // ★ **대비가 모자라면 아무것도 넘기지 않는다.** 사이트 색이 이상하면 결과도
+  //   이상해진다. 그때는 변수를 지워 content.css 의 기본값이 그대로 선다 —
+  //   못 잰 자리에 값을 적지 않는 것과 같다(DECISIONS §59).
   const markTheme = (el) => {
-    const [r, g, b] = paintedBg(el);
-    // 상대 휘도. 사람 눈은 초록에 제일 민감하다.
-    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    document.documentElement.dataset.stTheme = lum < 0.45 ? "dark" : "light";
+    const root = document.documentElement;
+    const bg = paintedBg(el);
+    root.dataset.stTheme = lum(bg) < 0.45 ? "dark" : "light";
+
+    const text = parseRgb(getComputedStyle(el).color);
+    const vars = ["--st-site-text", "--st-site-surface",
+                  "--st-site-border", "--st-site-skel"];
+    if (!text || contrast(text, bg) < 4.5) {
+      vars.forEach((v) => root.style.removeProperty(v));
+      return;
+    }
+    // 면은 바탕을 글자색 쪽으로 아주 조금 섞어 한 단계 띄운다.
+    root.style.setProperty("--st-site-text", css(text));
+    root.style.setProperty("--st-site-surface", css(mix(bg, text, 0.045)));
+    root.style.setProperty("--st-site-border", css(mix(bg, text, 0.14)));
+    root.style.setProperty("--st-site-skel", css(mix(bg, text, 0.10)));
   };
   // 배치 크기는 엔진에 달렸다. 코드에 박지 않고 chrome.storage 의 stBatch 로
   // 둔다(DECISIONS §80).
