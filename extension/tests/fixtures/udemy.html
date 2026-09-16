@@ -1,0 +1,137 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="st-fixture-url" content="https://www.udemy.com/course/fixture/learn/quiz/1">
+<title>udemy adapter fixture</title>
+<!--
+  **Udemy 어댑터가 무엇을 잡고 무엇을 놓치는지를 사이트 없이 가른다**(PLAN §2-4 #25).
+
+  ★ 마크업은 MASTER §3 의 DOM 계약(2026-09-12 실측)을 옮겼다. 실사이트를 대신하지
+    않는다 — 계약이 늙으면 이 파일도 늙는다. 이 파일이 재는 것은 **계약이 깨졌을 때
+    관측 행이 그것을 드러내는가**다.
+
+  ★ `127.0.0.1` 에서 Udemy 인 척한다. `<meta name="st-fixture-url">` 을 어댑터가
+    `ST.pageUrl()` 로 읽는다. 로컬 호스트에서만 먹는다(generic.js).
+
+  ★ 화면은 `<template>` 에 있고 버튼이 `#app` 을 갈아끼운다. **세션 중에 DOM 이
+    바뀌는 것**을 재현하려고 새로고침 대신 교체한다 — MutationObserver 경로를 탄다.
+    jsdom 검사(`observe.test.js`)가 같은 템플릿을 읽는다. 마크업이 한 곳에 산다.
+
+  띄우기 :
+    python3 -m http.server 8099 -d extension/tests/fixtures > /tmp/fx.log 2>&1 &
+    ENGINE=echo bash tools/run_worker.sh > /tmp/w.log 2>&1 &
+    http://127.0.0.1:8099/udemy.html?mode=before
+    팝업에서 이 오리진을 허용한다. 콘솔에서 `[st] 관측` 줄과 `ST.observations` 를 본다.
+
+  화면마다 기대하는 관측 :
+    before          scope 1 · prompt 1 · answer_before 4             번역이 붙는다
+    after           scope 1 · prompt 1 · answer_after 4 · explanation 4
+    start           scope 1 · prompt 0                               문제가 없는 것이 정상
+    renamed-scope   scope 0 · 나머지 0 · blocks > 0                 ★ 깨짐. 번역이 안 붙는다
+    renamed-prompt  scope 1 · prompt 0 · answer_before 4            ★ 문제만 빠진다
+    landing         kind other · expected false                     퀴즈가 아니다
+-->
+<style>
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; }
+  nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  nav button { font: 13px system-ui; padding: 4px 10px; }
+  nav button[aria-pressed=true] { font-weight: 700; }
+  .ud-unstyled-list { list-style: none; padding: 0; }
+  [class*=answer-inner] { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+  [data-purpose=answer-body] { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+  .note { color: #666; font-size: 13px; }
+</style>
+
+<nav id="modes"></nav>
+<p class="note" id="want"></p>
+<div id="app"></div>
+
+<template id="t-before" data-want="scope 1 · prompt 1 · answer_before 4 — 번역이 붙어야 한다">
+  <div class="quiz-page-content">
+    <div id="question-prompt"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div></div>
+    <ul class="ud-unstyled-list">
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>Every consumer application has already checkpointed beyond the records that would fall outside the shortened window.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>The stream has been resharded so that the shard count matches the expected throughput.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A snapshot of the stream has been written to durable object storage before the change.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>Enhanced fan-out has been disabled on every registered consumer of the stream.</p></div></div></li>
+    </ul>
+  </div>
+</template>
+
+<template id="t-after" data-want="scope 1 · prompt 1 · answer_after 4 · explanation 4">
+  <div class="quiz-page-content">
+    <div id="question-prompt"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div>
+    <div class="result-pane--x1"><div data-purpose="answer-body"><div id="answer-text"><p>Every consumer application has already checkpointed beyond the records that would fall outside the shortened window.</p></div></div>
+      <div id="question-explanation"><p>Records older than the new retention period become unreadable immediately, so consumers must be past them.</p></div></div>
+    <div class="result-pane--x1"><div data-purpose="answer-body"><div id="answer-text"><p>The stream has been resharded so that the shard count matches the expected throughput.</p></div></div>
+      <div id="question-explanation"><p>Resharding changes throughput, not how long records are kept, so it does not protect unread records.</p></div></div>
+    <div class="result-pane--x1"><div data-purpose="answer-body"><div id="answer-text"><p>A snapshot of the stream has been written to durable object storage before the change.</p></div></div>
+      <div id="question-explanation"><p>A copy elsewhere does not keep consumers of the stream from losing their position.</p></div></div>
+    <div class="result-pane--x1"><div data-purpose="answer-body"><div id="answer-text"><p>Enhanced fan-out has been disabled on every registered consumer of the stream.</p></div></div>
+      <div id="question-explanation"><p>Fan-out mode affects delivery latency and cost and is unrelated to the retention window.</p></div></div>
+  </div>
+</template>
+
+<template id="t-start" data-want="scope 1 · prompt 0 — 문제가 없는 것이 정상인 화면">
+  <div class="quiz-page-content">
+    <h2>Practice Test 1: Data Engineer Associate</h2>
+    <p>This practice test contains sixty-five questions and must be completed within one hundred and thirty minutes.</p>
+    <p>You can pause the test at any time and resume later from the same question you left.</p>
+    <button>Begin test</button>
+  </div>
+</template>
+
+<template id="t-renamed-scope" data-want="★ scope 0 · 전부 0 · blocks 는 남는다 — 번역이 안 붙어야 한다">
+  <div class="quiz-page-content--Qz81a">
+    <div id="question-prompt"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div></div>
+    <ul class="ud-unstyled-list">
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>Every consumer application has already checkpointed beyond the records that would fall outside the shortened window.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>The stream has been resharded so that the shard count matches the expected throughput.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A snapshot of the stream has been written to durable object storage before the change.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>Enhanced fan-out has been disabled on every registered consumer of the stream.</p></div></div></li>
+    </ul>
+  </div>
+</template>
+
+<template id="t-renamed-prompt" data-want="★ scope 1 · prompt 0 · answer_before 4 — 보기만 번역되고 문제는 빠진다">
+  <div class="quiz-page-content">
+    <div data-purpose="question-prompt-v2"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div></div>
+    <ul class="ud-unstyled-list">
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>Every consumer application has already checkpointed beyond the records that would fall outside the shortened window.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>The stream has been resharded so that the shard count matches the expected throughput.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A snapshot of the stream has been written to durable object storage before the change.</p></div></div></li>
+      <li><div class="answer-inner--Sw1to"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>Enhanced fan-out has been disabled on every registered consumer of the stream.</p></div></div></li>
+    </ul>
+  </div>
+</template>
+
+<template id="t-landing" data-url="https://www.udemy.com/course/fixture/" data-want="kind other · expected false — 퀴즈 경로가 아니다">
+  <h1>AWS Certified Data Engineer Associate Practice Exams</h1>
+  <p>Prepare for the certification with full-length practice tests that mirror the real exam.</p>
+  <p>Every question comes with a detailed explanation of why each option is right or wrong.</p>
+</template>
+
+<script>
+  const QUIZ_URL = document.querySelector("meta[name=st-fixture-url]").content;
+  const modes = [...document.querySelectorAll("template")].map((t) => t.id.slice(2));
+  const nav = document.getElementById("modes");
+
+  function show(mode) {
+    const t = document.getElementById("t-" + mode);
+    if (!t) return;
+    // URL 이 바뀌는 화면은 meta 를 바꾼다. 어댑터가 새 페이지로 본다.
+    document.querySelector("meta[name=st-fixture-url]").content = t.dataset.url || QUIZ_URL;
+    document.getElementById("app").replaceChildren(t.content.cloneNode(true));
+    document.getElementById("want").textContent = "기대 : " + t.dataset.want;
+    for (const b of nav.children) b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+    history.replaceState(null, "", "?mode=" + mode);
+  }
+
+  for (const m of modes) {
+    const b = document.createElement("button");
+    b.textContent = m;
+    b.dataset.mode = m;
+    b.onclick = () => show(m);
+    nav.append(b);
+  }
+  show(new URLSearchParams(location.search).get("mode") || "before");
+</script>

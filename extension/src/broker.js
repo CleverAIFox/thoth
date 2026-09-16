@@ -191,6 +191,71 @@
     // 워커 미기동 · 엔드포인트 오류. 꺼진 워커를 1.5초마다 때릴 이유가 없다.
     return { fatal, halt: next >= MAX_STREAK ? "worker_unreachable" : "", streak: next };
   };
+  // ─── 관측 (PLAN §2-4 #25) ───────────────────────────────────────────
+  //
+  // ★ **"셀렉터가 깨졌다" 를 여기서 판정하지 않는다**(DECISIONS §102). 사이트
+  //   어댑터가 셀렉터마다 몇 개를 잡았는지와 페이지에 글이 얼마나 있는지를 한 행에
+  //   남기고, 깨짐은 읽을 때 가른다. 시작 화면 · 결과 화면처럼 문제가 없는 것이
+  //   정상인 자리가 있어 쓸 때 박은 판정은 오탐을 박제한다. §97 의 "판정은 비워
+  //   둔다" 와 같은 이유다.
+  //
+  // ★ **경로를 싣지 않는다.** 강의 slug 와 id 가 들어 있다. 어댑터가 부르는
+  //   `kind` 만 싣는다.
+  //
+  // ★ 같은 페이지 · 같은 수면 다시 싣지 않는다. 한 페이지에서 순회는 수십 번
+  //   돌지만 행은 **바뀔 때만** 생긴다.
+  const OBS_MAX = 20;
+  ST.observations = [];
+  let obsKey = "";
+  let obsHref = "";
+  let obsUnits = 0;          // 이 페이지(URL)에서 모은 유닛 누계
+
+  ST.observe = (reason) => {
+    const ad = pickAdapter();
+    if (!ad?.observe) return null;          // 사이트 어댑터만 관측한다
+    let o;
+    try {
+      o = ad.observe(document);
+    } catch (e) {
+      // ★ 관측이 죽는 것 자체가 관측이다. 삼키지 않고 행으로 남긴다(§70).
+      o = { kind: "unknown", expected: null, probes: {}, error: String(e?.message || e).slice(0, 120) };
+    }
+    const rec = {
+      k: "obs",
+      v: 1,
+      site: location.hostname,
+      adapter: ad.name,
+      kind: o.kind,
+      expected: o.expected,
+      units: obsUnits,
+      blocks: ST.textBlocks(document),
+      probes: o.probes,
+      ...(o.error ? { error: o.error } : {}),
+      reason,
+    };
+    const key = [ST.pageUrl(), rec.kind, JSON.stringify(rec.probes), rec.error || ""].join("|");
+    if (key === obsKey) return null;
+    obsKey = key;
+    ST.observations.push(rec);
+    if (ST.observations.length > OBS_MAX) ST.observations.shift();
+    console.info("[st] 관측", rec);
+    return rec;
+  };
+
+  // ★ 첫 관측은 **자리를 잡을 시간**을 준다. SPA 는 문제를 늦게 그리고, 그 전에
+  //   재면 정상 페이지가 전부 0 으로 찍힌다.
+  //
+  // ★ `ST.SETTLE_MS = 0` 이면 자동 관측을 끈다. 검사가 손으로 부를 때 쓴다 — 길게
+  //   잡아 두면 남은 타이머가 프로세스를 붙든다.
+  const SETTLE_MS = ST.SETTLE_MS ?? 4000;
+  const watchHref = () => {
+    const href = ST.pageUrl();
+    if (href === obsHref) return;
+    obsHref = href;
+    obsUnits = 0;
+    if (SETTLE_MS > 0) setTimeout(() => ST.observe("settle"), SETTLE_MS);
+  };
+
   let idle = 0;            // 연속으로 아무것도 못 찾은 순회 수
   let relaxed = false;     // 주기를 이미 늘렸는가
   const halt = (why) => {
@@ -215,6 +280,7 @@
   async function pass() {
     const ad = pickAdapter();
     if (!ad) return;
+    watchHref();
 
     // ★ 수집이 계속 비면 주기를 늘린다. 정적인 페이지에서 1.5초마다 DOM 을
     //   훑을 이유가 없다. MutationObserver 가 변화를 놓치지 않으므로 주기는
@@ -224,6 +290,9 @@
       poll = setInterval(run, POLL_MAX);
       relaxed = true;
       console.debug("[st] 순회 주기 완화 —", POLL_MAX, "ms");
+      // ★ 새 유닛이 멎은 자리가 **페이지가 제 모양이 된 자리**다. 변화 뒤 다시
+      //   멎으면 다시 잰다 — DOM 이 세션 중에 바뀌어 셀렉터가 빠지는 경우다.
+      ST.observe("idle");
     }
 
     let units;
@@ -261,6 +330,7 @@
       else anchor.insertAdjacentElement("afterend", u.node);
       live.push(u);
     }
+    obsUnits += live.length;
     if (!live.length) return;
 
     const groups = new Map();

@@ -133,6 +133,32 @@ pydantic 이 들어간다. 계약을 떼는 쪽이 중복도 0 이고 배포 패
 | 앵커 | `[class*=answer-inner]` | `[data-purpose=answer-body]` |
 | rich-text 노드 수 | 5 | 9 |
 
+### 3-0. 관측 행
+
+사이트 어댑터는 `observe(root)` 로 **셀렉터마다 몇 개가 잡히는지**를 낸다. 브로커가
+그것을 `{k:"obs"}` 행으로 `ST.observations` 에 쌓고 콘솔에 `[st] 관측` 으로 찍는다.
+
+| 열 | 뜻 |
+|---|---|
+| `site` · `adapter` | 호스트 · 어댑터 이름 |
+| `kind` · `expected` | 어댑터가 부르는 화면 종류(`quiz` · `other`) · 여기서 무엇이 나와야 하는가 |
+| `units` | 이 URL 에서 모은 유닛 누계 |
+| `blocks` | 페이지의 글 덩어리 수(20자 이상 · 번역 박스 제외) |
+| `probes` | 셀렉터별 개수 — `scope` · `prompt` · `answer_before` · `answer_after` · `explanation` |
+| `reason` | `settle`(URL 이 바뀌고 4초) · `idle`(새 유닛이 멎음) |
+
+★ **판정하지 않는다.** 시작 화면은 `prompt 0` 이 정상이다. 깨짐은 읽을 때 가른다
+(DECISIONS §102).
+
+★ **경로를 싣지 않는다.** 강의 slug 와 id 가 있다. `kind` 만 싣는다.
+
+★ **`expected` 는 URL 로 정한다**(`/learn/quiz/`). DOM 으로 정하면 그 DOM 이 깨질 때
+기대도 사라진다. **이 패턴은 실측이 아니다.**
+
+★ 같은 URL · 같은 수면 행을 다시 만들지 않는다.
+
+★ **아직 워커로 보내지 않는다.** 브라우저 안에만 있다.
+
 ### 3-1. 주의
 
 ★ **`#answer-text` 와 `#question-explanation` 은 같은 id 가 4번씩 쓰인다.**
@@ -993,12 +1019,27 @@ ENGINE=echo bash tools/run_worker.sh > /tmp/w.log 2>&1 &
 ★ **캐시를 비우고 본다.** 같은 문장이 다른 엔진으로 이미 번역돼 있으면 히트로
 나와 엔진을 바꾼 의미가 없다.
 
-**픽스처가 둘이다.**
+**픽스처가 셋이다.**
 
 | 파일 | 보는 것 |
 |---|---|
 | `radio.html` | 어느 수집 경로가 도는가 — ARIA · 네이티브 라디오 |
 | `innertext.html` | 뽑힌 글자가 맞는가 — 하네스가 볼 수 없는 자리 |
+| `udemy.html` | Udemy 어댑터가 무엇을 잡고 놓치는가 — 화면 여섯 · 관측 행 |
+
+★ **`udemy.html` 은 `127.0.0.1` 에서 Udemy 인 척한다.** `<meta name="st-fixture-url">`
+을 `ST.pageUrl()` 이 읽고, 로컬 호스트에서만 먹는다. 화면은 `<template>` 에 있고
+버튼이 DOM 을 갈아끼운다 — 새로고침 없이 **세션 중에 셀렉터가 빠지는 것**을
+재현한다. `observe.test.js` 가 같은 템플릿을 읽는다.
+
+| 화면 | 관측 |
+|---|---|
+| `before` | scope 1 · prompt 1 · answer_before 4 |
+| `after` | scope 1 · prompt 1 · answer_after 4 · explanation 4 |
+| `start` | scope 1 · prompt 0 — **문제가 없는 것이 정상** |
+| `renamed-scope` | 전부 0 · blocks 는 남는다 — **깨짐** |
+| `renamed-prompt` | prompt 0 · answer_before 4 — **문제만 빠진다** |
+| `landing` | kind `other` · expected false |
 
 ★ **`innertext.html` 은 하네스가 볼 수 없는 것만 모았다.** 어댑터 테스트는
 jsdom 위에서 돌고 `innerText` 가 없어 `textContent` 로 채우는데, 그 둘은 숨긴

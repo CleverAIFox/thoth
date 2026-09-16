@@ -45,9 +45,14 @@ export async function loadAdapters(names) {
   return globalThis.ST;
 }
 
-/** HTML 로 문서를 만들고 `innerText` 를 채운다. */
-export function makeDoc(html) {
-  const dom = new JSDOM(`<!doctype html><body>${html}</body>`);
+/**
+ * HTML 로 문서를 만들고 `innerText` 를 채운다.
+ *
+ * `opts.url` 을 주면 `location` 이 그 주소가 된다. 사이트 어댑터의 `match` 를
+ * 실제 호스트로 잴 때 쓴다.
+ */
+export function makeDoc(html, opts = {}) {
+  const dom = new JSDOM(`<!doctype html><body>${html}</body>`, opts.url ? { url: opts.url } : {});
   const win = dom.window;
 
   // ★ 프로토타입에 정의한다. 개별 요소에 붙이면 나중에 만들어지는 요소가
