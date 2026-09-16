@@ -160,6 +160,7 @@ elif ! command -v rsync >/dev/null 2>&1; then
 else
   EXT_DIFF="$(rsync -rlcn --delete --out-format='%n' \
     --exclude=tests/ --exclude=node_modules/ --exclude=package*.json \
+    --exclude=preview.html \
     --exclude=src/config.local.js \
     "$ROOT/extension/" "$THOTH_EXT_DEST/" 2>/dev/null | grep -v '/$' || true)"
   if [ -z "$EXT_DIFF" ]; then

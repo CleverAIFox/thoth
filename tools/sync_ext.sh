@@ -18,11 +18,15 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)/extension"
 
 [ -d "$SRC" ] || { echo "소스 없음 : $SRC" >&2; exit 1; }
 mkdir -p "$DEST"
+# ★ `preview.html` 도 뺀다. 개발용 화면이고 크롬은 폴더 안의 모든 파일을
+#   확장의 일부로 본다.
+#
 # ★ 테스트와 그 의존성은 배포물이 아니다. 크롬에 실릴 필요가 없고, 실리면
 #   웹스토어 심사에 설명할 것만 는다. 확장 자체는 의존성이 없다 —
 #   `package.json` 은 테스트 전용이다.
 rsync -rlt --delete --no-perms --no-owner --no-group \
   --exclude=tests/ --exclude=node_modules/ --exclude=package*.json \
+  --exclude=preview.html \
   "$SRC/" "$DEST/"
 
 # ★ **기계 기본값은 파생물에만 쓴다.** 저장소의 `src/config.local.js` 는 언제나
