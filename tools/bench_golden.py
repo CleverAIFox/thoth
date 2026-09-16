@@ -37,6 +37,31 @@ HANGUL = re.compile(r"[가-힣]")
 #   검사가 틀렸는데 숫자만 보고 모델 탓을 하던 것이다(DECISIONS §19 와 같다).
 POLITE = re.compile(r"(니다|니까)[.!?)\"']*\s*$")
 
+# ★ **`습니다` · `습니까` 는 자음으로 끝나는 어간에만 붙는다.** 어간이 모음이나
+#   `ㄹ` 로 끝나면 `ㅂ니다` 꼴이 된다 — 하다→합니다, 만들다→만듭니다. 그래서
+#   `할습니까` · `되습니다` 는 한국어에 없는 활용이다.
+#
+# ★ **이것이 검사 축에 없었다.** 2026-09-16 실사용에서 `사용해야 할습니까?` 가
+#   나왔는데 골든셋 45유닛은 위반 3으로 조용했다. 용어 · 고유명사 · 환각 ·
+#   문체 · 물음표 다섯 축 어디에도 걸리지 않는다(DECISIONS §93).
+#
+# ★ **모델에게 묻지 않는다.** 결정적으로 갈리는 것을 LLM 으로 판정하면 호출이
+#   두 배가 되고 판정도 흔들린다.
+SEUP = re.compile(r"(.)(습니다|습니까)")
+
+
+def bad_conjugation(ko: str) -> list[str]:
+    """어간과 어미가 맞지 않는 자리. 빈 리스트가 통과다."""
+    bad = []
+    for m in SEUP.finditer(ko):
+        stem = m.group(1)
+        if not ("가" <= stem <= "힣"):
+            continue                       # 한글이 아니면 판정하지 않는다
+        jong = (ord(stem) - 0xAC00) % 28   # 0 이면 받침 없음, 8 이면 ㄹ
+        if jong == 0 or jong == 8:
+            bad.append(f"어미:{stem}{m.group(2)}")
+    return bad
+
 
 def load_terms() -> dict[str, str]:
     out: dict[str, str] = {}
@@ -346,7 +371,10 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     if not POLITE.search(ko):
         bad.append("합니다체 아님")
 
-    # 6. 번역이 되긴 했는가. echo 엔진은 여기서 전부 걸린다
+    # 6. 어간과 어미가 맞는가 (DECISIONS §93)
+    bad += bad_conjugation(ko)
+
+    # 7. 번역이 되긴 했는가. echo 엔진은 여기서 전부 걸린다
     if not HANGUL.search(ko):
         bad.append("한글 없음")
 

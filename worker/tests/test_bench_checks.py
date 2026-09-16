@@ -549,3 +549,43 @@ def test_흉내가_실제_translate_와_같은_모양을_돌려준다():
     assert "return data[\"translations\"], time.monotonic() - t0, cached" in src
     # warmup 이 그 모양을 그대로 받는지
     assert "_, dt, _cached = translate(" in inspect.getsource(bench.warmup)
+
+
+# ── 어간·어미 결합 (DECISIONS §93) ─────────────────────────────────────────
+#
+# ★ 실사용에서 `사용해야 할습니까?` 가 나왔는데 골든셋 45유닛은 위반 3으로
+#   조용했다. **재는 자가 없으면 유닛을 늘려도 안 잡힌다.**
+
+def test_모음_어간에_습니다는_비문이다():
+    assert bench.bad_conjugation("되습니다") == ["어미:되습니다"]
+
+
+def test_ㄹ_어간에_습니까는_비문이다():
+    # 하+ㄹ. 실제로 난 것이다 — "사용해야 할습니까?"
+    assert bench.bad_conjugation("사용해야 할습니까?") == ["어미:할습니까"]
+    assert bench.bad_conjugation("만들습니다") == ["어미:들습니다"]
+
+
+def test_자음_어간은_통과한다():
+    for ok in ["있습니다", "좋습니다", "확인했습니다", "기록되었습니다."]:
+        assert bench.bad_conjugation(ok) == [], ok
+
+
+def test_ㅂ니다_꼴은_건드리지_않는다():
+    # 합니다 · 만듭니다 는 올바른 활용이고 검사 대상이 아니다.
+    for ok in ["사용해야 합니까?", "만듭니다", "입니다"]:
+        assert bench.bad_conjugation(ok) == [], ok
+
+
+def test_한글이_아니면_판정하지_않는다():
+    # ★ 못 잴 자리에 결과를 적지 않는다(§59).
+    assert bench.bad_conjugation("Glue습니다") == []
+
+
+def test_한_문장에_둘이면_둘_다_적는다():
+    assert len(bench.bad_conjugation("되습니다. 할습니까?")) == 2
+
+
+def test_check_가_이_축을_부른다():
+    bad = bench.check(unit("Does it work?"), "동작해야 할습니까?", BOOK)
+    assert any(b.startswith("어미:") for b in bad)
