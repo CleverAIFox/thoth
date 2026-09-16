@@ -45,4 +45,15 @@ if [ -n "${AWS_PROFILE:-}" ] && command -v aws >/dev/null 2>&1; then
   fi
 fi
 
+# ★ **`init` 에만 백엔드 설정을 붙인다.** 버킷 이름은 저장소에 없고
+#   `infra/backend.hcl` 이 들고 있다(부분 설정). 나머지 명령은 `.terraform/` 에
+#   적힌 것을 읽으므로 다시 넘길 필요가 없고, 넘기면 terraform 이 경고한다.
+#
+# ★ **없으면 그냥 부른다.** 아직 부트스트랩 전이거나 로컬 상태로 도는 기계다.
+#   여기서 막으면 `bootstrap_backend.sh` 를 돌리기 전에는 아무것도 못 한다.
+if [ "${1:-}" = "init" ] && [ -f "$ROOT/infra/backend.hcl" ]; then
+  shift
+  exec terraform -chdir="$ROOT/infra" init -backend-config=backend.hcl "$@"
+fi
+
 exec terraform -chdir="$ROOT/infra" "$@"

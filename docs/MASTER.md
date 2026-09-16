@@ -1045,6 +1045,7 @@ bash tools/package_lambda.sh      # dist/worker.zip
 ### 11-11. 배포
 
 ```bash
+bash tools/bootstrap_backend.sh              # 처음 한 번. 상태 버킷을 세운다
 bash tools/package_lambda.sh                 # dist/worker.zip 을 먼저 만든다
 cp infra/terraform.tfvars.example infra/terraform.tfvars   # worker_token 을 채운다
 bash tools/tf.sh init
@@ -1205,6 +1206,26 @@ workflows named ..." 를 내는데, 그 문구는 파일이 아예 없을 때와
 
 ★ **`yaml` 이 없으면 `SKIP` 이다.** 린터 취급과 같고 CI 가 그것을 따로 막는다
 (DECISIONS §54).
+
+### 11-16. 상태 백엔드
+
+상태는 S3 에 있다. `bash tools/bootstrap_backend.sh` 가 버킷을 세우고
+`infra/backend.hcl` 을 만든다. 처음 한 번만 하는 일이다.
+
+★ **버킷 이름이 저장소에 없다.** 부분 설정이고 `backend.hcl` 은 gitignore 다.
+이름에 계정 ID 가 들어가는데 비밀은 아니나 공개 저장소 앞문에 걸 값도 아니다.
+
+★ **이 버킷만 terraform 이 소유하지 않는다.** 상태를 담는 것을 상태로 관리하면
+지울 때 자기 발을 딛는다. 대신 스크립트가 버전 관리 · 퍼블릭 차단 · 기본 암호화를
+매번 다시 건다 — **손으로 만들면 그 셋을 잊는다.**
+
+★ **잠금은 S3 가 한다**(`use_lockfile`). DynamoDB 테이블을 세우지 않는다.
+
+★ `tools/tf.sh` 가 `init` 에만 `-backend-config` 를 붙인다. 나머지 명령은
+`.terraform/` 에 적힌 것을 읽는다.
+
+★ **이전 뒤 `plan` 이 `No changes` 여야 한다.** 아니면 상태가 옮겨지지 않았고,
+그 상태로 `apply` 하면 **이미 있는 리소스를 다시 만든다.**
 
 ## 12. 접근 토큰
 

@@ -1,0 +1,5 @@
+# bash tools/bootstrap_backend.sh 가 이 파일로 infra/backend.hcl 을 만든다.
+# 버킷 이름은 전역 유일해야 하므로 계정 ID 를 붙인다.
+bucket = "thoth-tfstate-<계정ID>"
+key    = "thoth/terraform.tfstate"
+region = "ap-northeast-2"

@@ -40,21 +40,23 @@
 
 ## 0. 다음 한 수
 
-**#21 배포 워크플로.** 태그를 밀면 배포되게 한다.
+**#53 상태를 S3 로 옮긴다.** 코드는 섰고 남은 것은 부트스트랩이다.
 
-읽기 쪽은 섰다 — OIDC 프로바이더 · `thoth-ci` 역할 · 드리프트 검사가 돌고 있다
-(2026-09-15, 17초). 남은 것은 **쓰기 쪽**이다.
+```bash
+bash tools/bootstrap_backend.sh
+bash tools/tf.sh init -migrate-state
+bash tools/tf.sh plan                 # No changes 여야 한다
+```
 
-- **배포 역할을 따로 세운다.** 읽기 역할은 `lambda:GetFunction` 하나뿐이고,
-  배포는 `lambda:UpdateFunctionCode` 가 필요하다. **`terraform apply` 전체를
-  CI 에 주지 않는다** — IAM 쓰기까지 닿으면 그 역할이 자기 신뢰 정책을 고친다
-- **태그 푸시에서만 돈다.** `main` 푸시마다 배포하면 배포가 커밋과 같은 말이
-  된다
-- **`production` Environment 로 승인을 건다.** `sub` 조건도 그때
-  `:environment:production` 으로 좁힌다 — 지금은 `:*` 다
+- **`plan` 이 `No changes` 가 아니면 멈춘다.** 상태가 안 옮겨졌다는 뜻이고,
+  그대로 `apply` 하면 **이미 있는 리소스를 다시 만든다**
+- 이전이 끝나야 `#21` 이 가능하다. CI 는 로컬 상태 파일을 읽지 못한다
+- `infra/terraform.tfstate` 는 이전 뒤에도 남는다. **지우지 말고 둔다** —
+  잘못되면 그것이 유일한 되돌릴 길이다
 
-★ **`sub` 는 실측값을 쓴다**(DECISIONS §87). `owner/repo` 가 아니라
-`owner@<id>/repo@<id>` 다. 좁힐 때 이 형식을 잊으면 같은 반나절을 다시 쓴다.
+★ **`doctor` 가 그전까지 FAIL 한다.** 백엔드 블록이 생겼는데 `.terraform/` 은
+아직 로컬로 초기화돼 있어 `terraform validate` 가 거절한다. 순서가 정해져 있다 —
+부트스트랩 · `init` 이 먼저고 `doctor` 는 그 뒤다.
 
 ★ 이 절은 새 세션이 문맥 없이 시작할 때 읽는 자리다. 한 수가 정해지면
 갱신하고, 해결되면 지운다.
@@ -356,7 +358,8 @@ DECISIONS §20.
 
 | # | 상태 | 항목 | 전건 |
 |---|---|---|---|
-| 21 | 📄 | 배포 워크플로 — **태그 푸시에서만**. 배포 역할 · `production` Environment 도 여기서 | |
+| 53 | 🟡 | 상태를 S3 로 — **코드는 섰다.** 부트스트랩과 이전만 남았다 | |
+| 21 | 📄 | 배포 워크플로 — **태그 푸시에서만**. 배포 역할 · `production` Environment 도 여기서 | 53 |
 
 ★ **`infra/` 가 섰다**(2026-09-14). Lambda · Function URL · DynamoDB(TTL) ·
 IAM 넷이고 동시 실행도 고정했다. `terraform fmt` 는 `doctor` 와 CI 가 보고
@@ -384,6 +387,10 @@ application` 이 등재 표기로 나왔다 — **골든셋 밖의 첫 확인이
 
 ★ **#20 을 지웠다**(2026-09-15). OIDC 프로바이더와 `thoth-ci` 역할이 섰고
 드리프트 검사가 17초에 돈다. `sub` 형식으로 반나절을 썼다(DECISIONS §87).
+
+★ **#21 을 A 안이 아니라 B 안으로 간다.** CI 에 `lambda:UpdateFunctionCode`
+하나만 주고 zip 만 올리는 길이 더 좁고 빠르지만, **코드와 인프라의 상태가 두
+곳으로 갈린다**(DECISIONS §88). 그래서 #53 이 전건이 됐다.
 
 ★ **배포 역할은 #20 에 넣지 않았다.** `terraform apply` 에 필요한 권한이 IAM
 쓰기까지 닿고, 그러면 그 역할이 자기 신뢰 정책을 고칠 수 있다. 실제 `apply`
