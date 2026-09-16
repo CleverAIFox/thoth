@@ -27,15 +27,13 @@
  *   떨어지므로 깨지지 않는다.
  *
  * ★ **SIL OFL 1.1.** 사본을 `fonts/LICENSE.txt` 에 함께 둔다 — 재배포 조건이다.
+ *
+ * ★ **`@font-face` 가 여기 없다**(DECISIONS §103). 이 파일은 `insertCSS` 로 페이지에
+ *   들어가고, 그때 상대 경로 `fonts/...` 는 **확장이 아니라 페이지 오리진**으로
+ *   풀린다. 모든 사이트에서 404 였고 한 번도 실리지 않았다. 브로커가
+ *   `chrome.runtime.getURL` 로 `FontFace` 를 올린다. `preview.html` 은 확장 폴더에서
+ *   열리므로 거기에만 같은 규칙이 있다.
  */
-
-@font-face {
-  font-family: "Pretendard st";
-  src: url("fonts/Pretendard.subset.woff2") format("woff2-variations");
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 .st-translation.st-translation {
   /* ★ 브로커가 사이트에서 뽑아 넘긴 값이 있으면 그것을 쓰고, 없으면 여기

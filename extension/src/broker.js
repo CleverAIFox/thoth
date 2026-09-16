@@ -8,6 +8,26 @@
 
   const CLS = "st-translation";
 
+  // ★ **글꼴을 확장 주소로 올린다**(DECISIONS §103). `content.css` 의
+  //   `url("fonts/...")` 는 `insertCSS` 로 들어가면 **페이지 오리진**으로 풀려 모든
+  //   사이트에서 404 였다. `getURL` 은 확장 오리진을 돌려주고 `fonts/` 는
+  //   `web_accessible_resources` 에 있다.
+  //
+  // ★ **실패를 삼키지 않는다.** 페이지 CSP 가 막을 수 있다. 막히면 시스템 글꼴로
+  //   떨어지고 번역은 그대로 되지만, 조용하면 또 모른다.
+  ST.loadFont = () => {
+    if (ST.__font || typeof FontFace === "undefined" || !document.fonts
+        || !globalThis.chrome?.runtime?.getURL) return null;
+    ST.__font = true;
+    const url = chrome.runtime.getURL("fonts/Pretendard.subset.woff2");
+    const face = new FontFace("Pretendard st", `url("${url}") format("woff2-variations")`,
+      { weight: "400 700", style: "normal", display: "swap" });
+    document.fonts.add(face);
+    face.load().catch((e) => console.warn("[st] 글꼴을 싣지 못했다 —", e?.message || e));
+    return url;
+  };
+  ST.loadFont();
+
   // ★ **테마를 추측하지 않고 잰다.** `prefers-color-scheme` 은 OS 설정이라
   //   크롬이 어두운데 사이트가 밝으면 어긋난다 — 흰 바탕에 흰 글씨가 났다
   //   (DECISIONS §92). 앵커에서 위로 올라가며 **실제로 칠해진 첫 배경색**을

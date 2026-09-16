@@ -186,6 +186,40 @@ test("브로커가 호스트와 어댑터 이름을 넘긴다", need, async () =
   assert.ok(!("url" in f.calls[0].body.source), "경로는 싣지 않는다");
 });
 
+// ---------- 글꼴 (DECISIONS §103) ----------
+
+test("글꼴을 페이지가 아니라 확장 주소로 올린다", need, async () => {
+  // ★ 상대 경로는 페이지 오리진으로 풀려 모든 사이트에서 404 였다.
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome } = harness;
+  await loadAdapters(["generic"]);
+  const doc = makeDoc("<p>x</p>");
+  const added = [];
+  doc.fonts = { add: (f) => added.push(f) };
+  globalThis.FontFace = class { constructor(family, src) { this.family = family; this.src = src; }
+                                load() { return Promise.resolve(this); } };
+  const c = fakeChrome();
+  c.api.runtime.getURL = (p) => `chrome-extension://abc/${p}`;
+  globalThis.chrome = c.api;
+  globalThis.fetch = harness.fakeFetch([{ ok: true, body: { translations: [] } }]);
+  const b = await loadBroker();
+  b.stop();
+  delete globalThis.FontFace;
+  assert.equal(added.length, 1);
+  assert.equal(added[0].family, "Pretendard st");
+  assert.match(added[0].src, /^url\("chrome-extension:\/\/abc\/fonts\/Pretendard/);
+});
+
+test("content.css 는 상대 경로 글꼴을 들지 않는다", async () => {
+  // insertCSS 로 들어가면 페이지 오리진으로 풀린다. 되돌아가면 404 가 돌아온다.
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const { dirname, join } = await import("node:path");
+  const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "content.css"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/url\(\s*["']?(?!chrome-extension:|data:|https?:)[^)"']+/.test(css),
+            "content.css 에 상대 url() 이 있다");
+});
+
 // ---------- 배치 기본값 ----------
 
 test("배치 기본값이 실측 최적점이다", need, async () => {

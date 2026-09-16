@@ -15,8 +15,19 @@
     안에 있다. 카드 안에서 상자가 겹치는지가 이 화면으로 보인다.
 -->
 <link rel="stylesheet" href="content.css">
-<!-- ★ 확장 안에서는 `content.css` 의 상대 경로가 확장 오리진으로 풀린다.
-     파일로 열 때도 같은 폴더라 그대로 맞는다. -->
+<!-- ★ **글꼴은 여기서 따로 올린다**(DECISIONS §103). 실사이트에서는 브로커가
+     `chrome.runtime.getURL` 로 올리고, 이 파일은 확장 폴더에서 열려 상대 경로가
+     맞는다. **전에는 이 화면에서만 글꼴이 보였고 사이트에서는 404 였다** — 이
+     미리보기가 초록불이던 자리다. -->
+<style>
+  @font-face {
+    font-family: "Pretendard st";
+    src: url("fonts/Pretendard.subset.woff2") format("woff2-variations");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+</style>
 <style>
   /* 미리보기 뼈대. 번역 박스 스타일은 content.css 가 갖는다. */
   :root { --page: #fff; --ink: #1c1d1f; --line: #d1d7dc; }

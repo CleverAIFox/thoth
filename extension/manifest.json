@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Thoth — 한글 번역 오버레이",
+  "name": "Thoth — 영어 문제 한글 번역",
   "version": "0.1.0",
-  "description": "영어 문항·본문을 화면에서 읽어 한글 번역을 겹쳐 보여준다. 사이트별 어댑터와 제네릭 폴백으로 동작한다.",
+  "description": "영어 문제와 웹페이지 본문 아래에 한글 번역을 바로 붙여 줍니다. Udemy 연습 시험은 문제·보기·해설을 나눠 번역합니다.",
   "permissions": [
     "storage",
     "scripting",
