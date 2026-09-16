@@ -362,6 +362,17 @@ else
   esac
 fi
 
+echo "== 원격이 거절하는 것 =="
+# ★ **문법은 맞는데 받는 쪽이 거절하는 것들.** `terraform validate` 는 AWS API 의
+#   값 제약을 보지 않고 git 은 YAML 을 보지 않는다. 그래서 둘 다 원격에 나간
+#   다음에야 안다 — 2026-09-15 에 하나씩 걸렸다(DECISIONS §87).
+if ST_OUT="$(python3 tools/check_static.py 2>&1)"; then
+  printf '%s\n' "$ST_OUT" | sed 's/^ *//' | while read -r l; do [ -n "$l" ] && ok "$l"; done
+else
+  no "원격이 거절할 것이 있다"
+  printf '%s\n' "$ST_OUT" | head -10 | sed 's/^/       /'
+fi
+
 echo "== 확장 =="
 # 콘텐츠 스크립트는 재주입 시 전부 다시 평가된다. 최상위 let · const · class
 # 는 재선언이 SyntaxError 이고, 한 번 터지면 그 파일이 통째로 죽는다

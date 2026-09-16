@@ -40,24 +40,21 @@
 
 ## 0. 다음 한 수
 
-**OIDC 역할을 세우고 드리프트 검사를 켠다.**
+**#21 배포 워크플로.** 태그를 밀면 배포되게 한다.
 
-코드는 다 들어갔다. 남은 것은 `apply` 와 시크릿 한 줄이다.
+읽기 쪽은 섰다 — OIDC 프로바이더 · `thoth-ci` 역할 · 드리프트 검사가 돌고 있다
+(2026-09-15, 17초). 남은 것은 **쓰기 쪽**이다.
 
-```bash
-bash tools/tf.sh apply                       # ci_role_arn 이 출력된다
-gh secret set AWS_CI_ROLE_ARN --body "<그 값>"
-gh workflow run drift
-```
+- **배포 역할을 따로 세운다.** 읽기 역할은 `lambda:GetFunction` 하나뿐이고,
+  배포는 `lambda:UpdateFunctionCode` 가 필요하다. **`terraform apply` 전체를
+  CI 에 주지 않는다** — IAM 쓰기까지 닿으면 그 역할이 자기 신뢰 정책을 고친다
+- **태그 푸시에서만 돈다.** `main` 푸시마다 배포하면 배포가 커밋과 같은 말이
+  된다
+- **`production` Environment 로 승인을 건다.** `sub` 조건도 그때
+  `:environment:production` 으로 좁힌다 — 지금은 `:*` 다
 
-- **`EntityAlreadyExists` 가 나면** 이웃 저장소가 OIDC 프로바이더를 이미
-  만들어 둔 것이다. 계정에 하나만 존재할 수 있다. 그 ARN 을
-  `github_oidc_provider_arn` 에 넣고 다시 `apply` 한다
-- **첫 실행이 신뢰 정책의 유일한 검사다.** 로컬은 `admin` 자격증명이라
-  `sub` · `aud` 조건이 맞는지 알 수 없다(§73)
-
-그다음은 **#21**(태그 푸시 배포)이다. 배포가 손이 아니라 태그로 되면 드리프트
-자체가 거의 생기지 않는다.
+★ **`sub` 는 실측값을 쓴다**(DECISIONS §87). `owner/repo` 가 아니라
+`owner@<id>/repo@<id>` 다. 좁힐 때 이 형식을 잊으면 같은 반나절을 다시 쓴다.
 
 ★ 이 절은 새 세션이 문맥 없이 시작할 때 읽는 자리다. 한 수가 정해지면
 갱신하고, 해결되면 지운다.
@@ -359,8 +356,7 @@ DECISIONS §20.
 
 | # | 상태 | 항목 | 전건 |
 |---|---|---|---|
-| 20 | 🟡 | OIDC 프로바이더 · CI 읽기 역할 — **코드는 섰다.** `apply` 와 시크릿만 남았다 | |
-| 21 | 📄 | 배포 워크플로 — **태그 푸시에서만**. 배포 역할도 여기서 세운다 | 20 |
+| 21 | 📄 | 배포 워크플로 — **태그 푸시에서만**. 배포 역할 · `production` Environment 도 여기서 | |
 
 ★ **`infra/` 가 섰다**(2026-09-14). Lambda · Function URL · DynamoDB(TTL) ·
 IAM 넷이고 동시 실행도 고정했다. `terraform fmt` 는 `doctor` 와 CI 가 보고
@@ -385,6 +381,9 @@ application` 이 등재 표기로 나왔다 — **골든셋 밖의 첫 확인이
 승인자 게이트는 두지 않는다.
 
 ★ ALB · NAT Gateway · Kinesis 샤드를 쓰지 않는다(§4).
+
+★ **#20 을 지웠다**(2026-09-15). OIDC 프로바이더와 `thoth-ci` 역할이 섰고
+드리프트 검사가 17초에 돈다. `sub` 형식으로 반나절을 썼다(DECISIONS §87).
 
 ★ **배포 역할은 #20 에 넣지 않았다.** `terraform apply` 에 필요한 권한이 IAM
 쓰기까지 닿고, 그러면 그 역할이 자기 신뢰 정책을 고칠 수 있다. 실제 `apply`

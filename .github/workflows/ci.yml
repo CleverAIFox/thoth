@@ -41,6 +41,10 @@ jobs:
       #   의미 검사는 이미 받아 둔 기계에서 `doctor` 가 본다(DECISIONS §73).
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_wrapper: false }
+      # ★ **`check_static` 이 yaml 없이 SKIP 하는 것을 CI 는 넘어가지 못한다.**
+      #   워크플로가 깨지면 조용히 사라지고, 그 실패는 "워크플로가 없다" 로만
+      #   보인다(DECISIONS §87 · §54).
+      - run: pip install pyyaml
       - name: 린터가 실제로 있는가
         run: |
           shellcheck --version | sed -n 2p

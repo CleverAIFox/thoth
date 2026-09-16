@@ -4611,3 +4611,84 @@ README 의 `실행` 절 첫 줄에 **워커는 각자 띄운다**를 올렸다. 
 **"못 쟀다" 를 적는 것으로는 부족하다.** `§59` 는 못 잰 자리에 결과를 적지
 말라고 했다. 한 걸음 더 있다 — **못 쟀다가 기본값이 되면 그 줄은 배경이 되고
 아무도 읽지 않는다.** 그러면 적은 쪽은 정직했는데 결과는 검사가 없는 것과 같다.
+
+---
+
+## §87. 토큰을 안 보고 정책이 맞다고 세 번 말했다
+
+**2026-09-15**
+
+### 증상
+
+OIDC 역할을 세우고 워크플로를 돌리자 이것만 나왔다.
+
+```
+Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity
+```
+
+`aws iam get-role` 로 신뢰 정책을 읽어 보면 맞았다. `aud` 는 `sts.amazonaws.com`
+로 정확히 같고 `sub` 는 `StringLike` 로 `repo:CleverAIFox/thoth:*` 였다.
+
+### 원인
+
+**GitHub 이 보내는 `sub` 에 숫자 ID 가 붙는다.**
+
+```
+정책 기대 :  repo:CleverAIFox/thoth:*
+실제 토큰 :  repo:CleverAIFox@314908905/thoth@1366448765:ref:refs/heads/main
+```
+
+이름 변경으로 정책이 뚫리는 것을 막으려고 불변 ID 를 박는 형식이다. 문서
+대부분이 옛 형식으로 쓰여 있어 그대로 따랐고, `@` 가 끼면 `StringLike` 라도
+글자부터 달라 안 걸린다.
+
+**값비쌌던 것은 원인이 아니라 찾는 방법이었다.** 지문을 두 번 의심해 한 번
+바꾸고, 시크릿을 두 번 갈고, 프로바이더를 한 번 다시 세웠다. 전부 헛짚었다.
+**정책만 읽고 토큰은 한 번도 안 읽었다** — 정책이 맞다는 말은 반쪽만 본 판정이다.
+
+에러 문구가 그것을 부추긴다. `Not authorized` 하나가 조건 불일치 · 지문 오류 ·
+프로바이더 URL 불일치를 전부 덮는다. **판정만 있고 관측이 없다**(§70).
+
+### 조치
+
+워크플로에 임시 스텝을 넣어 토큰의 `iss` · `aud` · `sub` 를 찍었다. **한 번에
+갈렸다.** 다시 재는 법은 이렇다.
+
+```yaml
+- run: |
+    curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+      "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" > /tmp/t.json
+    python3 -c "import base64,json;v=json.load(open('/tmp/t.json'))['value'].split('.')[1];v+='='*(-len(v)%4);print(json.loads(base64.urlsafe_b64decode(v)))"
+```
+
+`sub` 실측값을 `github_repo_sub` 변수에 박았다. 와일드카드로 `@` 를 건너뛰게
+할 수도 있었으나 **ID 를 박는 쪽이 더 단단하다** — 이름을 바꿔도 안 깨지고
+유사 이름도 못 들어온다.
+
+★ **`github_repo` 는 따로 남겼다.** 사람이 읽는 값과 기계가 읽는 값을 한 변수로
+묶으면 둘 중 하나가 늙는다.
+
+### 곁가지 둘
+
+**IAM `description` 에 한글을 넣어 `apply` 가 멈췄다.** `[\u0020-\u007E]` 만
+받는다. `terraform validate` 는 통과시킨다.
+
+**워크플로 YAML 을 문자열 치환으로 고치다 깨뜨렸다.** 그러자 `gh workflow run`
+이 "could not find any workflows named drift" 를 냈다 — **파일이 아예 없을 때와
+같은 문구다.** 깨진 워크플로는 목록에서 조용히 사라진다.
+
+둘 다 `tools/check_static.py` 로 앞으로 당겼다(MASTER §11-15).
+
+### 배운 것
+
+**양쪽을 보기 전에는 "맞다" 고 말하지 않는다.** 인증은 토큰과 정책이 만나는
+자리다. 한쪽만 읽고 맞다고 하면 나머지 절반을 계속 다른 데서 찾게 된다 — 이번에
+지문 · 시크릿 · 프로바이더를 그렇게 뒤졌다.
+
+**한 문구가 여러 원인을 덮으면 관측을 만들어야 한다.** `Not authorized` 는
+무엇이 틀렸는지 말하지 않는다. 그럴 때 할 일은 원인을 하나씩 바꿔 보는 것이
+아니라 **입력을 찍어 보는 것**이다. 스텝 하나였고 처음부터 할 수 있었다.
+
+**문법 검사와 수용 검사는 다르다.** `terraform validate` 도 `bash -n` 도 받는
+쪽이 그 값을 받아들일지는 모른다. 원격이 거절하는 것은 원격에 나가기 전에
+잡아야 하고, 그 자리가 `check_static` 이다.

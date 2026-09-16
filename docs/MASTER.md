@@ -707,7 +707,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->226건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->235건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1179,6 +1179,32 @@ Lambda 가 들고 있는 `CodeSha256` 과 방금 만든 zip 의 해시를 비교
 넘어갈 일이 아니다. 종료 코드는 0 같다 · 1 못 쟀다 · 2 다르다.
 
 ★ **해시는 base64 다.** `sha256sum` 의 16진수와 비교하면 영원히 다르다.
+
+### 11-15. 원격이 거절하는 것
+
+```bash
+python3 tools/check_static.py
+```
+
+`doctor` 가 부른다. 둘을 본다.
+
+| | |
+|---|---|
+| `.github/workflows/*.yml` | YAML 로 파싱되는가 |
+| `infra/*.tf` 의 `resource` 블록 | 인용 문자열이 ASCII 인가 |
+
+★ **문법은 맞는데 받는 쪽이 거절하는 것들이다.** `terraform validate` 는 HCL 을
+보지 AWS API 의 값 제약을 보지 않고, git 은 YAML 을 보지 않는다. 그래서 둘 다
+원격에 나간 다음에야 안다.
+
+★ **깨진 워크플로는 조용히 사라진다.** `gh workflow run` 이 "could not find any
+workflows named ..." 를 내는데, 그 문구는 파일이 아예 없을 때와 같다.
+
+★ **`resource` 블록 안만 본다.** `variable` · `output` 의 설명은 terraform 안에서
+끝난다. 거기까지 막으면 한글 문서를 쓰지 말라는 말이 된다.
+
+★ **`yaml` 이 없으면 `SKIP` 이다.** 린터 취급과 같고 CI 가 그것을 따로 막는다
+(DECISIONS §54).
 
 ## 12. 접근 토큰
 
