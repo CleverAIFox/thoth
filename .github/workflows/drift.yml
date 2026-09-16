@@ -24,13 +24,13 @@ jobs:
   deployed-code:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.13" }
       # ★ 검사가 zip 을 만들지 않는다. 만드는 것은 여기 한 줄이고, 검사는 읽기만
       #   한다 — 상태를 바꾸는 검사를 만들지 않기 위해서다.
       - run: bash tools/package_lambda.sh
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_CI_ROLE_ARN }}
           aws-region: ap-northeast-2

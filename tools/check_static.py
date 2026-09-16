@@ -26,6 +26,18 @@ AWS 는 `description` 같은 필드에 ASCII 만 받는다. 이 저장소는 주
 
 ★ 주석(`#`)과 히어독(`<<-EOT`)도 건너뛴다. 나가는 것은 인용 문자열이다.
 
+## 3. Node 20 액션
+
+러너가 Node 20 액션을 Node 24 로 **강제로** 돌리고 경고만 남긴다. 강제가 끝나는
+날 워크플로 셋이 한꺼번에 멈추고, 그때까지는 초록불이다(DECISIONS §100).
+
+★ **아는 옛 메이저만 막는다.** 액션의 `action.yml` 을 받아 `runs.using` 을 보면
+  정확하지만 네트워크가 든다. 이 저장소가 실제로 쓰는 액션의 Node 20 메이저를
+  적어 두고, 올린 뒤 되돌아가는 것만 막는다. 새 액션을 들이면 그때 여기에 적는다.
+
+★ `gitleaks/gitleaks-action` 은 적지 않았다. Node 24 판을 확인하지 못했다 —
+  모르는 것을 통과로도 위반으로도 적지 않는다(§59). CI 경고로 본다.
+
   0  이상 없음
   1  위반
 """
@@ -66,6 +78,38 @@ def tf_bad_strings(text: str) -> list[tuple[int, str]]:
     return bad
 
 
+# 액션 → Node 20 인 메이저. 이 번호 이하를 막는다.
+NODE20 = {
+    "actions/checkout": 4,
+    "actions/setup-python": 5,
+    "actions/setup-node": 4,
+    "astral-sh/setup-uv": 6,
+    "hashicorp/setup-terraform": 3,
+    "aws-actions/configure-aws-credentials": 5,
+}
+USES = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@v(\d+)\b")
+
+
+def node20_uses(text: str) -> list[tuple[int, str]]:
+    """(줄번호, `액션@vN`). 빈 리스트가 통과다."""
+    bad = []
+    for n, line in enumerate(text.split("\n"), 1):
+        code = line.split("#", 1)[0]
+        for m in USES.finditer(code):
+            name, major = m.group(1), int(m.group(2))
+            if name in NODE20 and major <= NODE20[name]:
+                bad.append((n, f"{name}@v{major}"))
+    return bad
+
+
+def check_node20() -> list[str]:
+    fails = []
+    for p in sorted(ROOT.glob(".github/workflows/*.yml")):
+        for n, use in node20_uses(p.read_text(encoding="utf-8")):
+            fails.append(f"{p.relative_to(ROOT)}:{n} Node 20 액션 — {use}")
+    return fails
+
+
 def check_tf() -> list[str]:
     fails = []
     for p in sorted(ROOT.glob("infra/*.tf")):
@@ -90,7 +134,7 @@ def check_workflows() -> tuple[list[str], str | None]:
 
 
 def main() -> int:
-    fails = check_tf()
+    fails = check_tf() + check_node20()
     wf, skip = check_workflows()
     fails += wf
     for f in fails:
@@ -98,7 +142,7 @@ def main() -> int:
     if skip:
         print(f"  건너뜀 : {skip}", file=sys.stderr)
     if not fails:
-        print("  인용 문자열이 ASCII 다" + ("" if skip else " · 워크플로가 YAML 이다"))
+        print("  인용 문자열이 ASCII 다 · Node 20 액션 없음" + ("" if skip else " · 워크플로가 YAML 이다"))
     return 1 if fails else 0
 
 

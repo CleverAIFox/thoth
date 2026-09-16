@@ -59,3 +59,25 @@ def test_중첩_블록_안도_본다():
 def test_저장소가_지금_통과한다():
     # ★ 검사를 넣는 날 이미 깨져 있으면 아무도 고치지 않고 꺼 버린다(§46).
     assert cs.check_tf() == []
+
+
+# ---------- Node 20 액션 (DECISIONS §100) ----------
+
+def test_Node20_메이저를_잡는다():
+    assert cs.node20_uses("      - uses: actions/checkout@v4\n") == [(1, "actions/checkout@v4")]
+
+
+def test_올린_메이저는_통과한다():
+    assert cs.node20_uses("      - uses: hashicorp/setup-terraform@v4\n") == []
+
+
+def test_모르는_액션은_판정하지_않는다():
+    assert cs.node20_uses("      - uses: gitleaks/gitleaks-action@v2\n") == []
+
+
+def test_주석_안의_uses_는_보지_않는다():
+    assert cs.node20_uses("      # uses: actions/checkout@v4 를 쓰던 자리\n") == []
+
+
+def test_워크플로가_지금_Node20_을_쓰지_않는다():
+    assert cs.check_node20() == []

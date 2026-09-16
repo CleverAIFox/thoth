@@ -8,7 +8,7 @@ jobs:
   gitleaks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
       - uses: gitleaks/gitleaks-action@v2
         env:
@@ -22,14 +22,14 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-python@v6
         with: { python-version: "3.13" }
       # ★ **jsdom 이 없으면 확장 검사 25건이 건너뛰어진다.** 로컬에서는 WARN 으로
       #   두는 것이 맞지만(DECISIONS §46) CI 는 넘어갈 수 없는 자리다. 여기서
       #   건너뛰면 초록불인 채로 수집이 깨진다(DECISIONS §54).
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with: { node-version: "22", cache: npm, cache-dependency-path: extension/package-lock.json }
       - run: npm ci
         working-directory: extension
@@ -39,7 +39,7 @@ jobs:
       # ★ **`fmt` 만 본다.** `validate` 는 `init` 을 요구하고 `init` 은 프로바이더
       #   수백 MB 를 받는다. 커밋마다 받게 하면 검사가 네트워크에 기대게 된다.
       #   의미 검사는 이미 받아 둔 기계에서 `doctor` 가 본다(DECISIONS §73).
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with: { terraform_wrapper: false }
       # ★ **`check_static` 이 yaml 없이 SKIP 하는 것을 CI 는 넘어가지 못한다.**
       #   워크플로가 깨지면 조용히 사라지고, 그 실패는 "워크플로가 없다" 로만
@@ -71,8 +71,8 @@ jobs:
       QUOTA_FILE: .cache/quota.json
       MAX_TEXT_LEN: "5000"
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
       - name: 워커 기동
         run: |
           uv run uvicorn app.main:app --port 8000 > /tmp/worker.log 2>&1 &

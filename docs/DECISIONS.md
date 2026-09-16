@@ -5429,3 +5429,61 @@ Bedrock 서비스 약관 원문으로 확인한다.
 
 **새 도구의 첫 출력은 이미 아는 사실과 대조한다.** 오류 객체가 하나라는 것을 두 턴
 전에 손으로 열어 확인했는데, 도구가 0 을 냈을 때 그 대조를 하지 않고 통과로 읽었다.
+
+---
+
+## §100. 초록불인 채로 날짜가 박힌 워크플로
+
+**2026-09-16**
+
+### 증상
+
+`v0.1.4` 배포가 초록으로 끝났고 끝에 경고 한 줄이 붙었다.
+
+```
+Node.js 20 is deprecated. The following actions target Node.js 20 but are being
+forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5,
+aws-actions/configure-aws-credentials@v4, hashicorp/setup-terraform@v3.
+```
+
+### 원인
+
+러너가 Node 20 액션을 **강제로 Node 24 로 돌리고 있었다.** 지금은 돈다. 강제가
+끝나는 날 `ci` · `drift` · `deploy` 가 한꺼번에 멈추고, 그날까지 검사는 전부 초록이다.
+경고에 이름이 오른 것은 넷이지만 `ci.yml` 에 `setup-node@v4` · `setup-uv@v5` 가 더
+있었다 — 경고는 그 run 이 쓴 액션만 말한다.
+
+### 조치
+
+| 액션 | 전 | 후 |
+|---|---|---|
+| `actions/checkout` | v4 | v5 |
+| `actions/setup-python` | v5 | v6 |
+| `actions/setup-node` | v4 | v5 |
+| `astral-sh/setup-uv` | v5 | v7 |
+| `hashicorp/setup-terraform` | v3 | v4 |
+| `aws-actions/configure-aws-credentials` | v4 | v6 |
+
+★ **최신이 아니라 Node 24 로 넘어간 첫 메이저에 가깝게 골랐다.** `checkout@v6` 은
+자격증명 보관 위치를 바꿨고 `setup-uv@v8` 은 메이저 태그를 없앴다. 이 저장소가
+필요한 것은 런타임이지 기능이 아니다. `configure-aws-credentials` 는 v5 가 불리언
+입력 처리를 바꿨는데 이 저장소는 불리언 입력을 넘기지 않아 v6 까지 올렸다.
+
+★ **`gitleaks-action@v2` 는 그대로다.** Node 24 판이 있는지 확인하지 못했다.
+
+★ `check_static.py` 가 **아는 Node 20 메이저로 되돌아가는 것**을 막는다. 옛
+`deploy.yml` 에 돌리면 경고의 넷을 같은 순서로 잡는다.
+
+### 재지 않은 것
+
+★ **새 메이저가 이 워크플로에서 도는지는 원격만 안다.** `ci` · `drift` 는 push 가,
+`deploy` 는 다음 태그가 잰다. 로컬 검사는 YAML 모양과 번호만 본다.
+
+### 배운 것
+
+**경고는 초록불 안에 있다.** 이 줄은 성공한 run 의 끝에 붙어 있었고 실패한 run
+에는 없었다 — 실패를 보러 들어가지 않으면 보이지 않는 자리다. §86 의 "초록불 속에서
+낡는다" 가 코드가 아니라 **실행 환경의 날짜**로 온 경우다.
+
+**경고가 이름을 댄 것은 그 run 이 쓴 것뿐이다.** 같은 부류를 저장소 전체에서 찾아야
+했고, 찾으니 둘이 더 있었다.
