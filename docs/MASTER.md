@@ -821,7 +821,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->270건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->271건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1344,7 +1344,7 @@ workflows named ..." 를 내는데, 그 문구는 파일이 아예 없을 때와
 
 ★ **액션 메이저**(2026-09-16). `checkout@v5` · `setup-python@v6` · `setup-node@v5`
 · `setup-uv@v7` · `setup-terraform@v4` · `configure-aws-credentials@v6` 가 Node 24 다.
-`gitleaks-action@v2` 는 확인하지 못해 목록에 없다(DECISIONS §100).
+`gitleaks-action@v3` 도 Node 24 다(DECISIONS §101).
 
 ★ **`yaml` 이 없으면 `SKIP` 이다.** 린터 취급과 같고 CI 가 그것을 따로 막는다
 (DECISIONS §54).

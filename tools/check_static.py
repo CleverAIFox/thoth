@@ -35,8 +35,8 @@ AWS 는 `description` 같은 필드에 ASCII 만 받는다. 이 저장소는 주
   정확하지만 네트워크가 든다. 이 저장소가 실제로 쓰는 액션의 Node 20 메이저를
   적어 두고, 올린 뒤 되돌아가는 것만 막는다. 새 액션을 들이면 그때 여기에 적는다.
 
-★ `gitleaks/gitleaks-action` 은 적지 않았다. Node 24 판을 확인하지 못했다 —
-  모르는 것을 통과로도 위반으로도 적지 않는다(§59). CI 경고로 본다.
+★ `gitleaks/gitleaks-action` 은 처음에 빠졌다. Node 24 판을 확인하지 않고
+  "모른다" 로 두었는데 v3 이 이미 있었다(DECISIONS §101).
 
   0  이상 없음
   1  위반
@@ -86,6 +86,7 @@ NODE20 = {
     "astral-sh/setup-uv": 6,
     "hashicorp/setup-terraform": 3,
     "aws-actions/configure-aws-credentials": 5,
+    "gitleaks/gitleaks-action": 2,
 }
 USES = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@v(\d+)\b")
 

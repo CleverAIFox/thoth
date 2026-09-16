@@ -72,7 +72,12 @@ def test_올린_메이저는_통과한다():
 
 
 def test_모르는_액션은_판정하지_않는다():
-    assert cs.node20_uses("      - uses: gitleaks/gitleaks-action@v2\n") == []
+    assert cs.node20_uses("      - uses: someone/some-action@v1\n") == []
+
+
+def test_gitleaks_v2_도_잡는다():
+    # 경고가 두 번째 run 에서야 이름을 댔다(DECISIONS §101).
+    assert cs.node20_uses("      - uses: gitleaks/gitleaks-action@v2\n") == [(1, "gitleaks/gitleaks-action@v2")]
 
 
 def test_주석_안의_uses_는_보지_않는다():
