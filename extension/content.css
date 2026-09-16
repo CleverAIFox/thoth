@@ -14,13 +14,16 @@
  * ★ **명시도로 이긴다. `!important` 를 쓰지 않는다.** 클래스를 두 번 적어
  *   (0,2,0) 을 만든다.
  *
+ * ★ **색을 상속받는다. `prefers-color-scheme` 를 쓰지 않는다.** 그것은 OS
+ *   설정이지 이 페이지의 배경이 아니다 — 크롬이 어두운 설정이고 Udemy 가
+ *   밝은 테마이면 흰 바탕에 흰 글씨가 나온다(2026-09-16 에 실제로 났다).
+ *   부모의 `color` 를 물려받으면 사이트가 어느 테마든 저절로 맞는다.
+ *
  * ★ **글자 크기를 px 로 박는다.** `em` 은 부모를 따라가는데 문항 · 보기 ·
  *   해설의 부모 크기가 제각각이라 같은 번역이 자리마다 다른 크기로 나왔다.
  */
 
 .st-translation.st-translation {
-  --st-text: #191f28;
-  --st-label: #8b95a1;
   --st-accent: #3182f6;
 
   box-sizing: border-box;
@@ -30,7 +33,7 @@
   border: 0;
   background: none;
 
-  color: var(--st-text);
+  color: inherit;
   font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
                "Malgun Gothic", system-ui, sans-serif;
   font-size: 15.5px;
@@ -50,19 +53,11 @@
   content: "한글";
   display: block;
   margin-bottom: 3px;
-  color: var(--st-label);
+  color: color-mix(in srgb, currentColor 52%, transparent);
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: .09em;
   line-height: 1.4;
-}
-
-@media (prefers-color-scheme: dark) {
-  .st-translation.st-translation {
-    --st-text: #e8ecf1;
-    --st-label: #7a838f;
-    --st-accent: #4d8dfb;
-  }
 }
 
 .st-translation.st-translation::selection,
@@ -89,7 +84,7 @@
 /* ★ 기다리는 동안. **본문이 아니라 이름표가 말한다.** 상자가 없으니 흔들
  *   것도 없고, 번역이 도착하면 이름표만 조용히 제자리로 돌아온다. */
 .st-translation--loading.st-translation--loading {
-  color: var(--st-label);
+  color: color-mix(in srgb, currentColor 45%, transparent);
   font-weight: 400;
 }
 

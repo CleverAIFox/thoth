@@ -3,7 +3,10 @@
 //   URL 만 박아 봐야 설치한 사람이 그대로 쓰지 못한다 — 편의는 0 이고 공개
 //   저장소에 엔드포인트만 실린다. 토큰까지 박으면 비밀값을 공개 저장소에
 //   커밋하는 일이고 남이 상한을 태운다. **워커는 각자 띄운다.**
-globalThis.ST.DEFAULT_ENDPOINT = "http://127.0.0.1:8000/translate";
+// ★ 기계별 기본값이 있으면 그것을 쓴다(`config.local.js`). 저장소에는 빈
+//   채로 있고 `tools/sync_ext.sh` 가 ext-build 사본에만 채운다.
+globalThis.ST.DEFAULT_ENDPOINT =
+  globalThis.ST.CONFIG?.endpoint || "http://127.0.0.1:8000/translate";
 // ★ 워커의 OLLAMA_TIMEOUT(700s)보다 짧다. 일부러다 — 이것은 **사용자가
 //   기다리는 시간**이고, 브라우저에서 10분을 기다리게 할 수는 없다. 확장은
 //   MAX_BATCH 가 작아 한 요청이 짧으므로 이 상한에 먼저 닿지 않는다.
@@ -30,6 +33,8 @@ globalThis.ST.WorkerError ??= class WorkerError extends Error {
 globalThis.ST.translate = async function (texts) {
   const { stEndpoint, stToken } = await chrome.storage.local.get(["stEndpoint", "stToken"]);
   const url = stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;
+  // ★ 팝업에서 넣은 값이 언제나 이긴다. 기계 기본값은 출발점일 뿐이다.
+  const token = stToken || globalThis.ST.CONFIG?.token || "";
 
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), globalThis.ST.TIMEOUT_MS);
@@ -37,7 +42,7 @@ globalThis.ST.translate = async function (texts) {
   // ★ 토큰이 없으면 헤더를 아예 붙이지 않는다. 빈 값으로 보내면 토큰을 끈
   //   로컬 워커에서도 preflight 가 도는데, 얻는 것 없이 왕복만 는다.
   const headers = { "Content-Type": "application/json" };
-  if (stToken) headers["X-Thoth-Token"] = stToken;
+  if (token) headers["X-Thoth-Token"] = token;
 
   let res;
   try {

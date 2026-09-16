@@ -141,6 +141,35 @@ elif [ -d "$THOTH_SSD_ROOT" ]; then
 else
   warn "THOTH_SSD_ROOT 가 가리키는 곳이 없다 — 마운트를 본다 ($THOTH_SSD_ROOT)"
 fi
+# ★ **파생물이 정본과 같은지 본다.** 브라우저가 읽는 것은 `extension/` 이 아니라
+#   `THOTH_EXT_DEST` 의 사본이다. 2026-09-16 에 CSS 네 판이 저장소에만 들어가
+#   있었고 브라우저는 나흘 된 파일을 보고 있었다 — 도구는 있었는데 아무도
+#   돌리지 않았고 돌렸는지 보는 것이 없었다(DECISIONS §92).
+#
+# ★ **없으면 WARN 이다. 못 잰 것이지 틀린 것이 아니다**(§59). 마운트가 안 붙은
+#   기계와 동기화를 잊은 기계는 다르다.
+#
+# ★ `config.local.js` 는 비교에서 뺀다. 파생물 쪽에만 값이 들어가는 파일이라
+#   같을 수가 없다.
+if [ -z "${THOTH_EXT_DEST:-}" ]; then
+  warn "THOTH_EXT_DEST 가 .env 에 없다 — 확장 사본을 재지 못했다"
+elif [ ! -d "$THOTH_EXT_DEST" ]; then
+  warn "확장 사본이 없다 — bash tools/sync_ext.sh ($THOTH_EXT_DEST)"
+elif ! command -v rsync >/dev/null 2>&1; then
+  warn "rsync 가 없어 확장 사본을 재지 못했다"
+else
+  EXT_DIFF="$(rsync -rlcn --delete --out-format='%n' \
+    --exclude=tests/ --exclude=node_modules/ --exclude=package*.json \
+    --exclude=src/config.local.js \
+    "$ROOT/extension/" "$THOTH_EXT_DEST/" 2>/dev/null | grep -v '/$' || true)"
+  if [ -z "$EXT_DIFF" ]; then
+    ok "확장 사본이 저장소와 같다"
+  else
+    no "확장 사본이 낡았다 — bash tools/sync_ext.sh"
+    printf '%s\n' "$EXT_DIFF" | head -8 | sed 's/^/       /'
+  fi
+fi
+
 # 경로는 .env 에만 산다. 스크립트가 기본값을 들면 두 곳이 조용히 어긋난다.
 HARD="$(grep -rn "/mnt/[cf]/" tools/ 2>/dev/null | grep -v "^tools/doctor.sh:.*grep -rn" | wc -l)"
 [ "$HARD" = "0" ] && ok "tools/ 에 하드코딩된 경로 없음" \

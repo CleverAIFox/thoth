@@ -1,4 +1,4 @@
-const ST_FILES = ["src/adapters/generic.js","src/adapters/standard.js","src/adapters/udemy.js","src/client.js","src/broker.js"];
+const ST_FILES = ["src/config.local.js","src/adapters/generic.js","src/adapters/standard.js","src/adapters/udemy.js","src/client.js","src/broker.js"];
 
 // 유데미 외 사이트: 아이콘 클릭 -> 해당 오리진 권한 요청 -> 브로커 주입.
 // 한 번 승인하면 그 사이트는 이후 자동으로 동작한다(권한이 영구 부여됨).
