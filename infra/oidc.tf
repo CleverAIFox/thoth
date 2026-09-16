@@ -188,6 +188,7 @@ data "aws_iam_policy_document" "deploy" {
     actions = [
       "lambda:GetFunction",
       "lambda:GetFunctionConfiguration",
+      "lambda:GetFunctionCodeSigningConfig",
       "lambda:GetFunctionUrlConfig",
       "lambda:GetPolicy",
       "lambda:ListVersionsByFunction",
