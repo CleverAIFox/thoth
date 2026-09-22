@@ -147,8 +147,8 @@ D = dt.date.fromisoformat
 fig, (a0, a1) = plt.subplots(2, 1, figsize=(7.2, 4.6), gridspec_kw={"height_ratios": [1, 2.6]})
 # 위 — 전 기간
 first = min(rng)
-spans = [("선행 저장소 — 스크래핑 · AWS Translate · 폐기", START, (D(first) - dt.timedelta(1)).isoformat(), GRAY),
-         ("thoth — 확장 · 워커 · 배포 · 쌍 로그 · 닫음", first, max(rng), BLUE),
+spans = [("선행 저장소 — Udemy 전용 · 사전 번역 · 폐기", START, (D(first) - dt.timedelta(1)).isoformat(), GRAY),
+         ("thoth — 범용 확장 · CI/CD · 배포 · 닫음", first, max(rng), BLUE),
          ("seshat — 자 · 후보 · 쌍 · 튜닝 · 서빙 (진행)", max(rng), "2026-09-30", GREEN)]
 for i, (n, s, e, col) in enumerate(spans):
     y = len(spans) - i
@@ -160,7 +160,11 @@ ticks = [D(START)] + [D(f"2026-{m:02d}-01") for m in (8, 9)] + [D(first), D(max(
 a0.set_xticks([d.toordinal() for d in ticks]); a0.set_xticklabels([d.strftime("%m-%d") for d in ticks], fontsize=7)
 a0.set_yticks([]); a0.spines[["top", "right", "left"]].set_visible(False)
 a0.set_xlim(D(START).toordinal() - 1, D("2026-09-30").toordinal() + 1)
-a0.set_title(f"전 기간 — {START} 시작. 선행 저장소의 기록은 thoth 밖에 있다", fontsize=8.2)
+PUSH = "2026-09-19"
+a0.axvline(D(PUSH).toordinal(), color=RED, lw=0.8, ls=":")
+a0.text(D(PUSH).toordinal(), 3.75, "첫 푸시", color=RED, fontsize=6.8, ha="center")
+a0.set_ylim(0.4, 4.1)
+a0.set_title(f"전 기간 — {START} Udemy 전용으로 시작 → 범용 확장 · CI/CD 로 새 저장소", fontsize=8.2)
 # 아래 — thoth 일별
 days = sorted(rng)
 for i, d in enumerate(days):
@@ -177,5 +181,5 @@ a1.spines[["top", "right", "left"]].set_visible(False)
 a1.set_ylim(0.3, len(days) + 0.8)
 a1.set_title("thoth 일별 — DECISIONS 절의 날짜 줄에서 센 범위 (기록 없는 날은 비어 있다)", fontsize=8.2)
 fig.tight_layout()
-save(fig, "f_gantt", [f"file:docs/MASTER.md~{START} 에 선행 저장소로 시작했다"] + [f"decisions:{d}=" + (f"§{a}–§{b}" if a != b else f"§{a}") for d, (a, b) in sorted(rng.items())])
+save(fig, "f_gantt", [f"file:docs/MASTER.md~{START} 에 선행 저장소로 시작했다", "file:docs/MASTER.md~**Udemy 전용 도구였다**", f"file:docs/MASTER.md~첫 푸시는 {PUSH}"] + [f"decisions:{d}=" + (f"§{a}–§{b}" if a != b else f"§{a}") for d, (a, b) in sorted(rng.items())])
 print("charts ok")
