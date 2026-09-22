@@ -37,7 +37,7 @@
   캐시     sha256(원문) → 번역. 미스만 다음 단계로
   가드     월 누적 문자 상한. 번역 전에 예약한다
   용어집   원문에 맞는 도메인 용어집을 골라 프롬프트에 싣는다
-  엔진     echo · local · translate · bedrock
+  엔진     echo · local · translate · bedrock · http
 ```
 
 **사이트 지식은 어댑터에만 있다.** 브로커·클라이언트·워커는 어떤 사이트인지
@@ -357,9 +357,10 @@ DynamoDB 로 가르면 `CACHE=file` 에서 카운터만 AWS 로 샌다(DECISIONS
 | `ENGINE` | 대상 | 비용 | 상태 |
 |---|---|---|---|
 | `echo` | `[KO] 원문` | 0 | DOM · 렌더링 작업용 |
-| `local` | Ollama · `exaone3.5:7.8b` | 0 | 현재 값. 상한 `OLLAMA_TIMEOUT`(700s) |
+| `local` | Ollama · `exaone3.5:7.8b` | 0 | 내렸다(§7-1). 오프라인 개발 · 비교 기준선 |
 | `translate` | AWS Translate | $15/100만 자 | 구현됨. 미사용 |
-| `bedrock` | Bedrock Converse · `BEDROCK_MODEL` | 모델별 토큰 과금 | **실호출 검증됨**(2026-09-14) |
+| `bedrock` | Bedrock Converse · `BEDROCK_MODEL` | 모델별 토큰 과금 | **배포본**(2026-09-14 부터) |
+| `http` | 자체 모델 서버 · `HTTP_URL` | 서버가 정한다 | **빈 자리.** 계약과 검사만 있다(§7-4) |
 
 ★ **로컬 엔진의 배치 최적점은 3 이다**(45유닛 실측). 위반이 U자를 그려
 1·2·3·6·9 에서 9·6·3·5·6 건이다. 크면 용어집이 묻히고 작으면 `BATCH_RULE` 이
@@ -485,8 +486,9 @@ seed 를 함께 주므로 유닛 이름까지 재현된다. **재현성이 엔�
 45유닛 골든셋에서 위반은 오히려 적었으나(3 대 4) 문항 하나에 80.7초이고 콜드
 로딩이 87.6초 더 붙는다(DECISIONS §95).
 
-★ **`local` 축은 코드에 남긴다.** 자체 번역 모델이 꽂힐 자리다. 계약도 검사도
-`bench_batch.sh` 도 그대로 쓴다.
+★ **`local` 축은 코드에 남긴다.** 오프라인 개발과 비교 기준선이다. **자체 번역
+모델은 이 축이 아니라 `http` 로 꽂는다**(§7-4) — ollama 의 `/api/generate` 는 범용
+LLM 을 프롬프트로 부리는 자리이고, 번역을 학습한 모델에는 프롬프트가 없다.
 
 ★ **기준선의 `stale` 을 지우지 않는다.** 프롬프트가 바뀌었으니 그 값은 실제로
 낡았고, 낡지 않은 척하면 검사가 거짓말을 한다(§67). 다시 재는 것은 자체 모델이
@@ -563,7 +565,8 @@ VRAM 이 1.4GB 남아 있어도 일부 레이어가 CPU 에 남는다. 볼 것�
 2번이 없으면 "Kinesis Data Streams 거의 즉시…" 같은 비문이 나온다.
 
 ★ 5번은 완전히 먹지 않는다. 긴 지문에서 모델이 번역을 마친 뒤 스스로 답을
-이어 붙이는 경우가 남아 있다(PLAN §2-2).
+이어 붙이는 경우가 남아 있고, 후처리의 `_truncate_after_question` 이 물음표 뒤를
+자른다(DECISIONS §4 · §20).
 
 ### 7-3. 후처리 평가
 
@@ -572,9 +575,9 @@ VRAM 이 1.4GB 남아 있어도 일부 레이어가 CPU 에 남는다. 볼 것�
 | 파일 | 담는 것 |
 |---|---|
 | `worker/tests/endings/lexicon.json` | 용언 108 · 이다 6. 부류 15 — 규칙 · ㄹ탈락 · ㅂ ㄷ ㅅ 르 러 ㅎ 불규칙 · 으탈락 · 하다 · 보조 용언 · 이다 |
-| `worker/tests/endings/corpus.jsonl` | 해요체 → 합쇼체 2,478줄. Kiwi 의 `join` 이 활용했다 |
+| `worker/tests/endings/corpus.jsonl` | 해요체 → 합쇼체 2,472줄. Kiwi 의 `join` 이 활용했다(생성기 2판) |
 | `worker/tests/endings/hand.jsonl` | 손으로 쓴 43줄. 실사용 문장 · 여러 문장 · 괄호 · 바뀌면 안 되는 줄 |
-| `worker/tests/endings/review.tsv` | 사람이 판정할 287줄(부류 × 문형마다 둘 + 손 전부) |
+| `worker/tests/endings/review.tsv` | 사람이 판정할 283줄(부류 × 문형마다 둘 + 손 전부). **채우지 않았다** |
 
 ```bash
 python3 tools/bench_endings.py --fails 20                  # Kiwi 없이 돈다
@@ -588,8 +591,16 @@ uv run --with kiwipiepy python tools/gen_endings.py        # 용언 목록을 �
 | 틀림 | 비문을 만들었거나 합쇼체를 망가뜨렸다. **0 이어야 한다** |
 
 ★ **틀림만 게이트다.** 확신이 없을 때 그대로 두는 후처리가 억지로 바꾸는 후처리보다
-낫다. 지금은 `test_endings_corpus.py` 가 톱니(틀림 218 이하)로 막고, 교체가 끝나면
-`--gate` 로 넘긴다.
+낫다. `test_endings_corpus.py` 가 톱니(틀림 214 이하)로 막는다.
+
+| 규칙 | 맞음 | 그대로 | 틀림 |
+|---|---|---|---|
+| 106 (배포본 `v0.1.6`) | 1,178 | 1,123 | **214** |
+
+★ **후처리는 여기서 멈췄다**(DECISIONS §108). 형태소 분석기로 바꾸지 않는다 — 문체는
+자체 모델이 배운다. 코퍼스와 벤치는 두 가지로 남는다. 규칙을 건드렸을 때 나빠지지
+않았는지 보는 **회귀 방지선**이고, `seshat` 이 모델의 어미를 재는 **평가셋**이다.
+남은 틀림의 대부분은 ㅂ · ㄷ · ㅅ · ㅎ 불규칙이다(`도웁니까` · `걸습니까`).
 
 ★ **명령은 명령으로 간다.** `-세요.` → `-(으)십시오.` 합쇼체 명령인 `-십시오` 는
 그대로다. 옛 규칙은 둘 다 평서 `-합니다` 로 바꿨다.
@@ -597,6 +608,63 @@ uv run --with kiwipiepy python tools/gen_endings.py        # 용언 목록을 �
 ★ **순환이다.** 정답을 만든 분석기로 후처리하면 분석기가 틀린 자리는 코퍼스도 틀린다.
 `review.tsv` 검수와 `hand.jsonl` 이 그것을 끊는다. 생성 단계에서 이미 셋이 걸렸다 —
 `닫다` 를 ㄷ 불규칙으로 읽은 것(`VV-R` 로 못 박았다), `있은가요`, `사용해야 하십시오`.
+2판에서 둘을 더 뺐다 — 명령이 아닌 낱말의 합쇼체 명령 원문(`사용해야 하십시오.` 를
+"바뀌면 안 되는 줄" 로 두었다)과 `것 같겠어요`.
+
+
+### 7-4. 자체 모델 슬롯 — `ENGINE=http`
+
+**자체 번역 모델을 끼우는 자리다**(DECISIONS §109). 모델은 이 저장소 밖(`seshat`)에서
+만들고 서빙하며, 워커는 HTTP 로 부른다. 확장 · 워커 계약 · 캐시 · 가드 · 쌍 로그는
+그대로다.
+
+| | 요청 | 응답 |
+|---|---|---|
+| `POST {HTTP_URL}/translate` | `{"texts": [...], "source": "en", "target": "ko", "terms": {en: ko}}` | `{"translations": [...]}` — **같은 길이 · 같은 순서 · 문자열** |
+| `GET {HTTP_URL}/health` | — | `{"model": "<이름>"}` — **`model` 이 필수다** |
+
+- `Authorization: Bearer {HTTP_TOKEN}` — 비우면 싣지 않는다. 워커만 아는 값이고
+  확장에 실리지 않는다
+- `terms` 는 원문에 맞은 용어집 항목이다. 모델이 써도 버려도 된다. **프롬프트는 보내지
+  않는다**
+- 길이 · 형이 어긋나면 `EngineContractError` → 워커가 `502 engine_failed` 를 낸다.
+  개별 폴백은 없다
+- 후처리(§7-2 아래)는 그대로 걸린다. 쌍 로그의 `raw` 가 모델 출력, `ko` 가 후처리 결과다
+- 타임아웃 `HTTP_TIMEOUT`(50초)은 Lambda 제한(60초)보다 짧다
+
+| 변수 | 뜻 |
+|---|---|
+| `HTTP_URL` | 번역 서버. 배포에서는 `https://` 만 받는다(`infra/variables.tf`) |
+| `HTTP_MODEL` | **배포자의 선언.** 쌍 로그의 `model` 열이다. 비우면 `http:undeclared` |
+| `HTTP_TOKEN` | 번역 서버의 Bearer 토큰 |
+| `HTTP_TIMEOUT` | 초 |
+
+★ **전검사가 선언과 서버를 대조한다.** `/health` 의 `model` 이 `HTTP_MODEL` 과 다르면
+`preflight` 가 기동을 막는다(`model_mismatch`). 어긋난 채 돌면 쌍이 어느 모델의 출력인지
+거짓말을 한다.
+
+끼우는 절차:
+
+```bash
+python3 tools/engine_conformance.py https://<서버> --token <토큰> --model <이름>   # 전부 OK
+ENGINE=http HTTP_URL=https://<서버> HTTP_MODEL=<이름> HTTP_TOKEN=<토큰> bash tools/preflight.sh
+# infra/terraform.tfvars
+#   engine     = "http"
+#   http_url   = "https://<서버>"
+#   http_model = "<이름>"
+#   http_token = "<토큰>"
+bash tools/tf.sh plan -out tfplan && bash tools/tf.sh apply tfplan
+```
+
+되돌리는 것은 `engine = "bedrock"` 한 줄이다. 캐시는 엔진을 가리지 않으므로 이미
+번역된 문장은 어느 쪽이든 그대로 나간다.
+
+★ **적합성 검사는 품질을 보지 않는다.** 헬스 · 한 건 · 아홉 건 · 순서 · `terms` ·
+개행 · 토큰 거절을 본다. 순서는 보기마다 다른 숫자를 넣어 번역에 그 숫자가 제자리에
+남는지로 본다. 품질은 `seshat` 의 벤치가 잰다.
+
+★ `tools/engine_conformance.py` 는 표준 라이브러리만 쓴다. `seshat` 이 파일 하나를
+복사해 자기 CI 에서 돌린다 — **쓰는 쪽이 정한 계약을 만드는 쪽이 지킨다.**
 
 ---
 
@@ -898,7 +966,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->326건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->350건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1503,6 +1571,10 @@ git tag v0.1.0 && git push --tags
 멈춘다. 지금 규칙은 둘이다 — required reviewers(`CleverAIFox`, 셀프 승인 허용)와
 배포 대상 제한(`v*` 태그만). 2026-09-16 까지는 둘 다 없었고 `v0.1.0`~`v0.1.3` 이
 승인 없이 돌았다(DECISIONS §98).
+
+★ **`doctor` 가 두 규칙을 본다**(DECISIONS §110). `tools/env_protection.py` 가 `gh api`
+로 읽어 reviewers · custom 브랜치 정책 · `v*` 태그 정책 셋을 판정하고, 하나라도 빠지면
+FAIL 이다. GitHub 설정이라 `--repo` 범위 밖이다.
 
 ```bash
 gh api repos/CleverAIFox/thoth/environments/production \

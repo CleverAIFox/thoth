@@ -37,7 +37,7 @@ LEXICON = DIR / "lexicon.json"
 CORPUS = DIR / "corpus.jsonl"
 REVIEW = DIR / "review.tsv"
 
-GENERATOR = 1
+GENERATOR = 2
 
 # (문형, 원문 어미, 문장부호, 원문 형태소, 정답 형태소, 붙는 품사)
 # ★ **이 표가 후처리 규칙표의 거울이다.** 후처리가 무엇을 무엇으로 바꿔야 하는지를
@@ -98,7 +98,10 @@ def build(kiwi) -> list[dict]:
             #   형용사처럼 보여도 `있는가요` 다 — 품사로 가르면 `있은가요` 가 나왔다.
             if ending in ("는가요", "ㄴ가요") and ending != ask:
                 continue
-            if ptype == "명령" and pr.get("imperative") is False:
+            # ★ 합쇼체 명령 원문도 같이 뺀다. 해요체 쪽만 막고 `사용해야 하십시오` 를
+            #   "바뀌면 안 되는 줄" 로 남겨 두었다(generator 1). 명령이 아닌 낱말에는
+            #   어느 문체의 명령도 없다.
+            if ptype in ("명령", "합쇼-명령") and pr.get("imperative") is False:
                 continue          # `사용해야 하십시오` 는 명령이 아니다
             if ending in pr.get("skip", []):
                 continue          # 정답이 확실하지 않은 꼴은 정답 세트에 넣지 않는다

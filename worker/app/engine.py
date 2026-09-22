@@ -5,8 +5,16 @@ translate AWS Translate. 비교 대상이다. Custom Terminology 는 쓰지 않�
           — AWS 전용이라 엔진을 바꾸면 이식되지 않는다(PLAN §4). TERMINOLOGY_NAME
           은 비교 실험용 훅으로만 남긴다.
 local     Ollama. 로컬 GPU 추론이라 호출 비용이 0 이다.
-bedrock   Bedrock Converse. 배포본 후보다. 로컬과 같은 프롬프트·후처리를
+bedrock   Bedrock Converse. 배포본 엔진이다. 로컬과 같은 프롬프트·후처리를
           타므로 골든셋으로 `docs/bench/baseline.json` 과 직접 비교된다.
+http      **토트 밖의 번역 서버.** 자체 모델을 끼우는 자리다(DECISIONS §109).
+          `POST {HTTP_URL}/translate` 에 원문 목록을 주고 같은 길이의 번역
+          목록을 받는다. 계약은 MASTER §7-4 가 정본이다.
+
+★ **`http` 는 프롬프트를 보내지 않는다.** 프롬프트 · 배치 표지 · 개별 폴백은
+  범용 LLM 을 번역기로 부리기 위한 장치다. 번역을 학습한 모델은 입력 형식을
+  스스로 정하므로 토트가 그것을 알 이유가 없다. 용어집만 `terms` 로 싣는다 —
+  모델이 쓰든 버리든 도메인 지식은 토트 쪽에 있다.
 
 ★ temperature 0 + 고정 seed 를 쓴다. LLM 은 같은 입력에 다른 출력을 내는데,
   캐시가 최초 결과를 영구 고정하므로 흔들린 결과가 그대로 박제된다.
@@ -43,6 +51,16 @@ OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "700"))
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", REGION)
 BEDROCK_MODEL = os.environ.get("BEDROCK_MODEL", "apac.amazon.nova-lite-v1:0")
 BEDROCK_MAX_TOKENS = int(os.environ.get("BEDROCK_MAX_TOKENS", "2048"))
+
+# ENGINE=http 일 때.
+# ★ 타임아웃은 Lambda 제한(60초)보다 짧게 둔다. 같거나 길면 번역 서버가 늦는 날
+#   워커가 502 대신 Lambda 타임아웃으로 죽고, 캐시·가드 기록도 남지 않는다.
+# ★ `HTTP_MODEL` 은 배포자가 **선언**한다. 쌍 로그의 `model` 열이 이것이고,
+#   전검사가 번역 서버의 `/health` 가 말하는 모델과 대조한다(`preflight.check_http`).
+HTTP_URL = os.environ.get("HTTP_URL", "http://127.0.0.1:8100")
+HTTP_MODEL = os.environ.get("HTTP_MODEL", "")
+HTTP_TOKEN = os.environ.get("HTTP_TOKEN", "")
+HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "50"))
 
 # 용어 보존을 학습이 아니라 지시로 한다. Custom Terminology 와 달리
 # 이 프롬프트는 어느 모델에나 그대로 옮겨간다.
@@ -299,6 +317,45 @@ def _log_usage(r: dict, text: str, system: str) -> None:
     }, ensure_ascii=False, separators=(",", ":")))
 
 
+class EngineContractError(RuntimeError):
+    """번역 서버가 계약과 다른 모양을 돌려줬다. 계약은 `502 engine_failed` 로 낸다."""
+
+
+def _http_headers() -> dict[str, str]:
+    h = {"Content-Type": "application/json"}
+    if HTTP_TOKEN:
+        h["Authorization"] = f"Bearer {HTTP_TOKEN}"
+    return h
+
+
+def _http(texts: list[str]) -> list[str]:
+    """자체 모델 서버를 한 번 부른다.
+
+    ★ **길이 · 형을 여기서 본다.** 계약(`contract.translate`)도 길이를 보지만 그
+      자리는 모든 엔진의 마지막 방어선이고, 여기서는 "서버가 계약을 어겼다" 를
+      "엔진이 실패했다" 와 가르는 이름을 붙인다. 로그에서 둘은 원인이 다르다.
+
+    ★ **개별 폴백을 두지 않는다.** LLM 엔진의 폴백은 배치 표지 파싱이 어긋날 때를
+      위한 것이다. 이 계약은 JSON 배열이라 파싱이 어긋날 자리가 없고, 어긋났다면
+      서버가 틀린 것이므로 n 배로 다시 때릴 이유가 없다.
+    """
+    _, terms = glossary.match(texts)
+    body = json.dumps(
+        {"texts": texts, "source": "en", "target": "ko", "terms": terms},
+        ensure_ascii=False,
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"{HTTP_URL.rstrip('/')}/translate", data=body, headers=_http_headers())
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        out = json.loads(r.read())
+    tr = out.get("translations") if isinstance(out, dict) else None
+    if not isinstance(tr, list) or not all(isinstance(t, str) for t in tr):
+        raise EngineContractError("translations 가 문자열 배열이 아니다")
+    if len(tr) != len(texts):
+        raise EngineContractError(f"길이 {len(tr)} ≠ {len(texts)}")
+    return [t.strip() for t in tr]
+
+
 def _llm_batch(texts: list[str], call) -> list[str]:
     """LLM 공통 배치 경로. 엔진은 '한 프롬프트를 처리하는 함수' 만 다르다.
 
@@ -350,6 +407,8 @@ def model_name() -> str:
         "bedrock": BEDROCK_MODEL,
         "local": OLLAMA_MODEL,
         "translate": "aws-translate",
+        # 선언이 없으면 이름을 지어내지 않는다. 비어 있다는 사실을 남긴다.
+        "http": HTTP_MODEL or "http:undeclared",
     }.get(ENGINE, ENGINE)
 
 
@@ -395,6 +454,9 @@ def _raw_batch(texts: list[str]) -> list[str]:
 
     if ENGINE == "bedrock":
         return _llm_batch(texts, _converse)
+
+    if ENGINE == "http":
+        return _http(texts)
 
     if ENGINE == "translate":
         c = _translate_client()

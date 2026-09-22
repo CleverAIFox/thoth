@@ -4,9 +4,9 @@
   `lexicon.json` 을 고치고 `gen_endings.py` 를 다시 돌리지 않으면 여기서 멈춘다 —
   기준선 지문과 같은 장치다(§57).
 
-★ **틀림은 늘면 안 된다.** 후처리를 분석기로 바꾸기 전까지 틀림이 0 이 아니므로
-  게이트 대신 **톱니**를 건다. 지금 값보다 늘면 실패하고, 줄이면 아래 수를 같이
-  줄인다. 교체가 끝나면 0 으로 두고 `bench_endings.py --gate` 로 넘긴다.
+★ **틀림은 늘면 안 된다.** 후처리는 땜질에서 멈췄고(DECISIONS §108) 틀림이 0 이
+  아니므로 게이트 대신 **톱니**를 건다. 지금 값보다 늘면 실패하고, 줄이면 아래 수를
+  같이 줄인다. 규칙 후처리를 더 키우지 않는다 — 문체는 자체 모델이 배운다.
 """
 import hashlib
 import importlib.util
@@ -20,8 +20,9 @@ _spec = importlib.util.spec_from_file_location("bench_endings", ROOT / "tools/be
 be = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(be)
 
-# ★ 2026-09-22 실측. 106 이전 규칙은 476, 106 규칙이 218 이다.
-WRONG_CEILING = 218
+# ★ 2026-09-22 실측. 106 이전 규칙은 476, 106 규칙이 218 이다. 생성기가 만든
+#   오답 줄(명령이 아닌 낱말의 `하십시오` · `것 같겠어요`)을 빼고 214 다(generator 2).
+WRONG_CEILING = 214
 
 
 def lines(name):
@@ -67,10 +68,15 @@ def test_판정이_셋으로_갈린다():
     assert be.judge(r, "가습니다.") == "틀림"
 
 
-def test_후처리의_틀림이_늘지_않는다():
+def test_후처리의_틀림이_상한과_같다():
+    """★ **양방향이다**(DECISIONS §108). 늘면 실패하고, **줄어도 실패한다** — 줄었는데
+    상한을 안 내리면 되돌아갈 자리가 남는다. 느슨한 톱니는 초록으로 위장한다
+    (하토르 D-0117 · 파이어레인 DECISIONS §199 에서 옮겼다)."""
     wrong = [r["id"] for r, _, v in be.run(be.load()) if v == "틀림"]
     assert len(wrong) <= WRONG_CEILING, (
         f"틀림 {len(wrong)} > {WRONG_CEILING} — python3 tools/bench_endings.py --fails 20")
+    assert len(wrong) == WRONG_CEILING, (
+        f"틀림 {len(wrong)} < {WRONG_CEILING} — 좋아졌다. WRONG_CEILING 을 {len(wrong)} 로 내린다")
 
 
 def test_검수_표본이_코퍼스에_있는_줄이다():

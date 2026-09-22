@@ -5,3 +5,9 @@
 #   저장소 밖에 두는 것은 그대로다.
 
 worker_token = "여기에-16자-이상"
+
+# 자체 모델을 끼울 때만(MASTER §7-4). 비우면 bedrock 이다.
+# engine     = "http"
+# http_url   = "https://여기에-서버"
+# http_model = "seshat-0.1"
+# http_token = "여기에-서버-토큰"

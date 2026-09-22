@@ -366,6 +366,22 @@ else
   fi
 fi
 
+# ★ **배포 게이트는 저장소 밖에 있다**(DECISIONS §98 · §110). GitHub 에 묻는 검사라
+#   기계 설정과 같은 취급이다 — `--repo` 에서는 재지 않는다. 커밋이 네트워크와
+#   gh 인증에 기대면 안 된다.
+if [ "$SCOPE" = "--repo" ]; then
+  skip "배포 게이트 (GitHub 설정이다)"
+elif ! command -v gh >/dev/null 2>&1; then
+  skip "gh 가 없어 배포 게이트를 보지 못한다"
+else
+  GATE_OUT="$(python3 tools/env_protection.py 2>&1)"; GATE_RC=$?
+  case "$GATE_RC" in
+    0) ok "production 에 승인자 · v* 태그 제한이 걸려 있다" ;;
+    1) no "배포 게이트가 빠졌다"; printf '%s\n' "$GATE_OUT" | sed 's/^/       /' ;;
+    *) skip "배포 게이트를 재지 못했다 — ${GATE_OUT}" ;;
+  esac
+fi
+
 echo "== 파이썬 =="
 # ★ **`F` 만 켠다.** 스타일이 아니라 오류를 잡는 것이 목적이다. 2026-09-14 에
 #   테스트 7개가 재정의로 죽어 있는 것을 이것이 찾았고, 그때까지 pytest 도

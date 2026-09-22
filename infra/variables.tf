@@ -25,6 +25,45 @@ variable "bedrock_max_tokens" {
   default     = 2048
 }
 
+# ─── 엔진 ────────────────────────────────────────────────────────────
+# ★ **엔진을 바꾸는 것은 이 변수 넷이다**(DECISIONS §109). 자체 모델 서버를 띄우고
+#   `engine = "http"` 와 `http_url` · `http_model` 을 채워 `apply` 하면 끝난다.
+#   확장도 워커 계약도 바뀌지 않는다. 서버를 어디에 띄우는지는 이 저장소 밖이다.
+variable "engine" {
+  description = "ENGINE. bedrock 이 배포본이고 http 가 자체 모델 자리다"
+  type        = string
+  default     = "bedrock"
+
+  validation {
+    condition     = contains(["bedrock", "http"], var.engine)
+    error_message = "engine 은 bedrock 또는 http 다. echo · local 은 배포할 엔진이 아니다."
+  }
+}
+
+variable "http_url" {
+  description = "ENGINE=http 일 때 번역 서버. POST {url}/translate · GET {url}/health"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.http_url == "" || can(regex("^https://", var.http_url))
+    error_message = "http_url 은 https 여야 한다. 원문과 토큰이 평문으로 나간다."
+  }
+}
+
+variable "http_model" {
+  description = "번역 서버가 /health 로 말하는 모델명. 쌍 로그의 model 열이다"
+  type        = string
+  default     = ""
+}
+
+variable "http_token" {
+  description = "번역 서버의 Bearer 토큰. 워커만 안다 — 확장에 실리지 않는다"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "worker_token" {
   description = <<-EOT
     X-Thoth-Token 값. **비우면 엔드포인트를 주운 누구나 월 상한을 태운다.**

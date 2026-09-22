@@ -157,10 +157,12 @@ bash tools/bedrock_survey.sh  # Bedrock 쪽 실정을 잰다. 아무것도 바�
 bash tools/apply_patch.sh     # 윈도우 다운로드의 패치를 적용한다
 bash tools/smoke.sh           # 워커를 띄운 상태에서 계약을 실제로 때린다
 python3 tools/bench_golden.py # 골든셋 — 번역 품질 불변식
+python3 tools/bench_endings.py            # 후처리 어미 — 맞음 · 그대로 · 틀림
+python3 tools/engine_conformance.py <URL>  # 자체 모델 서버가 ENGINE=http 계약을 지키는가
 bash tools/bench_engine.sh <모델>  # 엔진 후보 비교 — 로딩 제외 2회차가 체감
 bash tools/bench_batch.sh 9 6 3   # 배치별 비교 — 조건을 스스로 본다
 bash tools/scan.sh            # 실정을 잰다 — 위생 대상의 근거
-bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 문서 · 테스트
+bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 문서 · 테스트 · 배포 게이트
                               # FAIL 은 커밋을 막고 WARN 은 알리고 넘어간다
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
@@ -179,6 +181,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 | `local` | Ollama · `exaone3.5:7.8b` | 오프라인 개발 · 품질 기준선 |
 | `translate` | AWS Translate | 비교 대상 |
 | `bedrock` | Bedrock Converse · `nova-lite` | **배포본. 533자/초** |
+| `http` | 자체 모델 서버 | **갈아끼우는 자리.** 계약과 적합성 검사만 있다(`docs/MASTER.md` §7-4) |
 
 **`local` 과 `bedrock` 은 같은 코드 경로를 탄다.** 용어집 선택, 배치 규약,
 파싱 실패 시 개별 폴백, 후처리는 엔진의 성질이 아니라 이 도구의 성질이라
@@ -229,7 +232,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->326건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->350건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |

@@ -228,19 +228,67 @@ def check_bedrock() -> Finding:
     return Finding(True, "ok", f"{engine.BEDROCK_MODEL} 호출됨")
 
 
+def judge_http_health(status: int, body: object, declared: str) -> Finding:
+    """번역 서버 `/health` 응답의 판정. 순수 함수다.
+
+    ★ **선언한 모델과 서버가 말하는 모델을 대조한다.** 어긋나면 쌍 로그의
+      `model` 열이 거짓말을 하고, 그 쌍으로 다음 모델을 학습하면 어느 모델의
+      출력을 배웠는지 모른다. 번역은 돌아도 기동을 막는다.
+
+    ★ 선언이 비어 있으면 막지 않고 알린다. 로컬에서 서버를 막 띄워 보는 자리까지
+      막으면 선언부터 채우라는 말이 되고, 쌍은 로컬에서 쌓이지 않는다(§104).
+    """
+    if status != 200 or not isinstance(body, dict):
+        return Finding(False, "http_unhealthy", f"/health 가 {status} 를 냈다")
+    served = body.get("model")
+    if not isinstance(served, str) or not served:
+        return Finding(False, "http_no_model", "/health 에 model 이 없다 — 계약 위반이다")
+    if not declared:
+        return Finding(True, "undeclared",
+                       f"서버 모델 {served} · HTTP_MODEL 이 비어 쌍의 model 열이 http:undeclared 다",
+                       (f"HTTP_MODEL={served}",))
+    if served != declared:
+        return Finding(False, "model_mismatch", f"선언 {declared} ≠ 서버 {served}")
+    return Finding(True, "ok", f"{served} 응답")
+
+
+def check_http() -> Finding:
+    import json
+
+    url = f"{engine.HTTP_URL.rstrip('/')}/health"
+    req = urllib.request.Request(url, headers=engine._http_headers())
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            status, raw = r.status, r.read()
+    except urllib.error.HTTPError as e:
+        return judge_http_health(e.code, None, engine.HTTP_MODEL)
+    except (urllib.error.URLError, OSError) as e:
+        return Finding(False, "http_down", f"번역 서버가 응답하지 않는다 ({engine.HTTP_URL}) — {e}",
+                       ("이번 한 번만 엔진 없이 : ENGINE=echo bash tools/run_worker.sh",))
+    try:
+        body = json.loads(raw)
+    except ValueError:
+        body = None
+    return judge_http_health(status, body, engine.HTTP_MODEL)
+
+
 # ★ 키는 `engine._raw_batch` 가 아는 엔진 이름과 같아야 한다. 테스트가 본다.
 CHECKS = {
     "echo": check_echo,
     "local": check_local,
     "translate": check_translate,
     "bedrock": check_bedrock,
+    "http": check_http,
 }
 
 # ★ **바깥에 나가는 확인과 그렇지 않은 확인을 가른다.** ollama 는 127.0.0.1 이라
 #   공짜지만 bedrock 은 실제 호출이고 translate 는 AWS 왕복이다. `doctor` 는
 #   커밋마다 도는 자리이므로 이쪽을 재지 않는다 — 검사가 돈을 쓰거나 네트워크에
 #   기대면 비행기에서 커밋이 막힌다.
-REMOTE = frozenset({"bedrock", "translate"})
+#
+# ★ `http` 는 바깥으로 센다. 로컬 서버일 때도 있지만 URL 로 가르면 판정이 설정에
+#   따라 흔들리고, 커밋 검사가 번역 서버 기동에 기대게 된다.
+REMOTE = frozenset({"bedrock", "translate", "http"})
 
 
 def run(name: str, remote: bool = True) -> Finding:

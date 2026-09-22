@@ -33,7 +33,7 @@ resource "aws_lambda_function" "worker" {
     # ★ **`AWS_REGION` 을 넣지 않는다.** Lambda 예약 키라 설정하면 배포가
     #   거부된다. 런타임이 채워 주고 `engine.py` 가 그것을 읽는다.
     variables = {
-      ENGINE              = "bedrock"
+      ENGINE              = var.engine
       CACHE               = "ddb"
       CACHE_TABLE         = aws_dynamodb_table.translations.name
       WORKER_TOKEN        = var.worker_token
@@ -42,6 +42,9 @@ resource "aws_lambda_function" "worker" {
       BEDROCK_REGION      = local.bedrock_region
       BEDROCK_MODEL       = var.bedrock_model
       BEDROCK_MAX_TOKENS  = tostring(var.bedrock_max_tokens)
+      HTTP_URL            = var.http_url
+      HTTP_MODEL          = var.http_model
+      HTTP_TOKEN          = var.http_token
     }
   }
 
