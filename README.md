@@ -165,6 +165,8 @@ bash tools/scan.sh            # 실정을 잰다 — 위생 대상의 근거
 bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 문서 · 테스트 · 배포 게이트
                               # FAIL 은 커밋을 막고 WARN 은 알리고 넘어간다
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
+python3 tools/check_docs.py   # 문서 ↔ 문서 — 문체 · 절 · PLAN 표 · 참조 (규약은 MASTER §0)
+python3 tools/doc_fsck.py     # 문서 ↔ 실물 — 경로 · 테스트 · 죽은 도구
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
 python3 tools/sweep.py        # 위생 — 저장소 밖에 남긴 흔적
 node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑터 수집
@@ -232,7 +234,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->350건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->381건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |

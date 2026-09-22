@@ -16,7 +16,7 @@ resource "aws_dynamodb_table" "translations" {
     type = "S"
   }
 
-  # ★ **TTL 속성이 `expires_at` 이고 캐시 항목에는 그것이 없다**(PLAN §2-3 #18).
+  # ★ **TTL 속성이 `expires_at` 이고 캐시 항목에는 그것이 없다**.
   #   그래서 카운터만 다음 달 + 7일에 사라지고 번역은 영구히 남는다. 캐시를
   #   지우면 재번역이고 과금 엔진에서는 재과금이다(DECISIONS §5).
   #

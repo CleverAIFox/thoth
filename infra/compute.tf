@@ -25,7 +25,7 @@ resource "aws_lambda_function" "worker" {
   timeout     = 60
   memory_size = 512
 
-  # ★ **동시 실행을 고정한다**(PLAN §2-3 #19). 월 문자 상한이 비용을 막지만
+  # ★ **동시 실행을 고정한다**. 월 문자 상한이 비용을 막지만
   #   그 사이의 동시 호출은 Bedrock 쓰로틀을 부른다.
   reserved_concurrent_executions = var.reserved_concurrency
 

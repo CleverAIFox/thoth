@@ -264,11 +264,8 @@ echo "== 문서 =="
 for f in docs/MASTER.md docs/PLAN.md docs/DECISIONS.md README.md; do
   [ -s "$f" ] && ok "$f" || no "$f 가 없거나 비어 있다"
 done
-# 해결된 항목은 PLAN 에서 행째로 지운다. 포인터조차 남기지 않는다 —
-# DECISIONS 를 읽으면 알 수 있는 사실의 복제이기 때문이다(DECISIONS §18).
-DONE="$(grep -cE "⬛" docs/PLAN.md 2>/dev/null)"
-[ "$DONE" = "0" ] && ok "PLAN 에 해결 표시가 없다" \
-                  || no "PLAN 에 ⬛ ${DONE}건. 해결된 항목은 행째로 지운다"
+# ★ 해결 표시(⬛ · ✅) 검사는 `check_docs.py::check_plan` 으로 옮겼다(DECISIONS §111).
+#   같은 규칙을 두 곳에서 보면 한쪽만 고쳐진다.
 # 문서는 실행 파일이 아니다. DrvFs 경유 복사에서 실행 비트가 붙는다.
 EXEC="$(find docs README.md -name "*.md" -perm -u+x 2>/dev/null | wc -l)"
 [ "$EXEC" = "0" ] && ok "문서에 실행 비트 없음" || no "실행 비트가 붙은 문서 ${EXEC}건"
@@ -284,6 +281,16 @@ case "$DOC_RC" in
   1) no "문서 서술 규약 위반"; printf '%s\n' "$DOC_OUT" | sed 's/^/       /' ;;
   *) no "check_docs.py 가 죽었다 (exit $DOC_RC)"
      printf '%s\n' "$DOC_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
+
+# ★ **문서 ↔ 실물.** check_docs 가 문서끼리를 본다면 이쪽은 문서가 적은 경로 · 테스트 ·
+#   도구가 실재하는지를 본다(DECISIONS §111 · 하토르 D-0189).
+FSCK_OUT="$(python3 tools/doc_fsck.py 2>&1)"; FSCK_RC=$?
+case "$FSCK_RC" in
+  0) ok "문서가 가리키는 실물" ;;
+  1) no "문서가 없는 실물을 가리킨다"; printf '%s\n' "$FSCK_OUT" | sed 's/^/       /' ;;
+  *) no "doc_fsck.py 가 죽었다 (exit $FSCK_RC)"
+     printf '%s\n' "$FSCK_OUT" | tail -5 | sed 's/^/       /' ;;
 esac
 
 # ★ 이 검사는 커밋 전 작업 트리에서만 의미가 있다. CI 에서는 작업 트리가
