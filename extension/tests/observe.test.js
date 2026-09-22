@@ -242,3 +242,42 @@ test("어느 워커로 나갔는지 함께 싣는다", need, async () => {
     b.stop();
   }
 });
+
+test("픽스처에서는 팝업 설정과 상관없이 로컬 워커로 간다", need, async () => {
+  // ★ 잊으면 지어낸 문장이 배포본에 과금됐다(DECISIONS §106). 토큰도 싣지 않는다.
+  const { ST } = await udemy();
+  ST.SETTLE_MS = 0;
+  docFor(SCREENS[0]);
+  globalThis.chrome = harness.fakeChrome({
+    stEndpoint: "https://abc.lambda-url.ap-northeast-2.on.aws/translate", stToken: "t0k",
+  }).api;
+  const f = harness.fakeFetch([{ ok: true, body: { translations: "echo" } }]);
+  globalThis.fetch = f;
+  const b = await harness.loadBroker();
+  try {
+    await ST.translate(["A fixture sentence long enough to send."]);
+    assert.equal(f.calls.at(-1).url, "http://127.0.0.1:8000/translate");
+    assert.ok(!("X-Thoth-Token" in f.calls.at(-1).headers));
+  } finally {
+    b.stop();
+  }
+});
+
+test("픽스처가 아니면 팝업 설정이 그대로 이긴다", need, async () => {
+  const { ST } = await udemy();
+  ST.SETTLE_MS = 0;
+  docFor(SCREENS[0], { host: "https://www.udemy.com/course/x/learn/quiz/1" });
+  globalThis.chrome = harness.fakeChrome({
+    stEndpoint: "https://abc.lambda-url.ap-northeast-2.on.aws/translate", stToken: "t0k",
+  }).api;
+  const f = harness.fakeFetch([{ ok: true, body: { translations: "echo" } }]);
+  globalThis.fetch = f;
+  const b = await harness.loadBroker();
+  try {
+    await ST.translate(["A real site sentence long enough to send."]);
+    assert.equal(f.calls.at(-1).url, "https://abc.lambda-url.ap-northeast-2.on.aws/translate");
+    assert.equal(f.calls.at(-1).headers["X-Thoth-Token"], "t0k");
+  } finally {
+    b.stop();
+  }
+});

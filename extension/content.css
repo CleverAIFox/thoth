@@ -77,10 +77,14 @@
   text-wrap: pretty;            /* 마지막 줄에 한 어절만 남는 것을 줄인다 */
 }
 
-/* 이름표. DOM 이 아니라 `::before` 다 — 요소를 늘리면 브로커가 textContent 를
- * 갈아 끼울 때 같이 지워진다. */
-.st-translation.st-translation::before {
-  content: "한글";
+/* 이름표는 **기다리는 동안에만** 선다(`번역 중`).
+ * ★ **다 된 번역에는 붙이지 않는다**(DECISIONS §106). 글자가 한글이니 `한글` 은
+ *   덤이고, 원문과 번역을 가르는 일은 상자가 이미 한다. 같은 말을 두 번 하면 눈이
+ *   먼저 닿는 자리를 이름표가 가져간다.
+ * ★ DOM 이 아니라 `::before` 다 — 요소를 늘리면 브로커가 textContent 를 갈아 끼울
+ *   때 같이 지워진다. */
+.st-translation--loading.st-translation--loading::before {
+  content: "번역 중";
   display: inline-block;
   margin-bottom: 9px;
   padding: 2px 8px 3px;
@@ -153,7 +157,6 @@ html[data-st-theme="dark"] .st-translation.st-translation {
 }
 
 .st-translation--loading.st-translation--loading::before {
-  content: "번역 중";
   animation: st-pulse 1.5s ease-in-out infinite;
 }
 

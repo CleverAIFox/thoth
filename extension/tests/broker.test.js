@@ -228,6 +228,18 @@ test("content.css 는 상대 경로 글꼴을 들지 않는다", async () => {
             "content.css 에 상대 url() 이 있다");
 });
 
+test("다 된 번역에는 이름표가 없고 기다릴 때만 선다", async () => {
+  // ★ `한글` 은 글자가 이미 말한다. 원문과 번역은 상자가 가른다(DECISIONS §106).
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const { dirname, join } = await import("node:path");
+  const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "content.css"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/content:\s*"한글"/.test(css), "다 된 번역에 이름표가 돌아왔다");
+  assert.ok(!/\.st-translation\.st-translation::before/.test(css), "완료 박스에 ::before 가 있다");
+  assert.match(css, /\.st-translation--loading\.st-translation--loading::before\s*\{[^}]*content:\s*"번역 중"/);
+});
+
 // ---------- 배치 기본값 ----------
 
 test("배치 기본값이 실측 최적점이다", need, async () => {

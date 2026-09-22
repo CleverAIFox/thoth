@@ -44,11 +44,20 @@ globalThis.ST.sourceBody = function (source) {
   return Object.keys(out).length ? out : undefined;
 };
 
+// ★ **픽스처는 저절로 로컬 워커를 쓴다**(DECISIONS §106). 팝업에서 손으로 바꾸게
+//   두었더니 잊으면 지어낸 문장이 배포본에 과금됐고, 오늘도 한 판을 그렇게 했다.
+//   손을 기억에 맡기는 대신 **픽스처인지를 이미 아는 자리에서 정한다.** 팝업 값보다
+//   이것이 이긴다 — 픽스처에서 배포본을 때릴 이유는 없다. 토큰도 싣지 않는다.
+globalThis.ST.FIXTURE_ENDPOINT =
+  globalThis.ST.CONFIG?.fixtureEndpoint || "http://127.0.0.1:8000/translate";
+
 globalThis.ST.translate = async function (texts, source) {
   const { stEndpoint, stToken } = await chrome.storage.local.get(["stEndpoint", "stToken"]);
-  const url = stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;
-  // ★ 팝업에서 넣은 값이 언제나 이긴다. 기계 기본값은 출발점일 뿐이다.
-  const token = stToken || globalThis.ST.CONFIG?.token || "";
+  const fixture = Boolean(globalThis.ST.fixtureUrl?.());
+  // ★ 그 밖에서는 팝업에서 넣은 값이 언제나 이긴다. 기계 기본값은 출발점일 뿐이다.
+  const url = fixture ? globalThis.ST.FIXTURE_ENDPOINT
+                      : stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;
+  const token = fixture ? "" : stToken || globalThis.ST.CONFIG?.token || "";
 
   // ★ **호스트만 남긴다**(DECISIONS §104). 픽스처가 "지금 어느 워커로 나가는가" 를
   //   보여 주는 데 쓴다 — 배포본을 때리면 픽스처의 영어 문장이 과금되고 쌍으로

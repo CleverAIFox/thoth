@@ -89,3 +89,43 @@ def test_순서가_뒤바뀌어도_번호대로_돌려준다():
 def test_join_이_분할_가능한_형태를_만든다():
     texts = ["alpha", "beta", "gamma"]
     assert _split(_join(texts), 3) == texts
+
+
+# ---------- 의문형은 어간을 보고 붙인다 (DECISIONS §106) ----------
+
+import importlib.util as _ilu  # noqa: E402
+import pathlib as _pl  # noqa: E402
+
+import pytest  # noqa: E402
+
+_spec = _ilu.spec_from_file_location(
+    "bench_golden", _pl.Path(__file__).resolve().parents[2] / "tools/bench_golden.py")
+_bench = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_bench)
+
+QUESTIONS = [
+    ("사용해야 할까요?", "사용해야 합니까?"),     # ★ 2026-09-22 실사용 화면
+    ("언제 될까요?", "언제 됩니까?"),
+    ("어디로 갈까요?", "어디로 갑니까?"),
+    ("무엇을 만들까요?", "무엇을 만듭니까?"),   # ㄹ 어간
+    ("먼저 먹을까요?", "먼저 먹습니까?"),       # 자음 어간 + 을까요
+    ("무엇이 좋을까요?", "무엇이 좋습니까?"),
+    ("어디로 가나요?", "어디로 갑니까?"),
+    ("무엇을 먹나요?", "무엇을 먹습니까?"),
+    ("어떻게 만드나요?", "어떻게 만듭니까?"),
+    ("있나요?", "있습니까?"),
+    ("무엇을 해야 하나요?", "무엇을 해야 합니까?"),
+    ("어떻게 되나요?", "어떻게 됩니까?"),
+]
+
+
+@pytest.mark.parametrize("ko, want", QUESTIONS)
+def test_의문형이_합니다체로_바르게_바뀐다(ko, want):
+    assert postprocess("Why?", ko) == want
+
+
+@pytest.mark.parametrize("ko, _", QUESTIONS)
+def test_후처리가_어미_축을_어기지_않는다(ko, _):
+    # ★ **후처리가 골든셋의 자를 통과해야 한다.** 전에는 후처리가 `할습니까` 를 만들고
+    #   골든셋이 그것을 위반으로 셌다 — 고치는 코드와 재는 코드가 서로를 보지 않았다.
+    assert _bench.bad_conjugation(postprocess("Why?", ko)) == []
