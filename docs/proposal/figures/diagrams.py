@@ -177,27 +177,23 @@ arrow(ax, 65, 40, 69, 36, "추출(#6)", color=GREEN, ls="--", off=(-2, -1.8))
 ax.text(35, 8, "★ 사용자 식별자가 어느 표에도 없다.\n   키는 원문 해시와 달이다.", fontsize=7.4, color=NAVY)
 save(fig, "f_erd", ["len:worker/app/glossary/aws.json=37", "json:docs/bench/baseline.json#golden.units=45", "json:docs/bench/baseline.json#golden.chars=13954", "file:infra/storage.tf~quota#2026-09"])
 
-# ── seshat 계획 DAG ────────────────────────────────────
-fig, ax = canvas(7.4, 3.8, 100, 50)
-N = {1: (4, 36, "#1 평가셋 1판\n12 → 100줄"), 3: (4, 20, "#3 신경망 지표\nCOMET · QE"), 2: (4, 4, "#2 ⚠ Bedrock 출력\n학습 사용 조건"),
-     4: (26, 36, "#4 Nova Lite\n기준선"), 5: (48, 36, "#5 후보 기준선\n학습 없이 서넛"), 10: (70, 40, "#10 (미결정) seq2seq\nvs 디코더 LLM"),
-     6: (26, 12, "#6 쌍 추출\nAthena → private"), 11: (48, 4, "#11 쌍 집계\n히트율 · 미등재 용어"),
-     7: (68, 22, "#7 LoRA · QLoRA\nT4 · 스팟"), 8: (88, 22, "#8 서빙\n양자화·적합성"), 9: (48, 20, "#9 주 1회\n연구 폴링")}
-for k, (x, y, t) in N.items():
-    fc, ec = (LAMBER, AMBER) if k in (2, 10) else (LGREEN, GREEN)
-    box(ax, x, y, 18 if k != 8 else 11.5, 8, t, fc=fc, ec=ec, fs=6.8 if k != 8 else 6.2)
-E = [(1, 4), (4, 5), (5, 10), (5, 7), (2, 6), (3, 6), (6, 7), (6, 11), (7, 8), (9, 5)]
-def c(k, side):
-    x, y, _ = N[k]; w = 18 if k != 8 else 11
-    return {"r": (x + w, y + 4), "l": (x, y + 4), "t": (x + w / 2, y + 8), "b": (x + w / 2, y)}[side]
-for a, b in E:
-    xa, ya = c(a, "r"); xb, yb = c(b, "l")
-    if a == 9: xa, ya = c(9, "t"); xb, yb = c(5, "b")
-    arrow(ax, xa, ya, xb, yb, color=GREEN)
-box(ax, 84, 3, 15, 10, "thoth PLAN #59\nengine = \"http\"", fc=LBLUE, ec=BLUE, fs=7, bold=True)
-arrow(ax, 93.5, 22, 92, 13, color=BLUE)
-ax.text(68, 32.5, "끼우는 기준 넷 — 위반 · 어미 틀림 · 지연 · 비용이\nNova Lite 와 같거나 나아야 한다", fontsize=6.2, color=BLUE)
-save(fig, "f_seshat", ["external:seshat PLAN #1–#11 · 비공개 저장소라 이 저장소에서 대조하지 못한다", "file:docs/PLAN.md~| 59 |"])
+# ── seshat 계획 — 세 단계 ─────────────────────────────
+fig, ax = canvas(7.4, 4.2, 100, 57)
+box(ax, 2, 49, 96, 6.5, "목표 — 영→한 범용에서 AWS Translate 를 넘는다 (FLORES+ devtest · 도메인셋) · 1년", fc=NAVY, ec=NAVY, tc="white", bold=True, fs=8.5)
+cols = [("① 지금 · GTX 1660 Ti · 학습 없이", GREEN, LGREEN, ["#12 AWS Translate 기준선", "#13 논문 대장", "#5 후보를 학습 없이", "#14 N-best + QE 재정렬", "#15 용어 자리표시", "#16 참조 번역 RAG", "#17 모델 병합 (CPU)"]),
+        ("② 연말 전 · 원격 T4 · 스팟", AMBER, LAMBER, ["#3 신경망 지표 · QE", "#18 Apache 교사 증류", "#7 LoRA SFT", "작은 강화학습 — 방법 확인"]),
+        ("③ 새 장비 · 학습용 데스크탑", BLUE, LBLUE, ["#19 GRPO — 보상 = 검사기 + QE", "     반대 추 · 해킹 카나리아", "#20 학생 구조 대결", "     트랜스포머 대 Mamba 혼합", "#8 서빙 · CPU Lambda"])]
+for i, (h, ec, fc, items) in enumerate(cols):
+    x = 2 + i * 32.5
+    box(ax, x, 40, 30, 6, h, fc=fc, ec=ec, bold=True, fs=7.4)
+    for j, t in enumerate(items):
+        box(ax, x + 1, 33.5 - j * 5, 28, 4.2, t, fc="white", ec=ec, fs=6.8, ha="left", lw=0.8 if t.startswith(" ") else 1.1)
+    if i:
+        arrow(ax, x - 2.3, 43, x, 43, color=GRAY)
+box(ax, 67, 3, 31, 7, "thoth PLAN #59 — engine = \"http\"\nAWS Translate 를 넘은 뒤 끼운다", fc=LBLUE, ec=BLUE, fs=7, bold=True)
+arrow(ax, 82.5, 13.5, 82.5, 10, color=BLUE)
+ax.text(35.5, 13, "라이선스 먼저 —\nHY-MT 가중치 제외(대한민국 밖)\n· 논문은 읽는다", fontsize=6.8, color=RED, va="top")
+save(fig, "f_seshat", ["external:seshat PLAN #1–#21 · 비공개 저장소라 이 저장소에서 대조하지 못한다", "file:docs/PLAN.md~| 59 |"])
 
 # ── 배포 ───────────────────────────────────────────────
 fig, ax = canvas(7.4, 3.6, 100, 48)
