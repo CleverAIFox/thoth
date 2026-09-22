@@ -8,7 +8,7 @@ jobs:
   gitleaks:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: gitleaks/gitleaks-action@v3
         env:
@@ -22,14 +22,14 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.13" }
       # ★ **jsdom 이 없으면 확장 검사 25건이 건너뛰어진다.** 로컬에서는 WARN 으로
       #   두는 것이 맞지만(DECISIONS §46) CI 는 넘어갈 수 없는 자리다. 여기서
       #   건너뛰면 초록불인 채로 수집이 깨진다(DECISIONS §54).
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with: { node-version: "22", cache: npm, cache-dependency-path: extension/package-lock.json }
       - run: npm ci
         working-directory: extension
@@ -71,7 +71,7 @@ jobs:
       QUOTA_FILE: .cache/quota.json
       MAX_TEXT_LEN: "5000"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - name: 워커 기동
         run: |
