@@ -167,6 +167,7 @@ bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
 python3 tools/check_docs.py   # 문서 ↔ 문서 — 문체 · 절 · PLAN 표 · 참조 (규약은 MASTER §0)
 python3 tools/doc_fsck.py     # 문서 ↔ 실물 — 경로 · 테스트 · 죽은 도구
+python3 tools/docx_check.py   # 기획서 ↔ 정본 — 숫자 · 폐기된 값
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
 python3 tools/sweep.py        # 위생 — 저장소 밖에 남긴 흔적
 node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑터 수집
@@ -234,7 +235,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->381건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->386건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |
@@ -255,6 +256,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 | [`docs/PLAN.md`](docs/PLAN.md) | 남은 일 · 미결정 · 범위 밖 |
 | [`docs/MASTER.md`](docs/MASTER.md) | 계약 · 운영 · 비용 |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 왜 그렇게 됐나 |
+| [`docs/proposal.docx`](docs/proposal.docx) | 기획서 — 대외 제출용. [웹에서 보기](https://cleveraifox.github.io/thoth/proposal.html) |
 | [`infra/`](infra) | Terraform. Lambda · Function URL · DynamoDB · IAM |
 | [`docs/bench/baseline.json`](docs/bench/baseline.json) | 엔진별 기준선. 비교의 정본 |
 

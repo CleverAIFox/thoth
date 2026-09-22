@@ -293,6 +293,15 @@ case "$FSCK_RC" in
      printf '%s\n' "$FSCK_OUT" | tail -5 | sed 's/^/       /' ;;
 esac
 
+# ★ **기획서는 밖이 읽는다.** 시제 규칙 밖이라 강제자가 없기 쉽다(DECISIONS §112).
+DOCX_OUT="$(python3 tools/docx_check.py 2>&1)"; DOCX_RC=$?
+case "$DOCX_RC" in
+  0) ok "기획서가 정본과 맞다" ;;
+  1) no "기획서가 정본과 어긋난다"; printf '%s\n' "$DOCX_OUT" | sed 's/^/       /' ;;
+  *) no "docx_check.py 가 죽었다 (exit $DOCX_RC)"
+     printf '%s\n' "$DOCX_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
+
 # ★ 이 검사는 커밋 전 작업 트리에서만 의미가 있다. CI 에서는 작업 트리가
 #   언제나 HEAD 와 같으므로 항상 통과한다 — 조용히 아무것도 하지 않는
 #   검사다(DECISIONS §21). 훅이 정본이고 CI 는 통과만 한다.

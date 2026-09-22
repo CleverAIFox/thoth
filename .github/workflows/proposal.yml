@@ -1,0 +1,50 @@
+# 기획서 화면을 GitHub Pages 로 배포한다(DECISIONS §112).
+#
+# ★ 정본은 docs/proposal.docx 다. 사본을 커밋하지 않고 배포 직전에 _site/ 로 옮긴다
+#   (파이어레인 tools/stage_pages.py 와 같은 관계). 두 벌이 커밋되면 한쪽만 고쳐진다.
+#
+# ★ 배포 전에 기획서 숫자를 정본과 대조한다. 낡은 기획서가 초록으로 올라가지 않게 한다.
+#
+# ★ 한 번은 손으로 켠다 — 저장소 설정의 Pages 소스를 "GitHub Actions" 로:
+#     gh api -X POST repos/CleverAIFox/thoth/pages -f build_type=workflow
+name: 기획서 배포
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/proposal.docx'
+      - 'site/**'
+      - 'tools/docx_check.py'
+      - '.github/workflows/proposal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}proposal.html
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.13" }
+      - run: python3 tools/docx_check.py
+      - run: |
+          mkdir -p _site
+          cp site/* _site/
+          cp docs/proposal.docx _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v5
+        with: { path: _site }
+      - id: deploy
+        uses: actions/deploy-pages@v4
