@@ -123,6 +123,14 @@ def check_style(name: str, text: str, fails: list) -> None:
                 fails.append(f"{name}:{n} 대화체 '{word}'")
 
 
+def check_eof(name: str, text: str, fails: list) -> None:
+    """파일 끝은 줄바꿈 하나다(DECISIONS §118). 빈 줄이 붙으면 `git apply` 가 경고를 낸다."""
+    if not text.endswith("\n"):
+        fails.append(f"{name} 끝에 줄바꿈이 없다")
+    elif text.endswith("\n\n"):
+        fails.append(f"{name} 끝에 빈 줄이 있다")
+
+
 def _h2(text: str) -> list[tuple[int, str]]:
     """코드 블록 밖의 `## ` 제목. (줄 번호, 제목)."""
     return [(n, line[3:]) for n, line in body_lines(text) if line.startswith("## ")]
@@ -371,6 +379,7 @@ def main(argv=None) -> int:
         texts[rel] = p.read_text(encoding="utf-8")
         check_style(p.name, texts[rel], fails)
         check_headings(p.name, texts[rel], fails)
+        check_eof(p.name, texts[rel], fails)
     if len(texts) == len(DOCS):
         check_plan(texts["docs/PLAN.md"], fails)
         check_master(texts["docs/MASTER.md"], fails)

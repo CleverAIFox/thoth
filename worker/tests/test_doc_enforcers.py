@@ -119,6 +119,15 @@ def test_DECISIONS_는_기호가_붙은_번호를_본다():
     assert f == []
 
 
+# ---------- 파일 끝 ----------
+
+@pytest.mark.parametrize("tail,want", [("끝.\n", None), ("끝.\n\n", "빈 줄"), ("끝.", "줄바꿈이 없다")])
+def test_파일_끝은_줄바꿈_하나다(tail, want):
+    f = []
+    cd.check_eof("X.md", "# t\n\n" + tail, f)
+    assert (f == []) if want is None else any(want in x for x in f), f
+
+
 # ---------- DECISIONS ----------
 
 def _dec(n, body):

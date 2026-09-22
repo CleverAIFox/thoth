@@ -6420,3 +6420,39 @@ PNG 라 읽을 수 없지만 그림을 만든 수는 선언할 수 있었다 —
 **인용 조각은 연혁이 아니다.** 여러 절이 같은 과거를 한 줄씩 가리키고 있어도, 그 과거를 한 자리에
 적지 않으면 밖에 내는 문서는 조각을 그대로 옮긴다.
 
+---
+
+## §118. 센 것을 지울 수 없었고, 파일 끝에 빈 줄이 붙었다
+
+**2026-09-22**
+
+### 증상
+
+- `sweep.py --fix` 가 uv 캐시에서 "thoth 만 쓰는 것 5건"(`awscrt` · `boto3` · `botocore` · `jmespath` ·
+  `s3transfer`)을 세고, `uv cache clean` 은 "No cache entries found" 로 끝났다. 다음 판에도 같은 5건을 센다
+- thoth-115 와 seshat-009 를 적용할 때 `git apply` 가 "new blank line at EOF" 를 냈다. §117 과 seshat
+  DECISIONS §9 를 덧붙이면서 줄바꿈을 하나 더 넣었다
+
+### 원인
+
+- **판정이 요구만 보고 실물을 보지 않았다.** `scan_cache` 는 `uv.lock` 의 차집합을 셌다. lock 에 있다는
+  것은 언젠가 받을 수 있다는 뜻이지 지금 캐시에 있다는 뜻이 아니다. 한 번 지운 뒤로 그 수는 영원히
+  거짓이었다 — §44 가 "센 것과 쓴 것이 같아야 한다" 고 적은 바로 그 모양이다
+- 파일 끝을 보는 검사가 없었다. `git apply` 의 경고는 멈춤이 아니다(§115)
+
+### 결정
+
+- `in_cache` — `wheels-v*` · `sdists-v*` · `simple-v*` 에 그 패키지의 항목이 있을 때만 센다. 이름은
+  uv 처럼 정규화한다. 캐시 자리는 `UV_CACHE_DIR` 이 이기고, 없으면 `uv cache dir` 에 묻는다. 묻지
+  못하면 못 잼이다
+- `check_docs.py::check_eof` — 세 문서의 끝은 줄바꿈 하나다. seshat 은 사본을 다시 받는다
+- 두 저장소의 DECISIONS 끝 빈 줄을 지웠다
+- 기획서의 추진 일정 그림이 이 절로 늙었다(09-22 의 범위가 §117 → §118). `check_figures` 가 잡았고
+  그림을 다시 그렸다
+
+강제자 — `tools/check_docs.py::check_eof` · `worker/tests/test_doc_enforcers.py::test_파일_끝은_줄바꿈_하나다` · `worker/tests/test_sweep_cache.py::test_캐시에_있는_것만_센다`
+
+### 배운 것
+
+**요구 목록은 재고가 아니다.** lock 은 무엇이 필요한지를 적고 캐시는 무엇이 있는지를 적는다. 지울
+대상을 요구에서 세면, 지운 뒤에도 계속 센다.

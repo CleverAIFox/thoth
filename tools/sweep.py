@@ -177,6 +177,31 @@ def lock_packages(lock: pathlib.Path) -> set[str]:
             for m in re.finditer(r'^name = "([^"]+)"', text, re.M)}
 
 
+def cache_dir() -> pathlib.Path:
+    """uv 캐시 자리. `UV_CACHE_DIR` 가 있으면 그것, 없으면 `uv cache dir`."""
+    if os.environ.get("UV_CACHE_DIR"):
+        return pathlib.Path(os.environ["UV_CACHE_DIR"])
+    try:
+        r = subprocess.run(["uv", "cache", "dir"], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise LookupError(f"uv 캐시 자리를 묻지 못했다 ({e})")
+    if r.returncode != 0 or not r.stdout.strip():
+        raise LookupError("uv cache dir 이 답하지 않았다")
+    return pathlib.Path(r.stdout.strip())
+
+
+def in_cache(name: str, root: pathlib.Path) -> bool:
+    """캐시에 그 패키지의 항목이 실제로 있는가.
+
+    ★ **lock 에 있다고 캐시에 있는 것이 아니다**(DECISIONS §118). 한 번 지우면 다시 받기 전까지
+      없는데, 차집합만 보면 매번 "thoth 만 쓰는 것 5건" 을 세고 `--fix` 는 "No cache entries
+      found" 로 끝났다. 세는 것과 지울 수 있는 것이 같아야 한다.
+    """
+    norm = re.sub(r"[-_.]+", "-", name.lower())
+    pats = [f"wheels-v*/*/{norm}", f"sdists-v*/*/{norm}", f"simple-v*/*/{norm}.rkyv"]
+    return any(any(root.glob(pat)) for pat in pats)
+
+
 def scan_cache():
     """thoth 만 쓰는 패키지. 남과 겹치는 것은 공유 자산이라 건드리지 않는다.
 
@@ -224,7 +249,8 @@ def scan_cache():
         if m:
             selves.add(m.group(1).lower())
 
-    only = sorted(mine - theirs - selves)
+    root = cache_dir()
+    only = sorted(n for n in mine - theirs - selves if in_cache(n, root))
     return only, sorted(mine & theirs), seen
 
 
