@@ -1,0 +1,22 @@
+# 의존성 갱신(DECISIONS §120). 월 1회 · 생태계마다 PR 하나로 묶는다.
+#
+# ★ 가장 값진 것은 GitHub Actions 다. 러너가 바뀌면(Node 20 강제 전환 같은 것) 여기서 먼저 PR 로 온다 —
+#   tools/check_static.py 의 Node 20 목록은 아는 것만 막는다(DECISIONS §43).
+# ★ 워커 배포 패키지는 의존성이 0 이다. uv 갱신은 로컬 개발(FastAPI · 테스트)만 건드린다.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: npm
+    directory: /extension
+    schedule: { interval: monthly }
+    groups:
+      extension: { patterns: ["*"] }
+  - package-ecosystem: uv
+    directory: /worker
+    schedule: { interval: monthly }
+    groups:
+      worker: { patterns: ["*"] }

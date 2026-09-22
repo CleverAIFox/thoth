@@ -6488,3 +6488,34 @@ seshat 의 목표를 지금 장비(GTX 1660 Ti)에 맞춰 깎았다. 사용자�
 ### 배운 것
 
 **목표를 장비에 맞추면 장비가 바뀌는 날 목표를 다시 세운다.** 목표는 그대로 두고 단계를 장비에 맞춘다.
+
+---
+
+## §120. 의존성 갱신을 켜고 Node 20 목록을 보강한다
+
+**2026-09-22**
+
+### 증상
+
+다른 저장소의 점검표를 thoth 에 대 보니 의존성 갱신이 빠져 있었다 — `uv.lock` · `package-lock.json` 의 핀은 있으나
+갱신을 알려주는 것이 없다. 같은 날 seshat 의 GPU 평가에서 `actions/upload-artifact@v4` 가 Node 20 경고를 냈는데,
+`check_static` 의 Node 20 목록에 그 액션이 없었다.
+
+### 원인
+
+Node 20 목록은 이 저장소가 쓰는 액션만 적었다. **알고 있는 목록은 언젠가 하나를 빠뜨린다**(§43) — 목록은 아는
+것만 막고, 모르는 것을 알려주는 장치가 따로 있어야 한다.
+
+### 결정
+
+- `.github/dependabot.yml` — GitHub Actions · npm(`extension/`) · uv(`worker/`). 월 1회 · 생태계마다 PR 하나.
+  Actions 가 가장 값지다 — 러너 쪽 변경을 PR 로 먼저 알린다
+- `check_static` 의 Node 20 목록에 `actions/upload-artifact` 4 를 더했다. `configure-pages` · `deploy-pages` 는
+  경고를 본 적이 없어 넣지 않았다 — 기획서 워크플로 실행의 주석을 보고 정한다
+- 커버리지 기준은 두지 않는다. thoth 는 닫혔고 테스트는 동작과 불변식을 본다. 두게 되면 숫자는 한 곳에만 둔다
+
+강제자 — `tools/check_static.py::check_node20` · `.github/dependabot.yml`
+
+### 배운 것
+
+**막는 목록과 알리는 장치는 짝이다.** 목록만 있으면 새 것에 눈이 멀고, 알림만 있으면 아는 것도 다시 겪는다.

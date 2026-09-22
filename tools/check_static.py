@@ -87,6 +87,8 @@ NODE20 = {
     "hashicorp/setup-terraform": 3,
     "aws-actions/configure-aws-credentials": 5,
     "gitleaks/gitleaks-action": 2,
+    # 2026-09-22 seshat GPU 평가 실행의 주석이 짚었다. 이 저장소는 쓰지 않지만 같은 목록이다(DECISIONS §120)
+    "actions/upload-artifact": 4,
 }
 USES = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@v(\d+)\b")
 
