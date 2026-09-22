@@ -152,8 +152,36 @@ def check_workflows() -> tuple[list[str], str | None]:
     return fails, None
 
 
+def py_warnings(src: str, name: str) -> list[str]:
+    """컴파일 경고를 실패로 읽는다.
+
+    ★ **지금은 경고지만 나중에는 오류다.** 문자열 안의 `\\d` 같은 잘못된 이스케이프는
+      Python 3.12 부터 `SyntaxWarning` 이고 앞으로 `SyntaxError` 가 된다. 테스트는 모듈을 이미
+      컴파일된 채로 불러 경고를 삼키고, `package_lambda.sh` 만 한 줄 찍고 지나갔다
+      (2026-09-22, `pairs.py` 의 docstring). 런타임을 올리는 날 워커가 import 에서 죽는다.
+    """
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        try:
+            compile(src, name, "exec")
+        except SyntaxError as e:
+            return [f"{name}:{e.lineno} {e.msg}"]
+    return []
+
+
+def check_python() -> list[str]:
+    fails = []
+    for d in ("worker/app", "worker/tests", "tools"):
+        for p in sorted((ROOT / d).rglob("*.py")):
+            if ".venv" in p.parts or "__pycache__" in p.parts:
+                continue
+            fails += py_warnings(p.read_text(encoding="utf-8"), str(p.relative_to(ROOT)))
+    return fails
+
+
 def main() -> int:
-    fails = check_tf() + check_node20() + check_runner()
+    fails = check_tf() + check_node20() + check_runner() + check_python()
     wf, skip = check_workflows()
     fails += wf
     for f in fails:
@@ -161,7 +189,8 @@ def main() -> int:
     if skip:
         print(f"  건너뜀 : {skip}", file=sys.stderr)
     if not fails:
-        print("  인용 문자열이 ASCII 다 · Node 20 액션 없음 · 러너 고정" + ("" if skip else " · 워크플로가 YAML 이다"))
+        print("  인용 문자열이 ASCII 다 · Node 20 액션 없음 · 러너 고정 · 파이썬 컴파일 경고 없음"
+              + ("" if skip else " · 워크플로가 YAML 이다"))
     return 1 if fails else 0
 
 

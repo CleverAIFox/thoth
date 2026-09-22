@@ -6252,3 +6252,34 @@ Lambda · 확장 CI 를 무겁게 하고, 공개 저장소 옆에 학습 데이�
 
 **닫을 때 번호를 건드리는 것이 가장 쉬운 사고다.** 정리하는 손은 표를 깔끔하게 만들고 싶어 하고,
 깔끔함의 첫 수가 번호를 당기거나 떼는 것이다. 인용은 표 밖에 있어 그 손에 보이지 않는다.
+
+---
+
+## §114. 컴파일 경고를 실패로 읽는다
+
+**2026-09-22**
+
+### 증상
+
+`v0.1.7` 배포 전 `package_lambda.sh` 가 한 줄을 찍고 지나갔다.
+
+```
+app/pairs.py:79: SyntaxWarning: "\d" is an invalid escape sequence.
+```
+
+`_host` 의 docstring 이 `:\d+$` 를 raw 가 아닌 문자열에 적고 있었다. **지금은 경고지만 앞으로의
+Python 에서는 `SyntaxError` 다** — 런타임을 올리는 날 워커가 import 에서 죽는다. 테스트 389건은
+모듈을 컴파일된 캐시로 불러 경고를 보지 못했고, `ruff (F)` 는 이것을 보지 않는다.
+
+### 결정
+
+- docstring 을 raw 로 바꿨다
+- `tools/check_static.py` 가 `worker/app` · `worker/tests` · `tools` 의 파이썬을 **경고를 오류로 두고**
+  컴파일한다. `doctor` 의 「원격이 거절하는 것」 줄이 그것을 부르고 CI 도 같은 진입점을 탄다
+
+강제자 — `tools/check_static.py::check_python` · `worker/tests/test_check_static.py::test_저장소에_컴파일_경고가_없다`
+
+### 배운 것
+
+**한 줄 찍고 지나가는 경고는 아무도 읽지 않는다.** 경고를 낸 도구(`package_lambda.sh`)는 배포
+직전에만 돌고 그 출력은 성공 줄 사이에 묻혔다. 경고가 미래의 오류라면 지금 실패로 세야 한다.

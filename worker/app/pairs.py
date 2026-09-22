@@ -75,7 +75,7 @@ LOOPBACK = re.compile(r"^127(\.\d{1,3}){3}$")
 
 
 def _host(site: str) -> str:
-    """`host:port` 에서 호스트만. **IPv6 를 포트로 자르지 않는다** — `::1` 을 무턱대고
+    r"""`host:port` 에서 호스트만. **IPv6 를 포트로 자르지 않는다** — `::1` 을 무턱대고
     `:\d+$` 로 벗기면 `:` 하나가 남아 로컬이 아닌 것이 된다."""
     s = site.strip().lower()
     if s.startswith("[") and "]" in s:          # [::1]:8000

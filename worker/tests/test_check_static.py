@@ -104,3 +104,16 @@ def test_주석의_latest_는_보지_않는다():
 
 def test_워크플로가_지금_러너를_고정했다():
     assert cs.check_runner() == []
+
+
+def test_잘못된_이스케이프를_잡는다():
+    # ★ 2026-09-22 `pairs.py` docstring 의 모양이다. 지금은 경고, 나중에는 import 에서 죽는다.
+    assert cs.py_warnings('def f():\n    """`:\\d+$` 로 벗긴다"""\n', "x.py")
+
+
+def test_raw_문자열은_통과한다():
+    assert cs.py_warnings('def f():\n    r"""`:\\d+$` 로 벗긴다"""\n', "x.py") == []
+
+
+def test_저장소에_컴파일_경고가_없다():
+    assert cs.check_python() == []

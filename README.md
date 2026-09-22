@@ -257,7 +257,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->389건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->392건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |
