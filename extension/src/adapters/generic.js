@@ -1,17 +1,22 @@
 // Layer 0 — 사이트 지식 0. 항상 매치하는 폴백.
 (globalThis.ST ??= {}).adapters ??= [];
 
+// ★ **픽스처인가.** 빈 문자열이 아니면 픽스처이고 그 값이 흉내내는 주소다.
+//   `<meta name="st-fixture-url">` 은 **로컬 호스트에서만** 먹는다 — 남의 사이트가
+//   이 태그로 어댑터를 바꾸거나 관측을 읽어 가지 못하게 한다(DECISIONS §102 · §104).
+//
+// ★ **판별을 한 자리에 둔다.** 전에는 `pageUrl` 안에만 있었고, 관측을 페이지로
+//   내보낼 때 같은 조건을 또 적을 뻔했다. 같은 판단이 두 곳에 살면 갈린다(§14).
+globalThis.ST.fixtureUrl = function () {
+  const host = location.hostname;
+  if (host !== "127.0.0.1" && host !== "localhost" && host !== "") return "";
+  return document.querySelector("meta[name=st-fixture-url]")?.content || "";
+};
+
 // ★ **어댑터는 `location` 을 직접 보지 않고 이것을 본다**(DECISIONS §102). 픽스처가
 //   `127.0.0.1` 에서 Udemy 인 척할 수 있어야 사이트 어댑터를 사이트 없이 잰다.
-//   `<meta name="st-fixture-url">` 은 **로컬 호스트에서만** 먹는다 — 남의 사이트가
-//   이 태그로 어댑터를 바꾸지 못하게 한다.
 globalThis.ST.pageUrl = function () {
-  const host = location.hostname;
-  if (host === "127.0.0.1" || host === "localhost" || host === "") {
-    const m = document.querySelector("meta[name=st-fixture-url]");
-    if (m?.content) return m.content;
-  }
-  return location.href;
+  return globalThis.ST.fixtureUrl() || location.href;
 };
 
 // 페이지에 읽을 만한 글 덩어리가 몇 개인가. 관측 행의 `blocks` 다.

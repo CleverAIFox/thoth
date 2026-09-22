@@ -50,6 +50,11 @@ globalThis.ST.translate = async function (texts, source) {
   // ★ 팝업에서 넣은 값이 언제나 이긴다. 기계 기본값은 출발점일 뿐이다.
   const token = stToken || globalThis.ST.CONFIG?.token || "";
 
+  // ★ **호스트만 남긴다**(DECISIONS §104). 픽스처가 "지금 어느 워커로 나가는가" 를
+  //   보여 주는 데 쓴다 — 배포본을 때리면 픽스처의 영어 문장이 과금되고 쌍으로
+  //   쌓인다. 토큰도 경로도 싣지 않는다.
+  try { globalThis.ST.endpointHost = new URL(url).host; } catch { /* 이상한 URL */ }
+
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), globalThis.ST.TIMEOUT_MS);
 

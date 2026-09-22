@@ -205,13 +205,18 @@ def _log_pairs(src: list[str], raw: list[str], ko: list[str], source: dict) -> N
 
     ★ **어떤 예외도 올리지 않는다.** 번역은 이미 끝났고 이것은 부산물이다.
     """
+    site = source.get("site")
+    # ★ **픽스처와 개발 번역은 쌓지 않는다**(DECISIONS §104). 막지 않으면 사람이
+    #   지어낸 표본이 실사용 코퍼스에 섞이고 Parquet 에서 골라낼 수 없다.
+    if pairs.is_local(site):
+        return
     try:
         book, _ = glossary.match(src)
         pairs.emit(pairs.records(
             src, raw, ko,
             engine=engine.ENGINE, model=engine.model_name(),
             prompt=engine.prompt_fingerprint(), book=book,
-            site=source.get("site"), adapter=source.get("adapter"), ver=VERSION,
+            site=site, adapter=source.get("adapter"), ver=VERSION,
         ))
     except Exception:
         log.exception("pair 로그 실패")

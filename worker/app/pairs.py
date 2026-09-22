@@ -26,6 +26,7 @@
 """
 import json
 import logging
+import re
 import time
 
 from . import cache
@@ -54,6 +55,40 @@ COLUMNS = (
     ("adapter", "string"),
     ("ver", "string"),
 )
+
+
+# ★ **로컬에서 온 것은 학습 데이터가 아니다**(DECISIONS §104). 픽스처와 개발 중
+#   번역이 같은 경로로 들어오는데, 픽스처의 영어 문장은 사람이 지어낸 표본이라
+#   실사용 코퍼스에 섞이면 되돌릴 수 없다 — Parquet 는 한 줄만 지우지 못한다.
+#
+# ★ **호스트로 가른다.** 확장은 `location.hostname` 을 보내고 픽스처가 Udemy 인
+#   척해도 그 값은 `127.0.0.1` 이다. 흉내낸 주소를 보내면 이 구별이 사라진다.
+#
+# ★ `site` 가 없는 것(`None`)은 막지 않는다. 벤치 · smoke · 배포 확인이 그렇게
+#   들어오고, 그 쌍은 실제 엔진을 지난 것이다.
+LOCAL_SUFFIX = (".localhost", ".local", ".test")
+LOCAL_HOSTS = {"localhost", "0.0.0.0", "::1"}
+# ★ **접두사로 보지 않는다.** `startswith("127.")` 는 `127.0.0.1.evil.com` 도 로컬로
+#   읽는다. 이 검사는 버리는 쪽으로 틀리므로 조용히 데이터가 사라진다 — 틀린 방향이
+#   안전하다는 것과 틀려도 된다는 것은 다르다.
+LOOPBACK = re.compile(r"^127(\.\d{1,3}){3}$")
+
+
+def _host(site: str) -> str:
+    """`host:port` 에서 호스트만. **IPv6 를 포트로 자르지 않는다** — `::1` 을 무턱대고
+    `:\d+$` 로 벗기면 `:` 하나가 남아 로컬이 아닌 것이 된다."""
+    s = site.strip().lower()
+    if s.startswith("[") and "]" in s:          # [::1]:8000
+        return s[1:s.index("]")]
+    return s.split(":")[0] if s.count(":") == 1 else s
+
+
+def is_local(site: str | None) -> bool:
+    """로컬 호스트에서 온 쌍인가. `None` 은 로컬이 아니다 — 벤치와 smoke 가 그렇다."""
+    if not site:
+        return False
+    host = _host(site)
+    return host in LOCAL_HOSTS or bool(LOOPBACK.match(host)) or host.endswith(LOCAL_SUFFIX)
 
 
 def records(src: list[str], raw: list[str], ko: list[str], *, engine: str,

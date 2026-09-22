@@ -65,8 +65,12 @@ export function makeDoc(html, opts = {}) {
   // ★ 브로커는 전역에서 찾는다. jsdom 의 **창 안에만** 있는 것은 못 본다 —
   //   `CSS` 에서 겪은 것과 같은 함정이고, 빠뜨리면 `is not defined` 로 죽거나
   //   더 나쁘게는 조용히 빈손이 된다(DECISIONS §47).
+  // ★ `CustomEvent` 를 빠뜨리면 브로커가 **Node 의** CustomEvent 를 만들고 jsdom 이
+  //   "parameter 1 is not of type 'Event'" 로 거절한다. 전역이 있는 것과 같은 전역인
+  //   것은 다르다(DECISIONS §47 · §104).
   for (const k of ["MutationObserver", "Node", "Element", "HTMLElement",
-                   "getComputedStyle", "requestAnimationFrame", "location"]) {
+                   "getComputedStyle", "requestAnimationFrame", "location",
+                   "CustomEvent", "Event"]) {
     if (win[k] !== undefined) globalThis[k] = win[k];
   }
   globalThis.window = win;

@@ -259,7 +259,26 @@
     ST.observations.push(rec);
     if (ST.observations.length > OBS_MAX) ST.observations.shift();
     console.info("[st] 관측", rec);
+    ST.emitObservation(rec);
     return rec;
+  };
+
+  // ★ **콘텐츠 스크립트는 페이지와 다른 세계에 산다.** 그래서 픽스처 페이지가
+  //   `ST.observations` 를 읽지 못하고, 사람이 DevTools 의 컨텍스트를 확장으로
+  //   바꿔야만 관측을 볼 수 있었다. 검사 결과를 읽는 데 손이 필요하면 그 검사는
+  //   자주 안 돌아간다(DECISIONS §104).
+  //
+  // ★ **로컬 픽스처에서만 연다.** 남의 사이트는 `fixtureUrl()` 이 빈 문자열이라
+  //   이벤트가 한 번도 나가지 않는다 — 관측은 그 페이지의 DOM 을 센 수지만,
+  //   내보낼 이유가 없는 곳에 내보내지 않는다.
+  //
+  // ★ **문자열로 보낸다.** 세계를 넘는 객체는 브라우저마다 감싸는 방식이 다르다.
+  //   JSON 한 줄이면 어디서나 같고, 픽스처가 보고서로 그대로 붙여 쓴다.
+  ST.emitObservation = (rec) => {
+    if (!ST.fixtureUrl()) return false;
+    const line = JSON.stringify({ ...rec, worker: ST.endpointHost || "" });
+    document.dispatchEvent(new CustomEvent("st:obs", { detail: line }));
+    return true;
   };
 
   // ★ 첫 관측은 **자리를 잡을 시간**을 준다. SPA 는 문제를 늦게 그리고, 그 전에

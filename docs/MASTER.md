@@ -157,6 +157,12 @@ pydantic 이 들어간다. 계약을 떼는 쪽이 중복도 0 이고 배포 패
 
 ★ 같은 URL · 같은 수면 행을 다시 만들지 않는다.
 
+★ **로컬 픽스처에서는 페이지로도 나간다.** `document` 에 `st:obs` 커스텀 이벤트가
+뜨고 `detail` 은 JSON **문자열**이다(`worker` 열이 하나 더 붙는다 — 어느 워커로
+나갔는지, 호스트만). 콘텐츠 스크립트와 페이지는 다른 세계라 이것이 없으면 픽스처가
+`ST.observations` 를 읽지 못한다. **`ST.fixtureUrl()` 이 빈 문자열이면 한 줄도 나가지
+않으므로 실사이트에서는 없는 기능이다**(DECISIONS §104).
+
 ★ **아직 워커로 보내지 않는다.** 브라우저 안에만 있다.
 
 ### 3-1. 주의
@@ -853,7 +859,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->271건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->288건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1036,16 +1042,37 @@ ENGINE=echo bash tools/run_worker.sh > /tmp/w.log 2>&1 &
 ★ **`udemy.html` 은 `127.0.0.1` 에서 Udemy 인 척한다.** `<meta name="st-fixture-url">`
 을 `ST.pageUrl()` 이 읽고, 로컬 호스트에서만 먹는다. 화면은 `<template>` 에 있고
 버튼이 DOM 을 갈아끼운다 — 새로고침 없이 **세션 중에 셀렉터가 빠지는 것**을
-재현한다. `observe.test.js` 가 같은 템플릿을 읽는다.
+재현한다. **화면마다 주소가 다르다** — 같으면 화면을 바꿔도 `settle` 관측이 다시
+돌지 않는다.
 
-| 화면 | 관측 |
+★ **이 페이지가 스스로 채점한다**(DECISIONS §104). `st:obs` 로 받은 관측과 화면에
+실제로 붙은 `.st-translation` 수를 기대와 대조해 표로 세운다. **누른 순서는 상관없다**
+— 방문한 화면이 채워질 뿐이다.
+
+| | |
 |---|---|
-| `before` | scope 1 · prompt 1 · answer_before 4 |
-| `after` | scope 1 · prompt 1 · answer_after 4 · explanation 4 |
-| `start` | scope 1 · prompt 0 — **문제가 없는 것이 정상** |
-| `renamed-scope` | 전부 0 · blocks 는 남는다 — **깨짐** |
-| `renamed-prompt` | prompt 0 · answer_before 4 — **문제만 빠진다** |
-| `landing` | kind `other` · expected false |
+| `전체 순회` | 여섯 화면을 차례로 돌린다. `?auto=1` 로 열어도 같다 |
+| `보고서 복사` | 표와 동작 기록을 텍스트로. 클립보드가 막히면 화면에 편다 |
+| 워커 표시 | 로컬이 아니면 주황. 배포본을 때리면 **과금되고 쌍으로 쌓인다** |
+
+★ **`data-expect` 가 기대의 정본이다.** `observe.test.js` 가 같은 속성을 읽어 jsdom
+에서 같은 대조를 한다. 화면을 하나 더하면 검사가 자동으로 는다.
+
+| 화면 | 관측 | 박스 |
+|---|---|---|
+| `before` | scope 1 · prompt 1 · answer_before 4 | 5 |
+| `after` | scope 1 · prompt 1 · answer_after 4 · explanation 4 | 9 |
+| `start` | scope 1 · prompt 0 — **문제가 없는 것이 정상** | 0 |
+| `renamed-scope` | 전부 0 · blocks 는 남는다 — **깨짐** | 0 |
+| `renamed-prompt` | prompt 0 · answer_before 4 — **문제만 빠진다** | 4 |
+| `landing` | kind `other` · expected false | 0 (PLAN §2-1 #56) |
+
+★ **관측과 박스를 따로 본다.** 관측만 보면 워커가 죽어도 통과하고, 박스만 보면 왜
+안 붙었는지 모른다.
+
+★ **채점 로직도 검사가 본다**(`fixture-page.test.js`). 페이지 스크립트는 페이지
+세계에서 돌아 확장 검사가 닿지 않는 자리였다 — 거기가 틀리면 **픽스처가 틀린 초록불을
+낸다.** jsdom 으로 페이지를 띄우고 `st:obs` 를 손으로 띄워 표를 읽는다.
 
 ★ **`innertext.html` 은 하네스가 볼 수 없는 것만 모았다.** 어댑터 테스트는
 jsdom 위에서 돌고 `innerText` 가 없어 `textContent` 로 채우는데, 그 둘은 숨긴
@@ -1493,6 +1520,13 @@ Lambda stdout ─ 로그 그룹 ─ 구독 필터 { $.k = "pair" }
 붙으면 Parquet 변환이 전부 `errors/` 로 간다.
 
 ★ **캐시 히트는 적지 않는다.** 같은 원문의 쌍은 처음 번역될 때 한 번이다.
+
+★ **로컬에서 온 것도 적지 않는다**(`pairs.is_local`). 픽스처와 개발 중 번역이 같은
+경로로 들어오는데, 지어낸 표본이 섞이면 Parquet 에서 한 줄만 골라 지울 수 없다.
+`site` 가 없는 것(벤치 · smoke)은 막지 않는다 — 그 쌍은 실제 엔진을 지났다.
+
+★ **이미 들어간 것은 읽을 때 거른다.** 2026-09-19 이전 배포본에는 이 검사가 없다.
+`WHERE site NOT IN ('127.0.0.1', 'localhost')`(DECISIONS §104).
 
 ★ **검사 축을 쓸 때 돌리지 않는다.** 위반 판정은 읽을 때 `bench_golden.py` 의
 함수로 한다. 축이 늘면 옛 데이터에도 새 자를 댈 수 있다.

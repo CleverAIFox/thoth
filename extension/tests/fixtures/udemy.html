@@ -9,43 +9,87 @@
     않는다 — 계약이 늙으면 이 파일도 늙는다. 이 파일이 재는 것은 **계약이 깨졌을 때
     관측 행이 그것을 드러내는가**다.
 
-  ★ `127.0.0.1` 에서 Udemy 인 척한다. `<meta name="st-fixture-url">` 을 어댑터가
-    `ST.pageUrl()` 로 읽는다. 로컬 호스트에서만 먹는다(generic.js).
+  ★ **이 페이지가 스스로 채점한다**(DECISIONS §104). 화면마다 기대를 `data-expect`
+    에 적어 두고, 확장이 보낸 관측과 화면에 실제로 붙은 번역 박스 수를 둘 다 대조해
+    표로 세운다. **누른 순서는 상관없다** — 방문한 화면이 채워질 뿐이고, 여섯이 다
+    차면 전부 통과다. `전체 순회` 버튼이 대신 눌러 주기도 한다.
 
-  ★ 화면은 `<template>` 에 있고 버튼이 `#app` 을 갈아끼운다. **세션 중에 DOM 이
-    바뀌는 것**을 재현하려고 새로고침 대신 교체한다 — MutationObserver 경로를 탄다.
-    jsdom 검사(`observe.test.js`)가 같은 템플릿을 읽는다. 마크업이 한 곳에 산다.
+  ★ **`data-expect` 가 정본이다.** `observe.test.js` 가 같은 속성을 읽어 jsdom 에서
+    대조한다. 기대가 두 곳에 살면 갈린다(DECISIONS §14).
+
+  ★ `127.0.0.1` 에서 Udemy 인 척한다. `<meta name="st-fixture-url">` 을 어댑터가
+    `ST.pageUrl()` 로 읽고, 로컬 호스트에서만 먹는다(generic.js). **화면마다 주소가
+    다르다** — 같으면 화면을 바꿔도 `settle` 관측이 다시 돌지 않는다.
+
+  ★ 화면은 `<template>` 에 있고 버튼이 `#app` 을 갈아끼운다. 새로고침 대신 교체하는
+    이유는 **세션 중에 DOM 이 바뀌는 것**을 재현하려는 것이다 — MutationObserver
+    경로를 탄다.
 
   띄우기 :
     python3 -m http.server 8099 -d extension/tests/fixtures > /tmp/fx.log 2>&1 &
     ENGINE=echo bash tools/run_worker.sh > /tmp/w.log 2>&1 &
-    http://127.0.0.1:8099/udemy.html?mode=before
-    팝업에서 이 오리진을 허용한다. 콘솔에서 `[st] 관측` 줄과 `ST.observations` 를 본다.
+    http://127.0.0.1:8099/udemy.html          손으로 누른다
+    http://127.0.0.1:8099/udemy.html?auto=1   열자마자 전체 순회
 
-  화면마다 기대하는 관측 :
-    before          scope 1 · prompt 1 · answer_before 4             번역이 붙는다
-    after           scope 1 · prompt 1 · answer_after 4 · explanation 4
-    start           scope 1 · prompt 0                               문제가 없는 것이 정상
-    renamed-scope   scope 0 · 나머지 0 · blocks > 0                 ★ 깨짐. 번역이 안 붙는다
-    renamed-prompt  scope 1 · prompt 0 · answer_before 4            ★ 문제만 빠진다
-    landing         kind other · expected false                     퀴즈가 아니다
+  ★ **워커를 로컬로 두고 돌린다.** 팝업의 엔드포인트가 배포본이면 픽스처의 영어
+    문장이 과금되고 쌍으로 쌓인다. 어느 워커로 나가는지 이 페이지가 위에 적는다.
 -->
 <style>
-  body { font: 15px/1.6 system-ui, sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; }
-  nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
-  nav button { font: 13px system-ui; padding: 4px 10px; }
-  nav button[aria-pressed=true] { font-weight: 700; }
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 980px; margin: 24px auto; padding: 0 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; }
+  .bar button { font: 13px system-ui; padding: 5px 11px; border-radius: 6px; cursor: pointer; }
+  .bar button[aria-pressed=true] { font-weight: 700; outline: 2px solid #3b82f6; }
+  .sep { width: 1px; height: 22px; background: #8884; margin: 0 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 10px 0 18px; }
+  th, td { border: 1px solid #8883; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #8881; font-weight: 600; }
+  td.v { white-space: nowrap; font-weight: 700; }
+  .pass { color: #15803d; } .fail { color: #b91c1c; } .idle { color: #6b7280; }
+  .mono { font: 12px/1.5 ui-monospace, monospace; }
+  .note { color: #6b7280; font-size: 13px; }
+  .warn { color: #b45309; font-weight: 700; }
+  #log { max-height: 190px; overflow: auto; border: 1px solid #8883; padding: 6px 8px; }
+  #log div { font: 12px/1.6 ui-monospace, monospace; }
+  #report { width: 100%; height: 130px; font: 11px/1.4 ui-monospace, monospace; display: none; }
+  #app { border-top: 2px solid #8883; padding-top: 14px; margin-top: 18px; }
   .ud-unstyled-list { list-style: none; padding: 0; }
-  [class*=answer-inner] { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
-  [data-purpose=answer-body] { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
-  .note { color: #666; font-size: 13px; }
+  [class*=answer-inner], [data-purpose=answer-body] {
+    border: 1px solid #8884; border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
 </style>
 
-<nav id="modes"></nav>
-<p class="note" id="want"></p>
+<h1>udemy adapter fixture</h1>
+<p class="note" id="status">확장을 기다린다…</p>
+
+<div class="bar" id="modes"></div>
+<div class="bar">
+  <button id="auto">전체 순회</button>
+  <button id="copy">보고서 복사</button>
+  <button id="reset">기록 지우기</button>
+  <span class="sep"></span>
+  <span class="note" id="worker">워커 : 아직 요청 없음</span>
+</div>
+
+<table id="grid">
+  <thead><tr>
+    <th>화면</th><th>판정</th><th>probes 기대</th><th>probes 실측</th>
+    <th>박스</th><th>kind</th><th>보는 것</th>
+  </tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2 style="font-size:14px;margin:0 0 6px">동작 기록</h2>
+<div id="log"></div>
+<textarea id="report" readonly></textarea>
+
 <div id="app"></div>
 
-<template id="t-before" data-want="scope 1 · prompt 1 · answer_before 4 — 번역이 붙어야 한다">
+<template id="t-before"
+  data-url="https://www.udemy.com/course/fixture/learn/quiz/1"
+  data-kind="quiz" data-expected="true" data-units="5" data-boxes="5"
+  data-expect='{"scope":1,"prompt":1,"answer_before":4,"answer_after":0,"explanation":0}'
+  data-want="채점 전. 문제 하나와 보기 넷에 번역이 붙는다">
   <div class="quiz-page-content">
     <div id="question-prompt"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div></div>
     <ul class="ud-unstyled-list">
@@ -57,7 +101,11 @@
   </div>
 </template>
 
-<template id="t-after" data-want="scope 1 · prompt 1 · answer_after 4 · explanation 4">
+<template id="t-after"
+  data-url="https://www.udemy.com/course/fixture/learn/quiz/2"
+  data-kind="quiz" data-expected="true" data-units="9" data-boxes="9"
+  data-expect='{"scope":1,"prompt":1,"answer_before":0,"answer_after":4,"explanation":4}'
+  data-want="채점 후. 보기와 해설이 같은 result-pane 안에 형제로 들어간다">
   <div class="quiz-page-content">
     <div id="question-prompt"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div>
     <div class="result-pane--x1"><div data-purpose="answer-body"><div id="answer-text"><p>Every consumer application has already checkpointed beyond the records that would fall outside the shortened window.</p></div></div>
@@ -71,7 +119,11 @@
   </div>
 </template>
 
-<template id="t-start" data-want="scope 1 · prompt 0 — 문제가 없는 것이 정상인 화면">
+<template id="t-start"
+  data-url="https://www.udemy.com/course/fixture/learn/quiz/3"
+  data-kind="quiz" data-expected="true" data-units="0" data-boxes="0"
+  data-expect='{"scope":1,"prompt":0,"answer_before":0,"answer_after":0,"explanation":0}'
+  data-want="시작 화면. 문제가 없는 것이 정상이다 — 0 을 깨짐으로 박으면 여기서 오탐이다">
   <div class="quiz-page-content">
     <h2>Practice Test 1: Data Engineer Associate</h2>
     <p>This practice test contains sixty-five questions and must be completed within one hundred and thirty minutes.</p>
@@ -80,7 +132,11 @@
   </div>
 </template>
 
-<template id="t-renamed-scope" data-want="★ scope 0 · 전부 0 · blocks 는 남는다 — 번역이 안 붙어야 한다">
+<template id="t-renamed-scope"
+  data-url="https://www.udemy.com/course/fixture/learn/quiz/4"
+  data-kind="quiz" data-expected="true" data-units="0" data-boxes="0"
+  data-expect='{"scope":0,"prompt":0,"answer_before":0,"answer_after":0,"explanation":0}'
+  data-want="★ 깨짐. 스코프 클래스에 해시가 붙었다. 전부 0 인데 blocks 는 남는다">
   <div class="quiz-page-content--Qz81a">
     <div id="question-prompt"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div></div>
     <ul class="ud-unstyled-list">
@@ -92,7 +148,11 @@
   </div>
 </template>
 
-<template id="t-renamed-prompt" data-want="★ scope 1 · prompt 0 · answer_before 4 — 보기만 번역되고 문제는 빠진다">
+<template id="t-renamed-prompt"
+  data-url="https://www.udemy.com/course/fixture/learn/quiz/5"
+  data-kind="quiz" data-expected="true" data-units="4" data-boxes="4"
+  data-expect='{"scope":1,"prompt":0,"answer_before":4,"answer_after":0,"explanation":0}'
+  data-want="★ 문제만 빠진다. 보기 넷은 번역되고 지문은 영어로 남는다">
   <div class="quiz-page-content">
     <div data-purpose="question-prompt-v2"><div data-purpose="safely-set-inner-html:rich-text-viewer:html"><p>A data engineer must reduce the retention period of a Kinesis data stream. Which condition must be confirmed before the change is applied?</p></div></div>
     <ul class="ud-unstyled-list">
@@ -104,34 +164,210 @@
   </div>
 </template>
 
-<template id="t-landing" data-url="https://www.udemy.com/course/fixture/" data-want="kind other · expected false — 퀴즈 경로가 아니다">
+<template id="t-landing"
+  data-url="https://www.udemy.com/course/fixture/"
+  data-kind="other" data-expected="false" data-units="0" data-boxes="0"
+  data-expect='{"scope":0,"prompt":0,"answer_before":0,"answer_after":0,"explanation":0}'
+  data-want="퀴즈 경로가 아니다. 박스 0 은 어댑터가 Layer 0 에 위임하지 않기 때문이다 — PLAN §2-1 #56">
   <h1>AWS Certified Data Engineer Associate Practice Exams</h1>
   <p>Prepare for the certification with full-length practice tests that mirror the real exam.</p>
   <p>Every question comes with a detailed explanation of why each option is right or wrong.</p>
 </template>
 
 <script>
-  const QUIZ_URL = document.querySelector("meta[name=st-fixture-url]").content;
-  const modes = [...document.querySelectorAll("template")].map((t) => t.id.slice(2));
-  const nav = document.getElementById("modes");
+// ★ 이 스크립트는 **페이지 세계**에서 돈다. 확장의 `ST` 는 보이지 않으므로 관측은
+//   `st:obs` 이벤트로 받는다(broker.js). 번역 박스는 DOM 이라 그냥 센다.
+const SCREENS = [...document.querySelectorAll("template")].map((t) => ({
+  id: t.id.slice(2),
+  tpl: t,
+  url: t.dataset.url,
+  kind: t.dataset.kind,
+  expected: t.dataset.expected === "true",
+  probes: JSON.parse(t.dataset.expect || "{}"),
+  units: Number(t.dataset.units),
+  boxes: Number(t.dataset.boxes),
+  want: t.dataset.want,
+}));
 
-  function show(mode) {
-    const t = document.getElementById("t-" + mode);
-    if (!t) return;
-    // URL 이 바뀌는 화면은 meta 를 바꾼다. 어댑터가 새 페이지로 본다.
-    document.querySelector("meta[name=st-fixture-url]").content = t.dataset.url || QUIZ_URL;
-    document.getElementById("app").replaceChildren(t.content.cloneNode(true));
-    document.getElementById("want").textContent = "기대 : " + t.dataset.want;
-    for (const b of nav.children) b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
-    history.replaceState(null, "", "?mode=" + mode);
-  }
+const meta = document.querySelector("meta[name=st-fixture-url]");
+const runs = new Map();          // id -> { rec, boxes, at }
+const log = [];
+let current = null;
+let autoRunning = false;
 
-  for (const m of modes) {
-    const b = document.createElement("button");
-    b.textContent = m;
-    b.dataset.mode = m;
-    b.onclick = () => show(m);
-    nav.append(b);
+const $ = (id) => document.getElementById(id);
+const hhmmss = (d) => d.toTimeString().slice(0, 8);
+const short = (p) => Object.entries(p).map(([k, v]) => `${k.replace("answer_", "")} ${v}`).join(" · ");
+const canon = (o) => JSON.stringify(Object.entries(o ?? {}).sort());
+const same = (a, b) => canon(a) === canon(b);
+
+function note(what, detail) {
+  log.push({ t: hhmmss(new Date()), what, detail: detail ?? "" });
+  const d = document.createElement("div");
+  d.textContent = `${log.at(-1).t}  ${what}${detail ? "  " + detail : ""}`;
+  $("log").append(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+/** 한 화면의 판정. **둘을 따로 본다** — 관측(셀렉터가 몇 개를 잡았나)과 박스(실제로
+ *  붙었나). 관측만 보면 워커가 죽어도 통과하고, 박스만 보면 왜 안 붙었는지 모른다. */
+function verdict(s) {
+  const r = runs.get(s.id);
+  if (!r?.rec) return { state: "idle", text: "미방문" };
+  const bad = [];
+  if (!same(s.probes, r.rec.probes)) bad.push("probes");
+  if (r.rec.kind !== s.kind) bad.push("kind");
+  if (r.rec.expected !== s.expected) bad.push("expected");
+  if (r.boxes !== s.boxes) bad.push("박스");
+  return bad.length
+    ? { state: "fail", text: "실패 · " + bad.join(" ") }
+    : { state: "pass", text: "통과" };
+}
+
+function render() {
+  const body = $("grid").tBodies[0];
+  body.replaceChildren();
+  for (const s of SCREENS) {
+    const r = runs.get(s.id);
+    const v = verdict(s);
+    const tr = document.createElement("tr");
+    const cells = [
+      s.id + (current === s.id ? " ←" : ""),
+      v.text,
+      short(s.probes),
+      r?.rec ? short(r.rec.probes) : "—",
+      r ? `${r.boxes} / ${s.boxes}` : `— / ${s.boxes}`,
+      r?.rec ? `${r.rec.kind} · ${r.rec.expected}` : "—",
+      s.want,
+    ];
+    cells.forEach((text, i) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (i === 1) td.className = "v " + v.state;
+      if (i === 2 || i === 3) td.className = "mono";
+      td.style.whiteSpace = i >= 2 && i <= 4 ? "nowrap" : "";
+      tr.append(td);
+    });
+    body.append(tr);
   }
-  show(new URLSearchParams(location.search).get("mode") || "before");
+  const done = SCREENS.filter((s) => verdict(s).state !== "idle");
+  const pass = done.filter((s) => verdict(s).state === "pass").length;
+  const all = pass === SCREENS.length;
+  $("status").innerHTML = all
+    ? `<span class="pass">화면 ${SCREENS.length}개 전부 통과</span>`
+    : `방문 ${done.length} / ${SCREENS.length} · 통과 ${pass} · 실패 ${done.length - pass}`
+      + (done.length ? "" : " — 화면 버튼을 누르거나 <b>전체 순회</b>");
+}
+
+function show(id) {
+  const s = SCREENS.find((x) => x.id === id);
+  if (!s) return;
+  current = id;
+  meta.content = s.url;                       // 어댑터가 새 페이지로 본다
+  $("app").replaceChildren(s.tpl.content.cloneNode(true));
+  runs.set(id, { rec: null, boxes: 0, at: Date.now() });
+  for (const b of $("modes").children) b.setAttribute("aria-pressed", String(b.dataset.mode === id));
+  history.replaceState(null, "", "?mode=" + id);
+  note("화면", id);
+  render();
+}
+
+// ★ 관측은 **지금 보고 있는 화면**의 것으로 적는다. 관측 행은 경로를 싣지 않으므로
+//   (강의 slug 가 들어 있다) 행만 보고는 어느 화면인지 알 수 없다. 늦게 도착한
+//   관측도 `observe()` 가 부를 때의 DOM 을 재므로 현재 화면이 맞다.
+document.addEventListener("st:obs", (e) => {
+  let rec;
+  try { rec = JSON.parse(e.detail); } catch { return note("관측", "JSON 이 아니다"); }
+  $("worker").textContent = "워커 : " + (rec.worker || "아직 요청 없음");
+  $("worker").className = rec.worker && !/^(127\.0\.0\.1|localhost)(:|$)/.test(rec.worker)
+    ? "warn" : "note";
+  if (!current) return note("관측", "화면 밖에서 왔다 — 무시한다");
+  const r = runs.get(current);
+  r.rec = rec;
+  note("관측", `${current} · ${rec.reason} · ${short(rec.probes)} · blocks ${rec.blocks} · units ${rec.units}`);
+  render();
+});
+
+// 박스는 DOM 이라 직접 센다. 번역이 늦게 붙으므로 계속 다시 센다.
+setInterval(() => {
+  if (!current) return;
+  const n = $("app").querySelectorAll(".st-translation").length;
+  const r = runs.get(current);
+  if (r && r.boxes !== n) { r.boxes = n; render(); }
+}, 500);
+
+/** 한 화면을 보여 주고 관측이 올 때까지 기다린다. 오지 않아도 진행한다 —
+ *  기다리다 멈추면 나머지 화면을 영영 못 본다. */
+function step(id, ms = 12000) {
+  show(id);
+  return new Promise((done) => {
+    const t0 = Date.now();
+    const timer = setInterval(() => {
+      const r = runs.get(id);
+      if (r?.rec || Date.now() - t0 > ms) { clearInterval(timer); setTimeout(done, 1500); }
+    }, 250);
+  });
+}
+
+async function auto() {
+  if (autoRunning) return;
+  autoRunning = true;
+  $("auto").disabled = true;
+  for (const [i, s] of SCREENS.entries()) {
+    $("status").textContent = `전체 순회 ${i + 1}/${SCREENS.length} — ${s.id}`;
+    await step(s.id);
+  }
+  autoRunning = false;
+  $("auto").disabled = false;
+  render();
+}
+
+function report() {
+  const lines = ["# thoth udemy fixture", new Date().toISOString(),
+                 "worker: " + ($("worker").textContent.replace("워커 : ", "")), ""];
+  for (const s of SCREENS) {
+    const r = runs.get(s.id);
+    const v = verdict(s);
+    lines.push(`[${v.text}] ${s.id}`);
+    lines.push(`  기대 probes ${short(s.probes)} | 박스 ${s.boxes} | kind ${s.kind} · ${s.expected}`);
+    lines.push(r?.rec
+      ? `  실측 probes ${short(r.rec.probes)} | 박스 ${r.boxes} | kind ${r.rec.kind} · ${r.rec.expected}`
+        + ` | blocks ${r.rec.blocks} | units ${r.rec.units} | reason ${r.rec.reason}`
+        + (r.rec.error ? ` | error ${r.rec.error}` : "")
+      : "  실측 없음");
+  }
+  lines.push("", "# 동작 기록");
+  for (const l of log) lines.push(`${l.t}  ${l.what}  ${l.detail}`);
+  return lines.join("\n");
+}
+
+for (const s of SCREENS) {
+  const b = document.createElement("button");
+  b.textContent = s.id;
+  b.dataset.mode = s.id;
+  b.onclick = () => show(s.id);
+  $("modes").append(b);
+}
+
+$("auto").onclick = auto;
+$("reset").onclick = () => { runs.clear(); log.length = 0; $("log").replaceChildren(); render(); };
+$("copy").onclick = async () => {
+  const text = report();
+  // ★ 클립보드가 막히면 보고서를 화면에 편다. 실패를 조용히 넘기면 붙여넣기가
+  //   빈 채로 끝나고, 그 침묵은 "복사됐다" 와 구별되지 않는다.
+  try {
+    await navigator.clipboard.writeText(text);
+    note("보고서", "클립보드에 담았다");
+  } catch {
+    $("report").style.display = "block";
+    $("report").value = text;
+    $("report").select();
+    note("보고서", "클립보드가 막혀 아래에 폈다 — 직접 복사한다");
+  }
+};
+
+render();
+const start = new URLSearchParams(location.search);
+if (start.get("auto") === "1") auto();
+else show(start.get("mode") || SCREENS[0].id);
 </script>

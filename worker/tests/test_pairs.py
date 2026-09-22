@@ -175,3 +175,37 @@ def test_구독_필터가_KIND_를_본다():
     m = re.search(r'filter_pattern\s*=\s*"\{ \$\.k = \\"(\w+)\\" \}"', text)
     assert m, "필터 패턴을 못 찾았다 — 모양이 바뀌었으면 이 검사도 고친다"
     assert m.group(1) == pairs.KIND
+
+
+# ---------- 로컬은 학습 데이터가 아니다 (DECISIONS §104) ----------
+
+@pytest.mark.parametrize("site", [
+    "127.0.0.1", "127.0.0.1:8099", "127.0.0.53", "localhost", "localhost:8000",
+    "::1", "[::1]:8000", "box.localhost", "dev.test", "mac.local",
+])
+def test_로컬_호스트를_가른다(site):
+    assert pairs.is_local(site)
+
+
+@pytest.mark.parametrize("site", [
+    None, "", "www.udemy.com", "127.0.0.1.evil.com", "localhost.attacker.io",
+])
+def test_바깥_호스트는_로컬이_아니다(site):
+    # ★ `None` 은 벤치 · smoke · 배포 확인이다. 그 쌍은 실제 엔진을 지났다.
+    assert not pairs.is_local(site)
+
+
+def test_픽스처_번역은_쌍으로_쌓이지_않는다(monkeypatch):
+    # ★ 픽스처의 영어 문장은 사람이 지어낸 표본이다. 한 번 Parquet 에 들어가면
+    #   한 줄만 골라 지울 수 없다.
+    buf = capture(monkeypatch)
+    r = call(["Fixture sentence about a shard."], source={"site": "127.0.0.1", "adapter": "udemy"})
+    assert r.status == 200 and r.body["translations"][0], "번역은 그대로 된다"
+    assert buf.getvalue() == ""
+
+
+def test_실사이트_번역은_그대로_쌓인다(monkeypatch):
+    buf = capture(monkeypatch)
+    call(["Real site sentence about a shard."], source={"site": "www.udemy.com"})
+    (rec,) = lines(buf)
+    assert rec["site"] == "www.udemy.com"
