@@ -178,6 +178,7 @@ python3 tools/doc_fsck.py     # 문서 ↔ 실물 — 경로 · 테스트 · 죽
 python3 tools/docx_check.py   # 기획서 ↔ 정본 — 숫자 · 폐기된 값
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
 python3 tools/sweep.py        # 위생 — 저장소 밖에 남긴 흔적
+bash tools/deps.sh            # 의존성 봇 PR — 초록만 합치고 가지를 지운다 (--merge)
 node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑터 수집
                               # 어댑터 검사에는 jsdom 이 필요하다 (cd extension && npm install)
 ```

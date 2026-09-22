@@ -1431,6 +1431,20 @@ python3 tools/sweep.py --fix          # 근거가 확실한 것만 지운다
 ★ 모델을 `/mnt/f` 에 두지 않는다. DrvFs 라 2.4GB 로딩에 2분이 걸린다
 (DECISIONS §3).
 
+### 11-8-1. 의존성 봇
+
+`.github/dependabot.yml` 이 월 1회 GitHub Actions · npm · uv 를 본다. 생태계마다 PR 하나 · 열린 PR 도 하나다.
+
+```bash
+bash tools/deps.sh            # 봇 PR 과 검사 결과
+bash tools/deps.sh --merge    # 초록만 squash · 가지 삭제 · main 을 당긴다 · fetch --prune
+```
+
+★ **이 저장소는 로컬이 먼저다.** 봇 PR 을 GitHub 에서 합치면 원격 main 이 앞서가서 다음 `ship` 의 push 가
+거절된다. `deps.sh --merge` 가 합친 직후 당긴다(DECISIONS §122).
+★ **가지를 남기지 않는다.** 합칠 때 원격 가지를 지우고 원격 추적 가지는 `fetch --prune` 으로 지운다. 저장소
+설정 `delete_branch_on_merge` 를 `doctor` 가 본다(`--repo` 밖).
+
 ### 11-9. 패치 적용
 
 작업 산출물은 윈도우 다운로드 폴더로 받는다. 경로의 정본은 `.env` 의

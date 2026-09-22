@@ -1,4 +1,5 @@
 # 의존성 갱신(DECISIONS §120). 월 1회 · 생태계마다 PR 하나로 묶는다.
+# ★ 열린 PR 은 생태계마다 하나다(`open-pull-requests-limit: 1`). 치우는 것은 tools/deps.sh(DECISIONS §122).
 #
 # ★ 가장 값진 것은 GitHub Actions 다. 러너가 바뀌면(Node 20 강제 전환 같은 것) 여기서 먼저 PR 로 온다 —
 #   tools/check_static.py 의 Node 20 목록은 아는 것만 막는다(DECISIONS §43).
@@ -8,15 +9,21 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    commit-message: { prefix: deps }
     groups:
       actions: { patterns: ["*"] }
   - package-ecosystem: npm
     directory: /extension
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    commit-message: { prefix: deps }
     groups:
       extension: { patterns: ["*"] }
   - package-ecosystem: uv
     directory: /worker
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    commit-message: { prefix: deps }
     groups:
       worker: { patterns: ["*"] }

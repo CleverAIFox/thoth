@@ -404,6 +404,18 @@ else
   esac
 fi
 
+# ★ **봇의 가지가 쌓이지 않게 한다**(DECISIONS §122). 합친 PR 의 가지를 GitHub 이 지우는지 본다.
+if [ "$SCOPE" = "--repo" ]; then
+  skip "합친 가지 자동 삭제 (GitHub 설정이다)"
+elif command -v gh >/dev/null 2>&1; then
+  DEL="$(gh api "repos/{owner}/{repo}" --jq .delete_branch_on_merge 2>/dev/null || true)"
+  case "$DEL" in
+    true)  ok "합친 PR 의 가지를 GitHub 이 지운다" ;;
+    false) no "합친 PR 의 가지가 남는다 — Settings → General → Automatically delete head branches" ;;
+    *)     skip "합친 가지 설정을 재지 못했다" ;;
+  esac
+fi
+
 echo "== 파이썬 =="
 # ★ **`F` 만 켠다.** 스타일이 아니라 오류를 잡는 것이 목적이다. 2026-09-14 에
 #   테스트 7개가 재정의로 죽어 있는 것을 이것이 찾았고, 그때까지 pytest 도
