@@ -31,7 +31,9 @@ git check-ignore -q .env && ok ".env 가 무시된다" || no ".env 가 추적될
 [ "$SCOPE" = "--repo" ] && skip ".env 존재 (기계 설정이다)" \
                         || { [ -f .env ] && ok ".env 가 있다" \
                                          || no ".env 가 없다 (.env.example 을 복사한다)"; }
-git ls-files | grep -qE '(^|/)\.env$|credential|\.pem$' \
+# ★ `tfplan` 도 비밀 파일이다. plan 파일은 변수 값을 평문으로 든다 — 2026-09-22 에
+#   `infra/tfplan` 이 공개 저장소에 올라갔다(DECISIONS §115).
+git ls-files | grep -qE '(^|/)\.env$|credential|\.pem$|(^|/)tfplan$|\.tfplan$|\.tfstate' \
   && no "추적 중인 비밀 파일" || ok "추적 중인 비밀 파일 없음"
 
 # ★ 위 셋은 전부 git 에 묻는다. **저장소 밖은 구조적으로 시야 밖이다.**

@@ -5,6 +5,9 @@ __pycache__/
 .terraform/
 *.tfstate
 *.tfstate.*
+# ★ plan -out 산출물. 변수 값(토큰 포함)이 평문으로 들어간다(DECISIONS §115)
+tfplan
+*.tfplan
 *.tfvars
 !*.tfvars.example
 dist/

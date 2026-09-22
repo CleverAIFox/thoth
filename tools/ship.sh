@@ -73,6 +73,17 @@ fi
 
 # ── 3. 커밋 ──────────────────────────────────────────────
 step "3/4  커밋"
+# ★ **새 바이너리를 묻지 않고 싣지 않는다**(DECISIONS §115). `git add -A` 는 작업 트리에
+#   떨어진 것을 전부 담는다 — 2026-09-22 에 `infra/tfplan`(토큰이 평문으로 든 plan 파일)이
+#   그렇게 공개 저장소로 나갔다. 패치가 들이는 새 파일은 텍스트이고, 바이너리는 기획서처럼
+#   `docs/` 에만 산다. 그 밖의 새 바이너리는 멈춘다.
+NEW_BIN=""
+while IFS= read -r f; do
+  [ -n "$f" ] && [ -s "$f" ] || continue
+  case "$f" in docs/*) continue ;; esac
+  LC_ALL=C grep -qI . "$f" 2>/dev/null || NEW_BIN="$NEW_BIN $f"
+done <<< "$(git ls-files --others --exclude-standard)"
+[ -z "$NEW_BIN" ] || die "새 바이너리가 있다:$NEW_BIN — 산출물이면 지우거나 .gitignore 에 넣는다"
 git add -A
 git diff --cached --stat | tail -1
 # ★ **실패 이유를 단정하지 않는다.** 훅이 막은 것과 git 이 거부한 것은 대응이

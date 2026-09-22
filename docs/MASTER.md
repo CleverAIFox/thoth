@@ -759,7 +759,7 @@ ENGINE=http HTTP_URL=https://<서버> HTTP_MODEL=<이름> HTTP_TOKEN=<토큰> ba
 #   http_url   = "https://<서버>"
 #   http_model = "<이름>"
 #   http_token = "<토큰>"
-bash tools/tf.sh plan -out tfplan && bash tools/tf.sh apply tfplan
+bash tools/tf.sh plan -out /tmp/thoth.tfplan && bash tools/tf.sh apply /tmp/thoth.tfplan   # 저장소 밖에 둔다(DECISIONS §115)
 ```
 
 되돌리는 것은 `engine = "bedrock"` 한 줄이다. 캐시는 엔진을 가리지 않으므로 이미
@@ -1713,7 +1713,8 @@ gh api -X POST repos/CleverAIFox/thoth/actions/runs/$RUN/pending_deployments \
 `apply` 안에서 성공과 거절이 섞인다**(DECISIONS §98).
 
 ★ **IAM 이 섞인 변경은 손 `apply` 가 먼저다.** 태그를 먼저 밀면 코드는 올라가고
-나머지는 반쯤 멈춘다. 순서는 손 `plan -out` → 손 `apply` → 태그다.
+나머지는 반쯤 멈춘다. 순서는 손 `plan -out` → 손 `apply` → 태그다. **plan 파일은 저장소 밖(`/tmp`)에
+쓴다** — 변수 값이 평문으로 들어 있다(DECISIONS §115).
 
 ★ **정책이 프로바이더 버전에 묶여 있다.** refresh 가 부르는 읽기 액션은
 `aws` 프로바이더가 정한다. `~> 6.0` 을 올릴 때 배포 역할을 함께 본다.
