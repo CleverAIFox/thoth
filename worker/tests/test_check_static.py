@@ -86,3 +86,21 @@ def test_주석_안의_uses_는_보지_않는다():
 
 def test_워크플로가_지금_Node20_을_쓰지_않는다():
     assert cs.check_node20() == []
+
+
+# ---------- 러너 고정 (DECISIONS §105) ----------
+
+def test_ubuntu_latest_를_잡는다():
+    assert cs.latest_runners("    runs-on: ubuntu-latest\n") == [1]
+
+
+def test_고정한_판은_통과한다():
+    assert cs.latest_runners("    runs-on: ubuntu-24.04\n") == []
+
+
+def test_주석의_latest_는_보지_않는다():
+    assert cs.latest_runners("    runs-on: ubuntu-24.04  # ubuntu-latest 를 쓰던 자리\n") == []
+
+
+def test_워크플로가_지금_러너를_고정했다():
+    assert cs.check_runner() == []

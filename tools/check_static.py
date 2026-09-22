@@ -111,6 +111,24 @@ def check_node20() -> list[str]:
     return fails
 
 
+# ★ **러너 이미지를 고정한다**(DECISIONS §105). `ubuntu-latest` 는 날짜가 되면 저절로
+#   다음 판으로 넘어간다 — 2026-10-19 에 26 으로. 패키지 구성이 바뀌어도 그날까지
+#   초록불이고, 그날 이후 실패는 "이미지가 바뀌었다" 가 아니라 엉뚱한 단계의 오류로
+#   보인다. 올리는 것을 사람이 하는 일로 둔다.
+LATEST = re.compile(r"runs-on:\s*ubuntu-latest\b")
+
+
+def latest_runners(text: str) -> list[int]:
+    return [n for n, line in enumerate(text.split("\n"), 1)
+            if LATEST.search(line.split("#", 1)[0])]
+
+
+def check_runner() -> list[str]:
+    return [f"{p.relative_to(ROOT)}:{n} 러너가 ubuntu-latest 다 — 판을 고정한다"
+            for p in sorted(ROOT.glob(".github/workflows/*.yml"))
+            for n in latest_runners(p.read_text(encoding="utf-8"))]
+
+
 def check_tf() -> list[str]:
     fails = []
     for p in sorted(ROOT.glob("infra/*.tf")):
@@ -135,7 +153,7 @@ def check_workflows() -> tuple[list[str], str | None]:
 
 
 def main() -> int:
-    fails = check_tf() + check_node20()
+    fails = check_tf() + check_node20() + check_runner()
     wf, skip = check_workflows()
     fails += wf
     for f in fails:
@@ -143,7 +161,7 @@ def main() -> int:
     if skip:
         print(f"  건너뜀 : {skip}", file=sys.stderr)
     if not fails:
-        print("  인용 문자열이 ASCII 다 · Node 20 액션 없음" + ("" if skip else " · 워크플로가 YAML 이다"))
+        print("  인용 문자열이 ASCII 다 · Node 20 액션 없음 · 러너 고정" + ("" if skip else " · 워크플로가 YAML 이다"))
     return 1 if fails else 0
 
 

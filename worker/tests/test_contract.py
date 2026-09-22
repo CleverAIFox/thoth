@@ -560,3 +560,29 @@ def test_라우트와_직접_호출이_같은_상태를_낸다(payload):
     via_http = client.post("/translate", json=payload)
     assert direct.status == via_http.status_code
     assert direct.body.get("error") == via_http.json().get("error")
+
+
+# ---------- CORS 가 배포본과 같다 (DECISIONS §105) ----------
+
+def test_팝업의_연결_확인_프리플라이트가_통과한다():
+    # ★ 토큰 헤더가 붙은 GET 도 프리플라이트를 탄다. `POST` 만 열려 있어 로컬에서
+    #   400 이었고 배포본에서는 됐다.
+    r = client.options("/health", headers={
+        "Origin": "chrome-extension://abc",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "x-thoth-token",
+    })
+    assert r.status_code == 200, r.text
+
+
+def test_로컬_CORS_메서드가_Function_URL_과_같다():
+    import pathlib
+    import re
+
+    from app import main
+
+    tf = (pathlib.Path(__file__).resolve().parents[2] / "infra/compute.tf").read_text(encoding="utf-8")
+    m = re.search(r"allow_methods\s*=\s*\[([^\]]*)\]", tf)
+    assert m, "compute.tf 에서 allow_methods 를 못 찾았다 — 모양이 바뀌었으면 이 검사도 고친다"
+    deployed = sorted(re.findall(r'"(\w+)"', m.group(1)))
+    assert sorted(main.CORS_METHODS) == deployed

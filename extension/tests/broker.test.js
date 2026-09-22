@@ -62,6 +62,14 @@ test("성공하면 연속 실패가 끊긴다", need, async () => {
   assert.equal(f({ code: "" }, 0).halt, "", "0 에서 시작하면 멈추지 않는다");
 });
 
+test("확장이 다시 읽히면 워커 탓으로 멈추지 않는다", need, async () => {
+  // ★ 전에는 연속 실패 셋으로 `worker_unreachable` 이 났다. 워커는 멀쩡했다(§105).
+  const f = await actions();
+  const act = f(new Error("Extension context invalidated."), 0);
+  assert.equal(act.halt, "extension_reloaded");
+  assert.equal(act.fatal, false, "자리를 영구히 버리지 않는다 — 새로고침하면 다시 한다");
+});
+
 test("fatal 여부가 그대로 전달된다", need, async () => {
   // 영구 실패면 자리를 버리고, 아니면 남겨 다음 순회에 다시 시도한다.
   const f = await actions();

@@ -219,6 +219,7 @@ function verdict(s) {
   if (r.rec.kind !== s.kind) bad.push("kind");
   if (r.rec.expected !== s.expected) bad.push("expected");
   if (r.boxes !== s.boxes) bad.push("박스");
+  if (r.loading) bad.push(`대기 ${r.loading}`);
   return bad.length
     ? { state: "fail", text: "실패 · " + bad.join(" ") }
     : { state: "pass", text: "통과" };
@@ -236,7 +237,7 @@ function render() {
       v.text,
       short(s.probes),
       r?.rec ? short(r.rec.probes) : "—",
-      r ? `${r.boxes} / ${s.boxes}` : `— / ${s.boxes}`,
+      r ? `${r.boxes} / ${s.boxes}` + (r.loading ? ` · 대기 ${r.loading}` : "") : `— / ${s.boxes}`,
       r?.rec ? `${r.rec.kind} · ${r.rec.expected}` : "—",
       s.want,
     ];
@@ -265,7 +266,7 @@ function show(id) {
   current = id;
   meta.content = s.url;                       // 어댑터가 새 페이지로 본다
   $("app").replaceChildren(s.tpl.content.cloneNode(true));
-  runs.set(id, { rec: null, boxes: 0, at: Date.now() });
+  runs.set(id, { rec: null, boxes: 0, loading: 0, sample: "", at: Date.now() });
   for (const b of $("modes").children) b.setAttribute("aria-pressed", String(b.dataset.mode === id));
   history.replaceState(null, "", "?mode=" + id);
   note("화면", id);
@@ -289,11 +290,23 @@ document.addEventListener("st:obs", (e) => {
 });
 
 // 박스는 DOM 이라 직접 센다. 번역이 늦게 붙으므로 계속 다시 센다.
+//
+// ★ **자리표시자를 번역으로 세지 않는다**(DECISIONS §105). 브로커는 요청을 보내기
+//   전에 `st-translation--loading` 박스를 먼저 꽂는다. 그것까지 세면 **요청이 워커에
+//   닿지 않고 매달려 있어도 통과**다 — 2026-09-22 에 워커 로그에 `POST` 가 0 건인데
+//   여섯 줄이 초록이었다.
+const DONE = ".st-translation:not(.st-translation--loading)";
 setInterval(() => {
   if (!current) return;
-  const n = $("app").querySelectorAll(".st-translation").length;
+  const done = $("app").querySelectorAll(DONE);
+  const loading = $("app").querySelectorAll(".st-translation--loading").length;
   const r = runs.get(current);
-  if (r && r.boxes !== n) { r.boxes = n; render(); }
+  if (!r || (r.boxes === done.length && r.loading === loading)) return;
+  r.boxes = done.length;
+  r.loading = loading;
+  // 무엇이 붙었는지 한 줄. `[KO] ` 면 echo 엔진, 한글이면 실제 엔진이다.
+  r.sample = done[0]?.textContent.trim().slice(0, 48) || "";
+  render();
 }, 500);
 
 /** 한 화면을 보여 주고 관측이 올 때까지 기다린다. 오지 않아도 진행한다 —
@@ -331,9 +344,10 @@ function report() {
     lines.push(`[${v.text}] ${s.id}`);
     lines.push(`  기대 probes ${short(s.probes)} | 박스 ${s.boxes} | kind ${s.kind} · ${s.expected}`);
     lines.push(r?.rec
-      ? `  실측 probes ${short(r.rec.probes)} | 박스 ${r.boxes} | kind ${r.rec.kind} · ${r.rec.expected}`
+      ? `  실측 probes ${short(r.rec.probes)} | 박스 ${r.boxes} 대기 ${r.loading} | kind ${r.rec.kind} · ${r.rec.expected}`
         + ` | blocks ${r.rec.blocks} | units ${r.rec.units} | reason ${r.rec.reason}`
         + (r.rec.error ? ` | error ${r.rec.error}` : "")
+        + (r.sample ? `\n  첫 박스 ${r.sample}` : "")
       : "  실측 없음");
   }
   lines.push("", "# 동작 기록");

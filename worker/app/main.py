@@ -26,8 +26,15 @@ app = FastAPI(title="thoth worker", version=contract.VERSION)
 #
 # ★ 배포본에서는 Function URL 의 cors 설정이 같은 일을 한다. 코드가 아니라
 #   설정이 하는 자리라 이 미들웨어는 로컬 전용이다.
+#
+# ★ **메서드를 배포본과 맞춘다**(DECISIONS §105). 팝업의 `연결 확인` 은 토큰 헤더를
+#   달고 `GET /health` 를 부르고, 커스텀 헤더가 있으면 GET 도 프리플라이트를 탄다.
+#   `POST` 만 열어 두어 로컬에서는 `OPTIONS /health` 가 400 이었고 배포본(`GET` ·
+#   `POST`)에서는 됐다 — §68 이 없애려던 "같은 입력에 두 답" 이 CORS 층에 남아
+#   있었다. `test_contract.py` 가 `infra/compute.tf` 와 대조한다.
+CORS_METHODS = ["POST", "GET"]
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["POST"], allow_headers=["*"]
+    CORSMiddleware, allow_origins=["*"], allow_methods=CORS_METHODS, allow_headers=["*"]
 )
 
 

@@ -154,6 +154,41 @@ test("화면을 다시 누르면 그 줄을 다시 잰다", need, () => {
   }
 });
 
+test("자리표시자는 번역으로 세지 않는다", need, async () => {
+  // ★ 요청이 매달려 있으면 브로커가 꽂은 로딩 박스만 남는다. 그것을 세면 워커에
+  //   한 번도 닿지 않아도 통과다(DECISIONS §105).
+  const { dom, document, rows, press, emit } = open();
+  try {
+    press("renamed-prompt");                      // 박스 4 를 기대한다
+    emit(rec(expectOf(document, "renamed-prompt")));
+    const app = document.getElementById("app");
+    for (let i = 0; i < 4; i++) {
+      const d = document.createElement("div");
+      d.className = "st-translation st-translation--loading";
+      d.textContent = "…";
+      app.append(d);
+    }
+    await new Promise((r) => setTimeout(r, 700));
+    let row = rows().find((c) => c[0].startsWith("renamed-prompt"));
+    assert.match(row[1], /^실패/);
+    assert.match(row[1], /대기 4/);
+    assert.equal(row[4], "0 / 4 · 대기 4");
+
+    // 번역이 도착하면 같은 줄이 통과로 바뀐다.
+    for (const d of app.querySelectorAll(".st-translation--loading")) {
+      d.classList.remove("st-translation--loading");
+      d.textContent = "[KO] 번역";
+    }
+    await new Promise((r) => setTimeout(r, 700));
+    row = rows().find((c) => c[0].startsWith("renamed-prompt"));
+    assert.equal(row[1], "통과");
+    document.getElementById("copy").click();
+    assert.ok(document.getElementById("report").value.includes("첫 박스 [KO] 번역"));
+  } finally {
+    dom.window.close();
+  }
+});
+
 test("워커가 로컬이 아니면 경고로 띄운다", need, () => {
   // ★ 배포본을 때리면 지어낸 문장이 과금되고 쌍으로 쌓인다.
   const { dom, document, press, emit } = open();

@@ -6,7 +6,7 @@ on:
 
 jobs:
   gitleaks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
@@ -20,7 +20,7 @@ jobs:
   #
   # ★ 훅은 --no-verify 로 넘어간다. CI 는 넘어갈 수 없다. 그래서 둘 다 있다.
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
@@ -63,7 +63,7 @@ jobs:
   # 계약을 실제 HTTP 로 때린다. TestClient 는 미들웨어·포트·.env 로딩을
   # 건너뛰므로 pytest 만으로는 서빙 경로가 검증되지 않는다.
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       ENGINE: echo
       CACHE: file

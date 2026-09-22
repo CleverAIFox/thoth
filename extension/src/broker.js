@@ -207,6 +207,14 @@
     if (code === "quota_exceeded" || code === "guard_unavailable") {
       return { fatal, halt: code, streak: 0 };
     }
+    // ★ **확장을 다시 읽으면 열려 있던 탭의 콘텐츠 스크립트가 고아가 된다.**
+    //   `chrome.*` 가 전부 "Extension context invalidated" 를 던지고, 전에는 그것이
+    //   연속 실패로 세어져 `worker_unreachable` 로 멈췄다 — 워커는 멀쩡한데 워커를
+    //   의심하게 만드는 문구였다(DECISIONS §105). 재시도해도 풀리지 않으므로 바로
+    //   멈추고, 원인을 제 이름으로 적는다. 탭을 새로고침하면 새 스크립트가 붙는다.
+    if (/Extension context invalidated/i.test(err?.message || "")) {
+      return { fatal: false, halt: "extension_reloaded", streak: 0 };
+    }
     const next = n + 1;
     // 워커 미기동 · 엔드포인트 오류. 꺼진 워커를 1.5초마다 때릴 이유가 없다.
     return { fatal, halt: next >= MAX_STREAK ? "worker_unreachable" : "", streak: next };

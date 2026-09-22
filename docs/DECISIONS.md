@@ -5731,3 +5731,75 @@ VM271:1 Uncaught ReferenceError: ST is not defined
 **검사를 만들면 그 검사가 아닌 것이 드러난다.** §103 에서는 글꼴 404 가, 여기서는 학습
 데이터 오염과 위임 누락이 나왔다. 둘 다 재려고 만든 것이 아니었다 — **자기 소유의 빈
 페이지에서는 자기 결함만 남는다.**
+
+---
+
+## §105. 여섯 줄이 초록인데 워커에 요청이 0 건이었다
+
+**2026-09-22**
+
+### 증상
+
+`udemy.html?auto=1` 이 여섯 화면 모두 **통과**를 냈다. `before` 5 · `after` 9 ·
+`renamed-prompt` 4 로 박스까지 기대와 같았다. 같은 시각 로컬 워커 로그는 이랬다.
+
+```
+$ grep -c "POST /translate" /tmp/w.log
+0
+INFO:     127.0.0.1:36644 - "OPTIONS /health HTTP/1.1" 400 Bad Request   (× 9)
+```
+
+그 직전 판에는 `renamed-prompt` 가 `0 / 4` 로 실패했고, 확장 오류 화면에 이것이 있었다.
+
+```
+[st] 번역 실패 Extension context invalidated.
+[st] 중단 — worker_unreachable · 새로고침하면 다시 시도한다
+Access to fetch at 'http://127.0.0.1:8000/health' from origin 'chrome-extension://…'
+  has been blocked by CORS policy: Response to preflight request doesn't pass …
+```
+
+### 원인 셋
+
+**1. 픽스처가 자리표시자를 번역으로 셌다.** 브로커는 요청을 보내기 **전에**
+`st-translation st-translation--loading` 박스를 꽂는다(선점). 픽스처는
+`.st-translation` 을 셌으므로, **요청이 워커에 닿지 않고 매달려 있어도 박스 수가 맞았다.**
+§104 에서 "관측만 보면 워커가 죽어도 통과한다" 며 박스를 따로 봤는데, 그 박스가 워커를
+보지 않고 있었다. 검사의 검사(`fixture-page.test.js`)도 완료 박스와 로딩 박스를 가르지
+않았다.
+
+**2. 확장을 다시 읽은 것을 워커 탓으로 돌렸다.** 탭이 열린 채 확장을 새로 읽으면 그 탭의
+콘텐츠 스크립트가 고아가 되고 `chrome.*` 가 전부 "Extension context invalidated" 를
+던진다. `failureAction` 은 그것을 연속 실패로 세어 셋째에 `worker_unreachable` 로 멈췄다.
+**워커는 멀쩡했고 문구가 워커를 가리켰다**(§37 · §70).
+
+**3. 로컬 워커의 CORS 가 배포본과 달랐다.** 팝업의 `연결 확인` 은 토큰 헤더를 단
+`GET /health` 이고, 커스텀 헤더가 있으면 GET 도 프리플라이트를 탄다. Function URL 은
+`POST` · `GET` 을 열었고 로컬 FastAPI 는 `POST` 만 열었다. 그래서 **로컬에서만** `OPTIONS
+/health` 가 400 이었다. §68 이 없애려던 "같은 입력에 두 답" 이 계약이 아니라 CORS 층에
+남아 있었다 — 계약은 한 곳에 모았지만 CORS 는 원래 두 곳에 산다(코드 · 설정).
+
+### 조치
+
+- 픽스처가 **완료 박스만** 센다. 로딩 박스는 `대기 N` 으로 따로 세고 남아 있으면 실패다.
+  보고서에 `첫 박스` 한 줄 — `[KO] ` 면 echo, 한글이면 실제 엔진
+- `failureAction` 이 "Extension context invalidated" 를 `extension_reloaded` 로 바로 멈춘다.
+  자리는 버리지 않는다 — 탭을 새로고침하면 다시 한다
+- 로컬 CORS 를 `POST` · `GET` 으로. 검사가 프리플라이트를 실제로 보내 보고, `compute.tf`
+  의 `allow_methods` 와 대조한다. 옛 설정으로 돌리면 둘 다 실패한다
+- 러너를 `ubuntu-24.04` 로 고정. `ubuntu-latest` 는 2026-10-19 에 26 으로 넘어간다고
+  배포 run 이 경고했다. `check_static` 이 `latest` 로 돌아가는 것을 막는다
+
+### 재지 않은 것
+
+★ **POST 가 왜 0 건이었는지는 아직 모른다.** 원인 1 은 "매달려 있어도 통과" 를 설명할
+뿐, 왜 매달렸는지는 설명하지 않는다. 보고서의 `worker` 는 `127.0.0.1:8000` 이었으므로
+확장은 로컬을 겨눴다. 고친 픽스처를 다시 돌리면 `대기 N` 과 `첫 박스` 가 그것을 가른다.
+
+### 배운 것
+
+**검사를 나눌 때 나눈 쪽이 정말 다른 것을 보는지 확인한다.** 관측과 박스를 둘로 나눈 것은
+맞았지만 박스가 "번역이 붙었다" 가 아니라 "브로커가 자리를 잡았다" 를 세고 있었다. 이름이
+다른 두 계기가 같은 사실을 보고 있으면 둘로 나눈 의미가 없다.
+
+**워커 로그가 픽스처를 이겼다.** 여섯 줄 초록을 반박한 것은 `grep -c` 한 줄이었다.
+**다른 층에서 잰 수 하나가 같은 층의 초록불 여섯보다 무겁다**(§96).

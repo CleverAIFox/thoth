@@ -205,6 +205,11 @@ pydantic 이 들어가고 콜드스타트가 1초 넘게 붙는다. 첫 문항 5
 ★ **잘못된 본문은 400 이다.** `smoke.sh` 가 빈 배열 · `texts` 누락 · 문자열
 아님 셋을 실제 HTTP 로 확인한다.
 
+★ **CORS 메서드도 두 경로가 같다**(`POST` · `GET`). 로컬은 FastAPI 미들웨어, 배포본은
+Function URL 설정이 붙이는데 한동안 로컬만 `POST` 였다. 팝업의 `연결 확인` 은 토큰
+헤더를 단 `GET /health` 라 프리플라이트를 타고, 로컬에서만 400 이었다. 검사가
+`infra/compute.tf` 와 대조한다(DECISIONS §105).
+
 ★ **본문 검증을 pydantic 에 맡기지 않는다.** 맡기면 잘못된 본문이 로컬에서는
 422, 배포본에서는 다른 코드가 되어 **같은 입력에 두 답**이 나온다. `validate`
 하나가 모양과 내용을 함께 본다. 잘못된 본문은 어느 경로에서나 400 이다.
@@ -859,7 +864,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->288건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->294건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1069,6 +1074,10 @@ ENGINE=echo bash tools/run_worker.sh > /tmp/w.log 2>&1 &
 
 ★ **관측과 박스를 따로 본다.** 관측만 보면 워커가 죽어도 통과하고, 박스만 보면 왜
 안 붙었는지 모른다.
+
+★ **박스는 번역이 도착한 것만 센다.** 브로커는 요청 전에 `st-translation--loading`
+자리표시자를 먼저 꽂는다. 그것은 `대기 N` 으로 따로 세고 남아 있으면 실패다. 보고서의
+`첫 박스` 줄이 `[KO] ` 면 echo, 한글이면 실제 엔진이다(DECISIONS §105).
 
 ★ **채점 로직도 검사가 본다**(`fixture-page.test.js`). 페이지 스크립트는 페이지
 세계에서 돌아 확장 검사가 닿지 않는 자리였다 — 거기가 틀리면 **픽스처가 틀린 초록불을
@@ -1478,6 +1487,10 @@ gh api -X POST repos/CleverAIFox/thoth/actions/runs/$RUN/pending_deployments \
 ★ **IAM 변경은 CI 에서 멈춘다.** 배포 역할에 IAM 쓰기가 없다. `AccessDenied` 가
 나면 그 변경은 손으로 `apply` 하라는 뜻이다 — **결함이 아니라 경계다**
 (DECISIONS §89).
+
+★ **러너는 `ubuntu-24.04` 로 고정한다.** `ubuntu-latest` 는 2026-10-19 에 26 으로
+저절로 넘어간다. 올리는 것은 사람이 하고 `check_static` 이 `latest` 로 돌아가는 것을
+막는다(DECISIONS §105).
 
 ★ 필요한 시크릿 셋 — `AWS_DEPLOY_ROLE_ARN` · `AWS_STATE_BUCKET` ·
 `WORKER_TOKEN`. 앞의 둘은 `tf.sh output` 과 `infra/backend.hcl` 에 있다.
