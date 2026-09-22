@@ -6,6 +6,11 @@
 AWS Certified Data Engineer(DEA-C01) 문제를 풀면서 직접 쓰려고 만들었다.
 이름은 문자와 언어의 신 토트에서 왔다.
 
+**껍데기로서 완성됐다.** 확장 · 워커 · 배포 · 쌍 로그가 돌고, 번역 엔진은 갈아끼우는 자리
+(`ENGINE=http`)가 열려 있다. 자체 번역 모델은 비공개 저장소 `seshat` 에서 사전학습 모델을
+좁혀 만든다 — 토트(문자의 신)의 짝인 기록의 여신 세샤트에서 따온 이름이다. 기획서는
+[웹에서 볼 수 있다](https://cleveraifox.github.io/thoth/proposal.html).
+
 **돌고 있다.** Lambda 에 올라가 있고 Udemy 실사이트에서 확인했다 — 문항 하나가
 **5.3초**(로컬 엔진은 80.7초), 45유닛 골든셋에서 위반 4유닛(용어 2 · 고유명사 1 · 어미 1),
 환각·문체 위반 0건이다. 고유명사는 대체로 영어로 남되 `Data Catalog` 하나가
@@ -24,6 +29,8 @@ flowchart LR
   end
   E --- DB[("DynamoDB<br/>번역 · 사용량")]
   H --> BR["Bedrock<br/>Nova Lite"]
+  H -.->|"ENGINE=http"| SS["자체 모델<br/>seshat"]
+  H -.->|"쌍 로그"| FH[("Firehose → S3<br/>Parquet · 학습 전용")]
   C -.->|번역 삽입| A
 ```
 
@@ -191,6 +198,18 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 한 곳에 있고 엔진은 "한 프롬프트를 처리하는 함수" 만 다르다. 그래서 골든셋
 결과가 같은 기준으로 비교된다.
 
+**자체 모델은 `http` 로 끼운다.** 서버가 `POST /translate` 에 원문 배열을 받아 같은
+길이의 번역 배열을 돌려주고 `GET /health` 에 모델명을 말하면 된다. 프롬프트는 보내지
+않고 용어집만 `terms` 로 싣는다. 끼우기 전에 계약을 잰다.
+
+```bash
+python3 tools/engine_conformance.py https://<서버> --model <이름>
+```
+
+통과하면 `infra/terraform.tfvars` 의 `engine = "http"` 와 `http_url` · `http_model` 로
+`apply` 한다. 확장도 워커 계약도 바뀌지 않고, 되돌리는 것은 `engine = "bedrock"` 한
+줄이다(`docs/MASTER.md` §7-4).
+
 `invoke_model` 이 아니라 Converse API 를 쓴다. 요청 본문 스키마가 모델마다
 달라서, `invoke_model` 로 붙이면 모델을 바꿀 때 호출 코드를 다시 쓰게 된다.
 
@@ -221,8 +240,11 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 - **프롬프트 오버헤드가 원문의 6.9배다.** 배치 3 에서 요청마다 프롬프트 머리
   1,149자가 다시 실린다. 배치 9 로 키우면 입력 토큰이 38% 주는데 **출력 토큰은
   2% 밖에 안 줄고 위반이 판마다 갈린다.** 그래서 3 에 둔다(DECISIONS §80)
-- 분석 경로(Firehose · Athena)는 아직 없다. **캐시 히트율을 실사용에서 재지
-  못한다**
+- **후처리는 땜질에서 멈췄다.** 해요체를 합쇼체로 바꾸는 규칙이 불규칙 활용에서
+  틀린다 — 어미 코퍼스 2,472줄 중 214줄(`도웁니까` · `걸습니까`). 문체는 자체 모델이
+  배울 몫이라 규칙을 더 키우지 않는다(DECISIONS §108)
+- 쌍 로그는 쌓이지만 이 저장소는 그것을 집계하지 않는다. 읽는 것은 `seshat` 이다
+- Udemy 어댑터는 퀴즈 화면만 번역한다. 강의 소개 · 시작 화면은 의도적으로 뺐다
 - UI 는 동작 수준이다. 한국어 길이 팽창은 실사이트 몇 곳에서만 봤다
 - **워커는 각자 띄운다.** 기본 엔드포인트가 `127.0.0.1:8000` 이고 그것이 의도다
   (DECISIONS §84). 배포본을 쓰려면 팝업 고급에 URL 과 토큰을 넣는다
@@ -235,7 +257,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->386건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->389건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |
@@ -243,9 +265,13 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 | 자동화 | 태그를 밀면 배포된다. 배포본 드리프트를 CI 가 본다 |
 | UI | 사이트에서 테마와 색을 재어 맞춘다. Pretendard 를 싣는다 |
 | 엔진 | `bedrock` · Nova Lite. **로컬(ollama)은 내렸다** — 속도 때문이다 |
-| 공개 | 저장소는 공개다. 크롬 웹스토어는 아직 |
+| 엔진 슬롯 | `ENGINE=http`. 계약 · 전검사 · 적합성 검사가 있고 끼울 모델을 기다린다 |
+| 쌍 로그 | 원문 · 모델 출력 · 후처리 결과가 S3 Parquet 로 쌓인다. **학습 전용이고 공개하지 않는다** |
+| 문서 | 규약마다 강제자가 있다(`docs/MASTER.md` §0). 기획서는 docx 정본 + Pages 뷰어 |
+| 공개 | 저장소는 공개다. 크롬 웹스토어는 자체 모델을 끼운 뒤에 낸다 |
 
-다음에 할 일은 `docs/PLAN.md` §0 에 한 줄로 적혀 있다.
+**이 저장소에서 남은 일은 모델을 끼우는 것(PLAN #59)과 그 뒤에 열리는 행들이다.** 전부
+막고 있는 것이 이 저장소 밖에 있다(`docs/PLAN.md` §1).
 
 ---
 
@@ -260,5 +286,5 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 | [`infra/`](infra) | Terraform. Lambda · Function URL · DynamoDB · IAM |
 | [`docs/bench/baseline.json`](docs/bench/baseline.json) | 엔진별 기준선. 비교의 정본 |
 
-**새 세션은 `PLAN` §0 부터 읽는다.** 다음 한 수가 거기 한 줄로 있고, 그것이
-왜 다음인지도 함께 적혀 있다.
+**새 세션은 `PLAN` §0 부터 읽는다.** 지금 그 자리는 "다음 수는 `seshat` 에 있다" 를
+가리킨다.

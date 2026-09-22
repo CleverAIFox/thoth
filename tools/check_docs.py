@@ -218,9 +218,13 @@ def check_plan(text: str, fails: list) -> None:
     #   서술로 보고 뺐다. 그 틈으로 해결된 경위가 102줄 쌓였다. 닫힌 행의 행선지는
     #   DECISIONS 가 적는다 — PLAN 은 그것을 가리키지 않는다.
     for ln, line in body_lines(text):
-        for tok in PLAN_REF.findall(line):
-            if int(tok) not in known:
-                fails.append(f"PLAN.md:{ln} 가 없는 #{tok} 을 가리킨다")
+        for m in PLAN_REF.finditer(line):
+            head = line[:m.start()].rstrip()
+            head = head[:-4].rstrip() if head.endswith("PLAN") else head
+            if _foreign(head, len(head)):
+                continue                # `seshat PLAN #2` 는 남의 행이다
+            if int(m.group(1)) not in known:
+                fails.append(f"PLAN.md:{ln} 가 없는 #{m.group(1)} 을 가리킨다")
 
 
 def _targets(root: Path) -> list[Path]:
@@ -261,6 +265,10 @@ def check_refs(root: Path, fails: list) -> None:
         try:
             text = p.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
+            continue
+        # ★ **다른 저장소에서 복사해 온 파일은 그 저장소의 참조를 든다.** 머리 세 줄에
+        #   `사본이다` 를 적은 파일은 보지 않는다 — 고치면 사본이 원본과 갈린다.
+        if "사본이다" in "\n".join(text.splitlines()[:3]):
             continue
         rel = p.relative_to(root)
         for n, line in enumerate(text.splitlines(), 1):

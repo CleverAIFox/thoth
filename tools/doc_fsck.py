@@ -109,8 +109,9 @@ def check_tools(root: Path, fails: list) -> None:
 
 
 def _canary() -> None:
-    got = _paths("`tools/a.py` · `worker/tests/t.py::test_b` · `tools/*.py` · `tools/<이름>.sh` · `x/y.py`")
-    if got != [("tools/a.py", None), ("worker/tests/t.py", "test_b")]:
+    a, b = TOP[0], TOP[1]
+    got = _paths(f"`{a}/a.py` · `{b}/tests/t.py::test_b` · `{a}/*.py` · `{a}/<이름>.sh` · `x/y.py`")
+    if got != [(f"{a}/a.py", None), (f"{b}/tests/t.py", "test_b")]:
         print(f"    ★ 카나리아가 죽었다 — PATH 가 {got} 를 찾았다")
         sys.exit(2)
 

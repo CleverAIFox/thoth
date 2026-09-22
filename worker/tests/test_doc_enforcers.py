@@ -10,7 +10,8 @@ import subprocess
 
 import pytest
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+# ★ 저장소 뿌리를 위치로 찾지 않는다. 이 파일은 seshat 에 사본으로 가고 거기서는 깊이가 다르다.
+ROOT = next(p for p in pathlib.Path(__file__).resolve().parents if (p / "tools/check_docs.py").exists())
 
 
 def _load(name):
@@ -77,6 +78,7 @@ def test_깨끗한_PLAN_은_통과한다():
     (("| 7 | ⏳ | 나 | #3 |", "| 7 | ⏳ | 나 | |"), "막고 있는 것이 비었다"),
     (("| 7 | ⏳ | 나 | #3 |", "| 7 | ⏳ | 나 | #4 |"), "전건 #4"),
     (("#7 을 본다.", "#9 을 본다."), "없는 #9"),
+    (("#7 을 본다.", "#7 과 파이어레인 PLAN #9 · 하토르 #8 을 본다. #9"), "없는 #9"),
     (("없다.", "| 9 | 📄 | 다 | |"), "§1 밖"),
     (("## 1. 남은 일 — 2행", "## 1. 남은 일"), "제목이 없다"),
 ])
@@ -84,6 +86,12 @@ def test_PLAN_규칙마다_걸린다(change, want):
     bad = PLAN.replace(*change)
     assert bad != PLAN, "치환이 먹지 않았다 — 검사의 검사가 빈손이다"
     assert any(want in f for f in plan_fails(bad)), plan_fails(bad)
+
+
+def test_남의_저장소_행은_보지_않는다():
+    # ★ 예시 이름은 파이어레인 · 하토르다. 이 파일은 seshat 에 사본으로 가고, 거기서
+    #   `seshat` 은 자기 이름이다.
+    assert plan_fails(PLAN.replace("#7 을 본다.", "파이어레인 PLAN #9 · 하토르 #8 을 본다.")) == []
 
 
 def test_결번은_정상이다():
@@ -117,16 +125,18 @@ def _dec(n, body):
     return f"## §{n}. 제목\n\n**2026-09-22**\n\n{body}\n\n### 배운 것\n\n무엇.\n"
 
 
-def test_강제자는_108_부터_요구한다():
-    old = "".join(_dec(i, "본문") for i in range(1, 108))
+def test_강제자는_정한_절부터_요구한다():
+    n = cd.ENFORCER_FROM
+    old = "".join(_dec(i, "본문") for i in range(1, n))
+    if old:
+        f = []
+        cd.check_decisions(old, f)
+        assert f == [], "옛 절에 소급하면 안 된다"
     f = []
-    cd.check_decisions(old, f)
-    assert f == [], "옛 절에 소급하면 안 된다"
+    cd.check_decisions(old + _dec(n, "본문"), f)
+    assert any(f"§{n}" in x and "강제자" in x for x in f)
     f = []
-    cd.check_decisions(old + _dec(108, "본문"), f)
-    assert any("§108" in x and "강제자" in x for x in f)
-    f = []
-    cd.check_decisions(old + _dec(108, "강제자 없음 — 설계 판단이다"), f)
+    cd.check_decisions(old + _dec(n, "강제자 없음 — 설계 판단이다"), f)
     assert f == []
 
 
@@ -157,7 +167,7 @@ def _tree(tmp_path, plan=PLAN, master="# m\n\n## 1. a\n\n### 1-1. b\n", dec=None
     ("PLAN §2", False),
     ("PLAN §9", True),
     ("(파이어레인 DECISIONS §205)", False),  # 남의 저장소
-    ("(seshat PLAN #2)", False),
+    ("(하토르 PLAN #2)", False),       # 이 사본이 어느 저장소에 있든 남의 것인 이름
 ])
 def test_참조가_실재해야_한다(tmp_path, line, bad):
     f = []
@@ -187,3 +197,15 @@ def test_어디서도_안_불리는_도구가_걸린다(tmp_path):
     f = []
     fsck.check_tools(tmp_path, f)
     assert f == ["tools/dead.py 가 어디서도 불리지 않는다 — README 에 적거나 지운다"]
+
+
+def test_사본은_원본의_참조를_들어도_된다(tmp_path):
+    # ★ 다른 저장소에서 복사한 파일을 고치면 원본과 갈린다. 머리에 `사본이다` 가 있으면 뺀다.
+    root = _tree(tmp_path)
+    (root / "tools").mkdir()
+    (root / "tools/copy.py").write_text("# ★ 저쪽의 사본이다.\n# (DECISIONS §999)\n", encoding="utf-8")
+    (root / "tools/mine.py").write_text("# (DECISIONS §999)\n", encoding="utf-8")
+    f = []
+    cd.check_refs(root, f)
+    assert [x for x in f if "copy.py" in x] == []
+    assert any("mine.py" in x for x in f)

@@ -209,6 +209,10 @@ pydantic 이 들어간다. 계약을 떼는 쪽이 중복도 0 이고 배포 패
 `ST.genericCollect(root, {skip})` 로 Layer 0 에 위임한다. 이 규칙을 어기면
 상위 계층이 걸린 페이지에서 본문이 통째로 빠진다(DECISIONS §11).
 
+★ **`udemy` 는 이 규칙의 선언된 예외다**(DECISIONS §113). Udemy 에서 이기고
+`.quiz-page-content` 안만 모은다. 강의 소개 · 시작 화면 · 결과 요약 · UI 문구는 번역하지
+않는다 — 제품은 문제 번역이다. 픽스처의 `landing` · `start` 박스 0 이 그 의도를 적는다.
+
 ★ **`match` 는 능력의 선언이다.** "이 페이지에 아는 것이 있는가" 가 아니라
 "하위 계층보다 낫게 다룰 수 있는가" 를 물어야 한다. 전자로 적으면 관심만 있고
 능력은 없는 경우에 이겨 버린다 — `standard` 의 `match` 가 네이티브 라디오를
@@ -1068,7 +1072,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->386건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->389건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1274,7 +1278,7 @@ ENGINE=echo bash tools/run_worker.sh > /tmp/w.log 2>&1 &
 | `start` | scope 1 · prompt 0 — **문제가 없는 것이 정상** | 0 |
 | `renamed-scope` | 전부 0 · blocks 는 남는다 — **깨짐** | 0 |
 | `renamed-prompt` | prompt 0 · answer_before 4 — **문제만 빠진다** | 4 |
-| `landing` | kind `other` · expected false | 0 (PLAN #56) |
+| `landing` | kind `other` · expected false | 0 — 퀴즈 밖은 번역 대상이 아니다(DECISIONS §113) |
 
 ★ **관측과 박스를 따로 본다.** 관측만 보면 워커가 죽어도 통과하고, 박스만 보면 왜
 안 붙었는지 모른다.
