@@ -1422,8 +1422,11 @@ python3 tools/sweep.py --fix          # 근거가 확실한 것만 지운다
 
 ### 11-8. 모델 관리
 
-벤치에서 진 모델은 즉시 지운다. 필요하면 다시 받는다. `doctor.sh` 가
-`.env` 의 `OLLAMA_MODEL` 에 적힌 것 외의 모델을 FAIL 로 보고한다.
+벤치에서 진 모델은 즉시 지운다. 필요하면 다시 받는다. `doctor.sh` 가 `.env` 의 `OLLAMA_MODEL` ·
+`OLLAMA_KEEP_ALSO` 에 적힌 것 외의 모델을 WARN 으로 보고한다.
+
+★ **ollama 는 기계 하나에 하나다**(DECISIONS §121). seshat 이 같은 ollama 에 `translategemma:4b` 를 받는다.
+이웃의 모델은 `OLLAMA_KEEP_ALSO` 에 적는다 — 적지 않으면 doctor 가 지우라고 안내한다.
 
 ★ 모델을 `/mnt/f` 에 두지 않는다. DrvFs 라 2.4GB 로딩에 2분이 걸린다
 (DECISIONS §3).

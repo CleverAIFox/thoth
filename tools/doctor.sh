@@ -220,10 +220,14 @@ echo "== 모델 위생 =="
 # ★ `ollama list` 는 서버에 묻는다. 서버가 없으면 **못 잰 것이지 깨끗한 것이
 #   아니다.** 미채택 모델은 디스크를 먹지 저장소를 틀리게 하지 않으므로 WARN 이다.
 if command -v ollama >/dev/null 2>&1 && ollama list >/dev/null 2>&1; then
-  KEEP="${OLLAMA_MODEL:-}"
-  EXTRA_M="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v "^${KEEP}$" | tr '\n' ' ')"
-  [ -z "$EXTRA_M" ] && ok "채택 모델만 남아 있음 ($KEEP)" \
-                    || warn "미채택 모델: $EXTRA_M (ollama rm 으로 정리)"
+  # ★ **ollama 는 기계 하나에 하나다.** 이웃 저장소(seshat)의 모델도 같은 목록에 뜬다. 남의 것을 "미채택" 으로
+  #   세면 지우라고 안내하게 된다 — 내 것이 아닌 것을 치우는 것은 위생이 아니다(DECISIONS §42 · §121).
+  #   이웃의 모델은 `.env` 의 `OLLAMA_KEEP_ALSO`(공백으로 나눈다)에 적는다. 기계마다 다른 값이라 `.env` 다.
+  KEEP="${OLLAMA_MODEL:-} ${OLLAMA_KEEP_ALSO:-}"
+  EXTRA_M="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | while read -r m; do
+      case " $KEEP " in *" $m "*) ;; *) printf '%s ' "$m" ;; esac; done)"
+  [ -z "$EXTRA_M" ] && ok "채택 모델만 남아 있음 (${KEEP% })" \
+                    || warn "미채택 모델: $EXTRA_M (ollama rm 으로 정리 · 이웃의 것이면 .env 의 OLLAMA_KEEP_ALSO 에 적는다)"
 else
   skip "ollama 에 묻지 못해 미채택 모델을 재지 못했다"
 fi
