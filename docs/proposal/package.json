@@ -1,0 +1,7 @@
+{
+  "name": "thoth-proposal",
+  "private": true,
+  "description": "기획서 생성기 (DECISIONS §116). docs/proposal.docx 를 만든다",
+  "scripts": { "build": "node build.js" },
+  "dependencies": { "docx": "9.6.1" }
+}

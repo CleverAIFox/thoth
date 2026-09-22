@@ -16,3 +16,5 @@ dist/
 node_modules/
 
 infra/backend.hcl
+# 기획서 생성기의 중간 산출물(DECISIONS §116). docx 만 커밋한다
+docs/proposal/.build/

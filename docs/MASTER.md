@@ -95,18 +95,36 @@ PLAN 머리의 「이 문서의 규약」 표가 정본이다 — §1 표 하나
 
 ### 0-7. 기획서
 
-**`docs/proposal.docx` 가 네 번째 문서다.** 밖에 내는 제출본이고 시제 규칙 밖이다. 정본은
-docx 자체이고 워드로 고친다 — 문서 뷰어의 품질이 마크다운 변환보다 높고 제출본과 화면이
-갈리지 않는다. GitHub Pages 가 변환 없이 그린다(`site/proposal.html` ·
-`.github/workflows/proposal.yml`).
+**`docs/proposal.docx` 가 네 번째 문서다.** 밖에 내는 제출본이고 시제 규칙 밖이다. 문서 뷰어의 품질이
+마크다운 변환보다 높아 docx 로 두고, GitHub Pages 가 변환 없이 그린다(`site/proposal.html` ·
+`.github/workflows/proposal.yml`). **docx 는 손으로 고치지 않는다** — 생성기 `docs/proposal/` 가
+만든다(DECISIONS §116).
+
+```bash
+cd docs/proposal && npm install                       # 처음 한 번 (docx)
+uv run --with matplotlib --with numpy --with pillow python figures/charts.py
+uv run --with matplotlib --with pillow python figures/diagrams.py
+uv run --with playwright --with pillow python figures/shots.py   # 화면이 바뀌었을 때
+node build.js                                         # → docs/proposal.docx
+```
 
 | 항목 | 규칙 |
 |---|---|
-| 숫자 | 기획서의 숫자는 산출물이 정본이다. 어긋나면 산출물이 옳다 |
+| 범위 | **thoth 와 seshat 의 통합본이다**(DECISIONS §116). 두 저장소가 계약 하나로 한 제품이라 기획서도 하나다 |
+| 구성 | Part I 제안서 · Part II 요구사항 분석서 · Part III 상세 설계서. 뼈대가 빠지면 `STRUCTURE` 가 잡는다 |
+| 본문 숫자 | 산출물이 정본이다. 어긋나면 산출물이 옳다 — `PRESENT` 가 본다 |
+| 그림 숫자 | 그림마다 숫자의 출처를 **사실로 선언**하고 대체 텍스트에 싣는다. 차트는 산출물에서 직접 읽는다. `FIGURES` 가 선언을 산출물과 다시 대조한다 |
 | 옛 값 | 값이 바뀌면 옛 값을 `RETIRED` 로 옮긴다. 있는지와 없는지를 둘 다 본다 |
-| 갱신 | 고치면 12장 갱신 이력에 판을 올린다 |
+| seshat | 비공개지만 **계획과 설계는 이 공개 기획서에 실린다.** 데이터 · 가중치 · 평가 표본 · 실행 결과는 싣지 않는다. seshat 의 수는 이 저장소에서 대조하지 못하므로 `external` 로 선언하고 센다 |
+| 갱신 | 고치면 마지막 장(15장 갱신 이력)에 판을 올린다 |
 
-강제자 — `tools/docx_check.py::check` · `worker/tests/test_docx_check.py`
+★ **그림 사실의 문법**은 `docs/proposal/figures/figlib.py` 머리에 있다 — `json:` · `file:` · `len:` ·
+`decisions:` · `none` · `external:`. 선언이 없는 그림은 생성기가 만들지 않는다.
+
+★ **남는 틈** — 그림에 그렸으나 선언하지 않은 숫자는 여전히 밖이다. 차트는 수를 산출물에서 읽어
+그리고 같은 수를 선언하므로 이 틈이 없고, 도식은 손으로 선언한다.
+
+강제자 — `tools/docx_check.py::check` · `tools/docx_check.py::check_figures` · `worker/tests/test_docx_check.py`
 
 ### 0-8. 검사의 검사
 
@@ -121,6 +139,9 @@ docx 자체이고 워드로 고친다 — 문서 뷰어의 품질이 마크다�
 
 영어로 된 학습 사이트의 문항·본문을 **사용자 브라우저에 이미 렌더된 상태에서
 읽어** 한글 번역을 겹쳐 보여주는 크롬 확장과, 번역을 수행하는 백엔드다.
+
+프로젝트는 2026-07-18 에 선행 저장소로 시작했다 — 문항을 긁어 AWS Translate 로 전량 번역하는
+구조였고 폐기했다(DECISIONS §1 · §5 · §7 이 그것을 인용한다). 이 저장소의 기록은 2026-09-12 부터다.
 
 이름은 문자·언어·중재의 신 토트에서 왔다. 그리스에서 헤르메스와 동일시되었고,
 `hermēneus`(통역자)가 그 계통의 말이다.
@@ -777,7 +798,7 @@ bash tools/tf.sh plan -out /tmp/thoth.tfplan && bash tools/tf.sh apply /tmp/thot
 ## 8. 용어집
 
 `worker/app/glossary/*.json` 이 도메인별 용어 매핑을 담는다. 현재 `aws.json`
-35개.
+37개.
 
 **어느 용어집을 쓸지 코드가 판단하지 않는다.** 모든 용어집을 훑어 원문에 실제로
 나타난 용어가 가장 많은 것을 고른다. 2개 미만이면 도메인으로 보지 않는다.
@@ -1072,7 +1093,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->392건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->397건을 함께 돌린다.
 
 **등급이 셋이다.**
 

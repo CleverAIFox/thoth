@@ -8,7 +8,8 @@ AWS Certified Data Engineer(DEA-C01) 문제를 풀면서 직접 쓰려고 만들
 
 **껍데기로서 완성됐다.** 확장 · 워커 · 배포 · 쌍 로그가 돌고, 번역 엔진은 갈아끼우는 자리
 (`ENGINE=http`)가 열려 있다. 자체 번역 모델은 비공개 저장소 `seshat` 에서 사전학습 모델을
-좁혀 만든다 — 토트(문자의 신)의 짝인 기록의 여신 세샤트에서 따온 이름이다. 기획서는
+좁혀 만든다 — 토트(문자의 신)의 짝인 기록의 여신 세샤트에서 따온 이름이다. 두 저장소를 한
+제품으로 적은 **통합 기획서**(제안서 · 요구사항 분석서 · 상세 설계서, 40쪽)를
 [웹에서 볼 수 있다](https://cleveraifox.github.io/thoth/proposal.html).
 
 **돌고 있다.** Lambda 에 올라가 있고 Udemy 실사이트에서 확인했다 — 문항 하나가
@@ -257,7 +258,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->392건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->88건 · 워커 <!--count:worker_tests-->397건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |
@@ -282,7 +283,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 | [`docs/PLAN.md`](docs/PLAN.md) | 남은 일 · 미결정 · 범위 밖 |
 | [`docs/MASTER.md`](docs/MASTER.md) | 계약 · 운영 · 비용 |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 왜 그렇게 됐나 |
-| [`docs/proposal.docx`](docs/proposal.docx) | 기획서 — 대외 제출용. [웹에서 보기](https://cleveraifox.github.io/thoth/proposal.html) |
+| [`docs/proposal.docx`](docs/proposal.docx) | thoth · seshat 통합 기획서 — 대외 제출용. [웹에서 보기](https://cleveraifox.github.io/thoth/proposal.html) |
 | [`infra/`](infra) | Terraform. Lambda · Function URL · DynamoDB · IAM |
 | [`docs/bench/baseline.json`](docs/bench/baseline.json) | 엔진별 기준선. 비교의 정본 |
 
