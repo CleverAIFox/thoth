@@ -108,9 +108,19 @@ else
 
 echo "== 셸 오염 (D-0066) =="
 # 프로젝트 설정을 셸에 export 하면 .env 가 조용히 무시된다.
-POL="$(grep -cE '^\s*export\s+(AWS_PROFILE|ENGINE|CACHE|OLLAMA_|MAX_CHARS|TERMINOLOGY)' ~/.bashrc 2>/dev/null || true)"
+# ★ **목록을 손으로 안 적는다**(DECISIONS §123). 손으로 적은 목록은 `.env.example` 과 어긋난다 —
+#   옛 목록은 접두사 다섯(`OLLAMA_` · `CACHE` · …)이라 `.env` 가 갖지도 않는 `OLLAMA_MODELS`(ollama
+#   **서버**의 설정이다)를 막으면서, 정작 `WORKER_TOKEN` · `EXT_TOKEN` · `BEDROCK_*` 는 안 막았다.
+#   **지킬 것은 `.env` 가 소유한 키**이므로 그 파일에서 뽑는다. 키에 `=` 를 붙여 접두사 우연을 없앤다.
+ENV_KEYS="$(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example 2>/dev/null | paste -sd'|' -)"
 # shellcheck disable=SC2088  # 경로가 아니라 사람이 읽는 문구다. 확장할 이유가 없다
-[ "$POL" = "0" ] && ok "~/.bashrc 에 프로젝트 변수 없음" || no "~/.bashrc 에 프로젝트 변수 ${POL}건"
+if [ -z "$ENV_KEYS" ]; then
+  no ".env.example 에서 키를 못 읽었다 — 셸 오염을 못 잰다(0건이 아니다)"
+else
+  POL="$(grep -cE "^[[:space:]]*export[[:space:]]+($ENV_KEYS)=" ~/.bashrc 2>/dev/null || true)"
+  [ "$POL" = "0" ] && ok "~/.bashrc 에 프로젝트 변수 없음 (.env.example 의 키 $(printf '%s\n' "$ENV_KEYS" | tr '|' '\n' | grep -c .)개를 본다)" \
+                   || no "~/.bashrc 에 프로젝트 변수 ${POL}건"
+fi
 
 echo "== 훅 =="
 [ -z "$(git config --local --get core.hooksPath)" ] \
