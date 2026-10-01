@@ -160,3 +160,19 @@ test("standard 가 라디오 없는 문서에서는 match 하지 않는다", nee
   const std = ST.adapters.find((a) => a.name === "standard");
   assert.ok(!std.match(makeDoc("<p>본문만 있는 문서다.</p>")));
 });
+
+test("udemy 가 udemy.com 으로 끝나는 남의 도메인에 붙지 않는다", need, async () => {
+  // ★ 2026-10-02. `hostname.endsWith("udemy.com")` 이었다 — `freeudemy.com` 이
+  //   통과했다. 강의 유출 사이트가 실제로 쓰는 작명이라 가상의 공격이 아니다.
+  //   CodeQL 이 잡아준 것이지만 운은 강제자가 아니다. 이 검사가 강제자다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic", "udemy"]);
+  const ud = ST.adapters.find((a) => a.name === "udemy");
+  const doc = makeDoc("<div></div>");
+  const 봤다 = (url) => { ST.pageUrl = () => url; return ud.match(doc); };
+
+  assert.ok(봤다("https://www.udemy.com/course/x/"), "진짜 Udemy 는 붙는다");
+  assert.ok(봤다("https://udemy.com/course/x/"), "서브도메인 없이도 붙는다");
+  assert.ok(!봤다("https://freeudemy.com/course/x/"), "앞에 이어 붙인 도메인은 남이다");
+  assert.ok(!봤다("https://udemy.com.evil.net/x"), "뒤에 이어 붙인 도메인은 남이다");
+});

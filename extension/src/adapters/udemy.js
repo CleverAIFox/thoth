@@ -6,7 +6,7 @@ if (!globalThis.ST.adapters.some((a) => a.name === "udemy"))
 globalThis.ST.adapters.push({
   name: "udemy",
   priority: 10,
-  match: () => new URL(globalThis.ST.pageUrl()).hostname.endsWith("udemy.com"),
+  match: () => /(^|\.)udemy\.com$/.test(new URL(globalThis.ST.pageUrl()).hostname),
 
   // ★ **셀렉터를 한 자리에 둔다.** `collect` 와 `observe` 가 같은 문자열을 따로
   //   들면 한쪽만 고쳐졌을 때 관측이 **고친 뒤의 DOM 을 옛 셀렉터로** 재게 된다.
