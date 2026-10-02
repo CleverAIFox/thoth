@@ -101,9 +101,34 @@ test("빈 엔드포인트는 기본값으로 되돌린다는 뜻이다", () => {
 });
 
 test("앞뒤 공백은 떼어 낸다", () => {
-  const r = normalizeSettings({ endpoint: "  http://a.test/translate  ", token: "  t  " });
-  assert.equal(r.value.stEndpoint, "http://a.test/translate");
+  // ★ 되돌이 주소를 쓴다. 남의 호스트에 `http://` 는 아래 검사가 거절한다.
+  const r = normalizeSettings({ endpoint: "  http://127.0.0.1:8000/translate  ", token: "  t  " });
+  assert.equal(r.value.stEndpoint, "http://127.0.0.1:8000/translate");
   assert.equal(r.value.stToken, "t");
+});
+
+// ★ 남의 호스트에 평문이면 토큰이 중간에서 읽힌다(DECISIONS §125).
+
+test("남의 호스트에 http 면 거절한다", () => {
+  assert.ok(normalizeSettings({ endpoint: "http://a.test/translate", token: "t" }).error);
+});
+
+test("남의 호스트에 https 면 통과한다", () => {
+  const r = normalizeSettings({ endpoint: "https://a.test/translate", token: "t" });
+  assert.equal(r.value.stEndpoint, "https://a.test/translate");
+});
+
+test("되돌이 주소 셋은 http 로도 통과한다", () => {
+  for (const ep of ["http://127.0.0.1:8000/translate",
+                    "http://localhost:8000/translate",
+                    "http://[::1]:8000/translate"]) {
+    assert.ok(normalizeSettings({ endpoint: ep }).value, ep);
+  }
+});
+
+test("사용자 정보로 눈속임한 주소는 거절한다", () => {
+  // ★ 문자열로 자르면 `127.0.0.1` 이 보여 통과한다. 호스트는 URL 이 정한다.
+  assert.ok(normalizeSettings({ endpoint: "http://127.0.0.1@evil.test/translate" }).error);
 });
 
 // ---------- /health 주소 ----------

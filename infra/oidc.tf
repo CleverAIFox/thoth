@@ -78,13 +78,29 @@ data "aws_iam_policy_document" "ci_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # ★ **저장소를 못 박는다.** `repo:*` 로 두면 GitHub 의 아무 저장소나
-    #   이 역할을 가져간다. 브랜치까지 좁히지 않는 것은 이 역할이 읽기
-    #   전용이고 PR 에서도 돌아야 하기 때문이다.
+    # ★ **저장소와 가지를 둘 다 못 박는다.** `repo:*` 로 두면 GitHub 의 아무
+    #   저장소나 이 역할을 가져간다.
+    #
+    # ★ **「읽기 전용이니 가지는 안 좁힌다」 가 틀린 전제였다**(DECISIONS §125).
+    #   이 역할의 유일한 액션은 `lambda:GetFunction` 인데 그 응답에
+    #   `Configuration.Environment.Variables` 가 **그대로** 들어 있다 —
+    #   `WORKER_TOKEN` 과 `HTTP_TOKEN` 이 평문으로 산다(`compute.tf`).
+    #   **여기서 「읽기」 는 비밀을 읽는 것이다.** `:*` 이면 이 저장소에 가지를
+    #   밀 수 있는 사람이 아무 워크플로나 올려 두 토큰을 찍어 볼 수 있었다.
+    #
+    # ★ **「PR 에서도 돌아야 한다」 도 사실이 아니었다.** 이 역할을 쓰는 것은
+    #   `drift.yml` 하나이고 그것은 `push: main` · `schedule` ·
+    #   `workflow_dispatch` 로만 돈다 — **PR 트리거가 없다.**
+    #   (포크 PR 은 `id-token: write` 를 못 받으므로 애초에 해당이 없다.)
+    #
+    # ★ **딴 가지에서 손으로 돌리는 것은 막힌다.** `workflow_dispatch` 를
+    #   `--ref 딴가지` 로 쏘면 `sub` 가 안 맞아 AssumeRole 에서 멈춘다.
+    #   그것이 의도다 — 드리프트는 `main` 과 배포본을 견주는 검사이고,
+    #   딴 가지에서 재면 **무엇과 견준 것인지가 흐려진다.**
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "${local.github_host}:sub"
-      values   = ["repo:${var.github_repo_sub}:*"]
+      values   = ["repo:${var.github_repo_sub}:ref:refs/heads/main"]
     }
   }
 }
@@ -96,6 +112,14 @@ resource "aws_iam_role" "ci" {
 }
 
 # ★ 코드가 실제로 부르는 것만 적는다. `deploy_drift.py` 는 `get-function` 하나다.
+#
+# ★ **이 액션은 필요한 것보다 많이 준다.** 쓰는 값은 `Configuration.CodeSha256`
+#   하나인데 같은 응답이 환경변수를 전부 싣는다. `GetFunctionConfiguration` 으로
+#   바꿔도 같다 — **그쪽도 환경변수를 준다.** 권한을 진짜로 좁히려면 배포 때
+#   Lambda **태그**에 코드 해시를 적고 `lambda:ListTags` 로 읽어야 한다
+#   (PLAN #62). 그것은 `compute.tf` · `deploy_drift.py` · 이 정책을 같이 고치는
+#   일이고 `apply` 없이 확인할 수 없어 따로 뗀다. 지금은 위의 가지 조건이
+#   **누가 맡을 수 있는지**를 `main` 에 미는 사람으로 좁혀 둔 상태다.
 data "aws_iam_policy_document" "ci" {
   statement {
     sid       = "ReadFunction"

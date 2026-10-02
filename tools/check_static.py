@@ -38,6 +38,24 @@ AWS 는 `description` 같은 필드에 ASCII 만 받는다. 이 저장소는 주
 ★ `gitleaks/gitleaks-action` 은 처음에 빠졌다. Node 24 판을 확인하지 않고
   "모른다" 로 두었는데 v3 이 이미 있었다(DECISIONS §101).
 
+## 4. 액션 고정과 시간 상한
+
+메이저 태그는 업스트림이 옮긴다. `uses:` 가 전부 SHA 로 고정됐는지 본다
+(DECISIONS §125). 러너를 `ubuntu-24.04` 로 못 박은 것과 같은 규율이고, **가장
+값진 축**(배포 자격증명과 같은 잡에서 도는 액션)에만 그것이 없었다.
+
+★ **판 주석(`# v7.0.1`)도 요구한다.** SHA 만 있으면 사람이 무엇을 쓰는지 못 읽고,
+  §3 의 Node 20 검사가 **메이저를 읽을 자리를 잃는다.**
+
+그리고 **작업마다 `timeout-minutes`** 를 요구한다. 없으면 GitHub 기본 **6시간**까지
+매달린다 — `deploy.yml` 의 `apply` 는 배포 자격증명을 든 작업이라 그 세션까지 같이 태운다.
+재사용 워크플로를 부르는 작업은 뺀다(GitHub 가 거기 상한을 거부한다).
+
+## 5. 번역 캐시 삭제 지시
+
+`rm … translations.json` 을 적은 문서 · 스크립트를 막는다. 과금 엔진에서는
+재과금이다(MASTER §11-4). `CACHE_FILE` 로 딴 파일을 가리키는 것이 맞는 길이다.
+
   0  이상 없음
   1  위반
 """
@@ -91,18 +109,153 @@ NODE20 = {
     "actions/upload-artifact": 4,
 }
 USES = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@v(\d+)\b")
+# ★ **SHA 로 고정한 줄의 판은 주석에 산다.** 그래서 이 검사는 주석을 벗기면
+#   아무것도 못 본다 — 2026-10-03 에 `uses:` 를 전부 SHA 로 바꾼 순간
+#   `check_node20` 이 조용히 0건이 됐다(DECISIONS §125). **고정이 검사를 껐다.**
+#   꼴을 바꾸는 고침이 **그 꼴을 읽던 검사를 같이 고쳐야 한다**는 자리다.
+USES_PINNED = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@[0-9a-f]{40}\s*#\s*v(\d+)\b")
+# `uses:` 가 가리킬 수 있는 꼴 — 저장소 액션 · 같은 저장소의 경로 · 도커 이미지.
+USES_ANY = re.compile(r"^\s*(?:-\s*)?uses:\s*(\S+)")
+
+
+def _액션들(line: str) -> list[tuple[str, int]]:
+    """한 줄에서 (액션 이름, 메이저). 맨 태그 꼴과 SHA 고정 꼴을 다 읽는다."""
+    것 = [(m.group(1), int(m.group(2))) for m in USES.finditer(line.split("#", 1)[0])]
+    것 += [(m.group(1), int(m.group(2))) for m in USES_PINNED.finditer(line)]
+    return 것
 
 
 def node20_uses(text: str) -> list[tuple[int, str]]:
     """(줄번호, `액션@vN`). 빈 리스트가 통과다."""
     bad = []
     for n, line in enumerate(text.split("\n"), 1):
-        code = line.split("#", 1)[0]
-        for m in USES.finditer(code):
-            name, major = m.group(1), int(m.group(2))
+        for name, major in _액션들(line):
             if name in NODE20 and major <= NODE20[name]:
                 bad.append((n, f"{name}@v{major}"))
     return bad
+
+
+# ★ **메이저 태그는 업스트림이 언제든 옮긴다.** `@v7` 은 가리키는 커밋이 바뀌어도
+#   이름이 같아서, 침해된 액션이 들어오는 것을 저장소 쪽에서는 아무것도 못 본다.
+#   가장 무거운 자리가 `deploy.yml` 이다 — `configure-aws-credentials` 가
+#   `production` 승인으로 받은 OIDC 토큰을 배포 역할로 바꾸고, 같은 잡의 다른
+#   액션들이 **그 자격증명과 함께 돈다.**
+#
+# ★ **고정의 사고방식은 이미 있었다.** 러너는 `ubuntu-24.04` 로 고정하고
+#   `check_runner` 가 강제한다. Node 20 액션도 목록으로 막는다. **가장 값진 축에만
+#   그 규율이 없었다**(DECISIONS §125).
+#
+# ★ 운영 비용은 안 는다. `dependabot.yml` 의 `github-actions` 생태계가 SHA 핀도
+#   갱신 PR 로 올린다 — 태그를 쓸 때와 같은 월 1회 PR 하나다.
+#
+# ★ **판을 주석으로 적는다.** SHA 만 있으면 사람이 무엇을 쓰는지 못 읽는다.
+#   `# v7.0.1` 은 장식이 아니라 `node20_uses` 가 읽는 자료다.
+def unpinned_uses(text: str) -> list[tuple[int, str]]:
+    """SHA 로 고정하지 않은 `uses:`. 같은 저장소 경로(`./`)와 도커는 밖이다."""
+    bad = []
+    for n, line in enumerate(text.split("\n"), 1):
+        code = line.split("#", 1)[0]
+        m = USES_ANY.match(code)
+        if not m:
+            continue
+        ref = m.group(1)
+        if ref.startswith(("./", ".\\", "docker://")):
+            continue
+        손, _, 가리키는것 = ref.partition("@")
+        if not re.fullmatch(r"[0-9a-f]{40}", 가리키는것):
+            bad.append((n, ref))
+            continue
+        if not re.search(r"#\s*v\d+", line):
+            bad.append((n, f"{손}@{가리키는것[:12]}… 판 주석이 없다"))
+    return bad
+
+
+def check_pinned() -> list[str]:
+    return [f"{p.relative_to(ROOT)}:{n} `uses:` 가 SHA 로 안 고정됐다 — {ref}"
+            for p in sorted(ROOT.glob(".github/workflows/*.yml"))
+            for n, ref in unpinned_uses(p.read_text(encoding="utf-8"))]
+
+
+# ★ **작업마다 시간 상한을 적는다**(파이어레인 `tools/actionpin.py` · DECISIONS §126).
+#   없으면 GitHub 기본 **6시간**까지 매달린다. 2026-10-03 까지 이 저장소의 작업 여섯이
+#   전부 상한이 없었고, 그중 `deploy.yml` 의 `apply` 는 **배포 자격증명을 든 작업**이다 —
+#   매달리면 러너 시간과 그 OIDC 세션을 같이 태운다.
+#
+# ★ **족 가드다.** 「이 작업에 상한이 있나」 를 하나씩 묻지 않고 「상한 없는 작업이
+#   있나」 를 묻는다. 새 작업이 생기는 순간 자동으로 물린다 — 파이어레인이 인스턴스
+#   가드와 족 가드를 가르는 그 자리다.
+#
+# ★ **재사용 워크플로를 부르는 작업은 뺀다.** GitHub 가 그 작업에 `timeout-minutes` 를
+#   거부한다 — 넣으면 워크플로가 통째로 안 돈다. 상한은 불려가는 쪽이 각자 든다.
+작업머리 = re.compile(r"^  ([\w-]+):\s*$")
+
+
+def jobs(text: str) -> dict[str, list[str]]:
+    """`jobs:` 아래의 (작업 이름 → 그 블록의 줄들)."""
+    것, 이름, 안 = {}, None, False
+    for 줄 in text.split("\n"):
+        if 줄.startswith("jobs:"):
+            안 = True
+            continue
+        if not 안:
+            continue
+        if 줄 and not 줄.startswith(" "):
+            break                      # 최상위 키로 돌아왔다
+        if m := 작업머리.match(줄):
+            이름 = m.group(1)
+            것[이름] = []
+            continue
+        if 이름:
+            것[이름].append(줄)
+    return 것
+
+
+def timeout_faults(text: str) -> list[str]:
+    난것 = []
+    for 이름, 블록 in jobs(text).items():
+        if any(re.match(r"^    uses:\s*\S", x) for x in 블록):
+            continue                   # 재사용 워크플로 호출
+        if not any(re.match(r"^    timeout-minutes:\s*\d+", x) for x in 블록):
+            난것.append(이름)
+    return 난것
+
+
+def check_timeouts() -> list[str]:
+    return [f"{p.relative_to(ROOT)} 의 작업 `{이름}` 에 `timeout-minutes` 가 없다 — "
+            f"매달리면 **기본 6시간**을 태운다"
+            for p in sorted(ROOT.glob(".github/workflows/*.yml"))
+            for 이름 in timeout_faults(p.read_text(encoding="utf-8"))]
+
+
+# ★ **번역 캐시를 지우라고 적은 글을 막는다**(MASTER §11-4 · DECISIONS §125).
+#   지우면 번역이 버려지고 과금 엔진에서는 **재과금**이다. 2026-10-02 에
+#   하위 README 둘이 정확히 그 줄을 들고 있었다 — MASTER 는 정반대를 적는데
+#   **같은 절차가 두 곳에 살아서 한쪽만 고쳐졌다.** 대신 `CACHE_FILE` 로 딴
+#   파일을 가리킨다.
+캐시삭제 = re.compile(r"\brm\b[^\n]*\b(?:translations\.json|\.cache/translations)")
+
+
+def cache_rm(text: str) -> list[int]:
+    return [n for n, line in enumerate(text.split("\n"), 1) if 캐시삭제.search(line)]
+
+
+# 이 검사와 그 시험의 예시 문자열은 지시가 아니다. **목록으로 못 박는다** —
+# 여기에 파일이 늘면 그만큼 검사 밖이 는다.
+캐시검사밖 = {"tools/check_static.py", "worker/tests/test_check_static.py"}
+
+
+def check_cache_rm() -> list[str]:
+    fails = []
+    for d in ("docs", "worker/tests", "tools"):
+        for p in sorted((ROOT / d).rglob("*")):
+            if not p.is_file() or p.suffix not in {".md", ".sh", ".py"}:
+                continue
+            if p.relative_to(ROOT).as_posix() in 캐시검사밖:
+                continue
+            for n in cache_rm(p.read_text(encoding="utf-8", errors="replace")):
+                fails.append(f"{p.relative_to(ROOT)}:{n} 번역 캐시를 지우라고 적었다 — "
+                             f"`CACHE_FILE=/tmp/…` 로 딴 파일을 가리킨다(MASTER §11-4)")
+    return fails
 
 
 def check_node20() -> list[str]:
@@ -183,7 +336,8 @@ def check_python() -> list[str]:
 
 
 def main() -> int:
-    fails = check_tf() + check_node20() + check_runner() + check_python()
+    fails = (check_tf() + check_node20() + check_runner() + check_python()
+             + check_pinned() + check_cache_rm() + check_timeouts())
     wf, skip = check_workflows()
     fails += wf
     for f in fails:
@@ -192,6 +346,7 @@ def main() -> int:
         print(f"  건너뜀 : {skip}", file=sys.stderr)
     if not fails:
         print("  인용 문자열이 ASCII 다 · Node 20 액션 없음 · 러너 고정 · 파이썬 컴파일 경고 없음"
+              " · 액션이 SHA 로 고정됐다 · 작업마다 시간 상한 · 캐시 삭제 지시 없음"
               + ("" if skip else " · 워크플로가 YAML 이다"))
     return 1 if fails else 0
 

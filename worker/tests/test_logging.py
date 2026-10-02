@@ -13,7 +13,7 @@ import os
 os.environ["ENGINE"] = "echo"
 os.environ["CACHE"] = "memory"
 
-from app import engine  # noqa: E402  (환경 지정이 import 보다 먼저다)
+from app import engine  # 환경 지정이 import 보다 먼저다
 
 log = logging.getLogger("thoth")
 

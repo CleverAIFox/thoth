@@ -19,9 +19,9 @@ import re
 os.environ["ENGINE"] = "echo"
 os.environ["CACHE"] = "memory"
 
-import pytest  # noqa: E402
+import pytest
 
-from app import cache, contract, engine, guard, pairs  # noqa: E402
+from app import cache, contract, engine, guard, pairs
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TF = ROOT / "infra/analytics.tf"

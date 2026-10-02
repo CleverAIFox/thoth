@@ -34,7 +34,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "worker"))
 os.environ.setdefault("ENGINE", "echo")
 os.environ.setdefault("CACHE", "memory")
-from app.engine import postprocess  # noqa: E402
+from app.engine import postprocess
 
 DIR = ROOT / "worker/tests/endings"
 

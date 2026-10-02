@@ -13,12 +13,13 @@
 ## 재는 법
 
 ```bash
-rm -f worker/.cache/translations.json   # 캐시를 비운다
-bash tools/run_worker.sh &              # 재려는 ENGINE 으로
+# ★ **캐시를 지우지 않는다.** 지우면 번역이 버려지고 과금 엔진에서는 재과금이다
+#   (MASTER §11-4 · DECISIONS §5). 딴 파일을 가리켜 식은 캐시로 잰다.
+CACHE_FILE=/tmp/bench-cache.json bash tools/run_worker.sh &   # 재려는 ENGINE 으로
 python3 tools/bench_golden.py --json out.json   # 웜업은 기본으로 돈다
 ```
 
-★ **캐시를 비우지 않으면 속도가 거짓이 된다.** 캐시 히트 실행은 번역을
+★ **식은 캐시로 안 재면 속도가 거짓이 된다.** 캐시 히트 실행은 번역을
 하지 않으므로 0.2초가 나오고, 그 값을 기준선에 넣으면 26,660자/초 같은
 숫자가 남는다(DECISIONS §6 의 재발).
 

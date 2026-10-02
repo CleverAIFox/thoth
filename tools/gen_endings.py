@@ -80,7 +80,7 @@ def _jong(ch: str) -> int:
 
 def build(kiwi) -> list[dict]:
     lex = json.loads(LEXICON.read_text(encoding="utf-8"))
-    join = lambda morphs: kiwi.join([tuple(m) for m in morphs])  # noqa: E731
+    join = lambda morphs: kiwi.join([tuple(m) for m in morphs])
     rows = []
 
     def sentence(pre, words, tail, mark):

@@ -36,6 +36,21 @@ git check-ignore -q .env && ok ".env 가 무시된다" || no ".env 가 추적될
 git ls-files | grep -qE '(^|/)\.env$|credential|\.pem$|(^|/)tfplan$|\.tfplan$|\.tfstate' \
   && no "추적 중인 비밀 파일" || ok "추적 중인 비밀 파일 없음"
 
+# ★ **설계상 언제나 비어 있어야 하는 파일이라 아무도 안 봤다**(DECISIONS §125).
+#   `config.local.js` 는 추적되는 파일이고 `sync_ext.sh` 가 **ext-build 사본에만**
+#   값을 쓴다. 그런데 비어 있는지 보는 검사가 하나도 없었다 — 아래 `diff` 는
+#   이 파일을 `--exclude` 하고 `.gitignore` 에도 없다. 누가 시험 삼아 엔드포인트와
+#   토큰을 적고 커밋하면 **공개 저장소에 그대로 나간다.**
+#
+# ★ **이름으로 안 보고 값으로 본다.** `endpoint: ""` 는 맞는 상태이고
+#   `endpoint: "https://…"` 가 틀린 상태다. 빈 문자열만 허락한다.
+if grep -qE '(endpoint|token)[[:space:]]*:[[:space:]]*"[^"]+"' extension/src/config.local.js 2>/dev/null; then
+  no "config.local.js 에 값이 들어 있다 — 저장소의 이 파일은 언제나 비어 있다"
+  echo "       저장소 사본은 비우고, 기계별 값은 .env 에 두고 tools/sync_ext.sh 가 옮긴다"
+else
+  ok "config.local.js 가 비었다"
+fi
+
 # ★ 위 셋은 전부 git 에 묻는다. **저장소 밖은 구조적으로 시야 밖이다.**
 #   2026-09-13 에 `$THOTH_SSD_ROOT/.aws/credentials` 가 장기 액세스 키를 담은
 #   채 남아 있었고 아무도 보지 않았다. DrvFs 는 유닉스 권한이 붙지 않아

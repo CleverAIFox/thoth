@@ -13,15 +13,28 @@ permissions:
 jobs:
   gitleaks:
     runs-on: ubuntu-24.04
-    # ★ gitleaks 는 누출을 찾으면 PR 에 위치를 댓글로 단다. 읽기만 주면 그 댓글이
+    timeout-minutes: 10
+    # ★ gitleaks 는 누출을 찾으면 PR 에 위치를 댓글로 단다
+    #   (`GITLEAKS_ENABLE_COMMENTS` 의 기본값이 켬이다). 읽기만 주면 그 댓글이
     #   실패한다. 탐지 자체는 종료 코드로 나오므로 빨간불은 어차피 뜬다.
+    #
+    # ★ **근거를 고쳤다 — 포크가 아니다**(DECISIONS §125). 2026-10-02 까지 위
+    #   `permissions:` 의 주석이 「포크에서 PR 이 들어온다」 를 이 쓰기 권한의
+    #   근거로 들었는데, **포크 PR 에서는 그 권한이 효력이 없다** — 포크의
+    #   `GITHUB_TOKEN` 은 워크플로의 선언과 무관하게 읽기 전용으로 발급된다.
+    #   이 권한이 쓰이는 것은 **이 저장소의 가지에서 올라온 PR** 이다.
+    #   기본 권한을 닫는 까닭은 그대로 맞다 — 근거만 틀렸다.
+    #
+    # ★ **seshat 도 `write` 로 맞췄다.** 그쪽은 `read` 였고, 누출을 실제로 찾는
+    #   날 댓글 호출이 403 으로 죽을 자리였다. **두 저장소가 같은 규율을
+    #   공유한다고 적어 뒀으면 이런 어긋남을 검사가 잡아야 한다.**
     permissions:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with: { fetch-depth: 0 }
-      - uses: gitleaks/gitleaks-action@v3
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e  # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -32,15 +45,18 @@ jobs:
   # ★ 훅은 --no-verify 로 넘어간다. CI 는 넘어갈 수 없다. 그래서 둘 다 있다.
   verify:
     runs-on: ubuntu-24.04
+    # ★ **상한을 적는다**(파이어레인 `tools/actionpin.py` · DECISIONS §126). 없으면 GitHub 기본
+    #   **6시간**까지 매달린다 — 러너 시간과, 자격증명을 든 작업이면 그 세션까지 같이 태운다.
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with: { python-version: "3.13" }
       # ★ **jsdom 이 없으면 확장 검사 25건이 건너뛰어진다.** 로컬에서는 WARN 으로
       #   두는 것이 맞지만(DECISIONS §46) CI 는 넘어갈 수 없는 자리다. 여기서
       #   건너뛰면 초록불인 채로 수집이 깨진다(DECISIONS §54).
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with: { node-version: "22", cache: npm, cache-dependency-path: extension/package-lock.json }
       - run: npm ci
         working-directory: extension
@@ -50,17 +66,25 @@ jobs:
       # ★ **`fmt` 만 본다.** `validate` 는 `init` 을 요구하고 `init` 은 프로바이더
       #   수백 MB 를 받는다. 커밋마다 받게 하면 검사가 네트워크에 기대게 된다.
       #   의미 검사는 이미 받아 둔 기계에서 `doctor` 가 본다(DECISIONS §73).
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
         with: { terraform_wrapper: false }
       # ★ **`check_static` 이 yaml 없이 SKIP 하는 것을 CI 는 넘어가지 못한다.**
       #   워크플로가 깨지면 조용히 사라지고, 그 실패는 "워크플로가 없다" 로만
       #   보인다(DECISIONS §87 · §54).
-      - run: pip install pyyaml
+      - run: python3 -m pip install pyyaml
       - name: 린터가 실제로 있는가
         run: |
           shellcheck --version | sed -n 2p
           uvx ruff --version
           terraform version | sed -n 1p
+          # ★ **pyyaml 도 린터다**(DECISIONS §125). 바로 위 단계가 깔아 두는데
+          #   이 단계는 셋만 확인했다 — `check_static` 은 `yaml` 이 없으면
+          #   워크플로 검사를 **건너뛰고 0 으로 끝난다.** 즉 설치가 조용히
+          #   실패하면 **초록불인 채로 검사가 사라진다.** 그 구멍을 막겠다고
+          #   적어 놓고 단언만 빠져 있었다(§54).
+          # ★ `python3 -m` 으로 부른다. `pip` 와 `python3` 가 다른 환경을
+          #   가리키면 깔린 곳과 읽는 곳이 갈린다.
+          python3 -c 'import yaml; print("pyyaml", yaml.__version__)'
       - run: bash tools/doctor.sh --repo
       # ★ doctor 는 건너뛴 건수를 WARN 으로만 알린다. CI 에서는 0 이어야 하므로
       #   따로 확인한다 — 등급이 다른 두 자리에서 같은 검사를 쓴다.
@@ -75,6 +99,7 @@ jobs:
   # 건너뛰므로 pytest 만으로는 서빙 경로가 검증되지 않는다.
   smoke:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     env:
       ENGINE: echo
       CACHE: file
@@ -82,12 +107,19 @@ jobs:
       QUOTA_FILE: .cache/quota.json
       MAX_TEXT_LEN: "5000"
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+      # ★ **루프가 실패를 삼켰다**(DECISIONS §125). 30초 안에 안 뜨면 마지막
+      #   `sleep 1` 의 종료 코드 0 으로 단계가 **통과**했고, 실패는 다음
+      #   `smoke.sh` 에서 「워커에 닿지 못했다」 로 나타났다 — 원인이 「기동
+      #   실패」 가 아니라 「스모크 실패」 로 보였다. `|| true` 를 걷어낸 그
+      #   사고(2026-09-14)와 같은 종류다. **실패는 그것이 일어난 자리에서 알린다.**
       - name: 워커 기동
         run: |
           uv run uvicorn app.main:app --port 8000 > /tmp/worker.log 2>&1 &
           for _ in $(seq 30); do curl -sf localhost:8000/health && break; sleep 1; done
+          curl -sf localhost:8000/health >/dev/null \
+            || { echo "워커가 30초 안에 안 떴다"; cat /tmp/worker.log; exit 1; }
         working-directory: worker
       - run: bash tools/smoke.sh
       # ★ **러너가 끝까지 도는지만 본다.** CI 에는 GPU 가 없어 `ENGINE=echo` 로

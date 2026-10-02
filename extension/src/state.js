@@ -60,12 +60,32 @@ export function healthLine(res) {
   return { level, text: `${head} · ${parts.join(" · ")}` };
 }
 
+// ★ **되돌이 주소만 평문을 허락한다**(DECISIONS §125). 토큰은 요청에 실려 가고,
+//   남의 호스트로 `http://` 로 보내면 **중간에서 그대로 읽힌다** — 그 토큰으로
+//   남이 월 상한을 태운다(MASTER §12). 되돌이는 기계를 벗어나지 않으므로 밖이다.
+// ★ `localhost` 를 목록에 넣는다. 사람이 거기를 먼저 치고, 막으면 로컬 개발이
+//   선 자리에서 멈춘다 — **검사가 맞는 상태를 위반으로 잡으면 끄는 방법부터 찾는다.**
+const 되돌이 = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
+
 /** 저장 전에 다듬는다. 빈 값은 지운다는 뜻이므로 그대로 둔다. */
 export function normalizeSettings(raw) {
   const out = {};
   const ep = (raw.endpoint || "").trim();
   if (ep && !/^https?:\/\//.test(ep)) {
     return { error: "엔드포인트는 http:// 나 https:// 로 시작해야 한다" };
+  }
+  if (ep && ep.startsWith("http://")) {
+    // ★ 호스트를 문자열로 자르지 않고 `URL` 에 묻는다. `http://a.test@127.0.0.1/`
+    //   처럼 사용자 정보로 눈속임하는 주소를 손으로 가르면 틀린다.
+    let host;
+    try {
+      host = new URL(ep).hostname;
+    } catch {
+      return { error: "엔드포인트를 주소로 읽을 수 없다" };
+    }
+    if (!되돌이.has(host)) {
+      return { error: `${host} 로는 https:// 가 필요하다 — 평문으로 보내면 토큰이 읽힌다` };
+    }
   }
   out.stEndpoint = ep;
   out.stToken = (raw.token || "").trim();

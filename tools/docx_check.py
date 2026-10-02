@@ -195,14 +195,74 @@ def _canary() -> None:
         sys.exit(2)
 
 
+# ── 생성기 지문 ────────────────────────────────────────────────────────────
+#
+# ★ **docx 를 생성기에 묶는 것이 없었다**(DECISIONS §126). 사슬은
+#   `docs/proposal/*.js` → `node build.js` → `docs/proposal.docx` → Pages 인데
+#   **가운데 화살표를 사람이 손으로 돌린다.** 위의 검사들은 **손으로 적어 둔 숫자
+#   목록**만 대조하므로, 생성기를 고치고 다시 만들지 않으면 **docx 가 몇 달 뒤져도
+#   초록**이다. 2026-10-03 에 배포본이 실제로 그렇게 낡아 있었다.
+#
+# ★ **바이트로 견주지 않는다.** docx 는 zip 이고 타임스탬프와 압축이 판마다 달라
+#   같은 입력에서 같은 바이트가 안 나온다. 대신 **입력의 지문**을 산출물 옆에 적고
+#   그것이 어긋나면 「다시 만들어야 한다」 로 읽는다 — 봉인과 같은 꼴이다.
+#
+# ★ **`doctor` 에서는 WARN 이고 배포에서는 실패다**(`--deploy`). 다시 쓰는 중에
+#   커밋을 막을 일은 아니지만 **낡은 기획서를 내보내는 것은 막아야 한다.** 등급이
+#   다른 두 자리에서 같은 사실을 쓴다.
+생성기 = ("build.js", "lib.js", "part1.js", "part2.js", "part3.js",
+          "figures/figlib.py", "figures/charts.py", "figures/diagrams.py", "figures/shots.py")
+
+
+def 생성기지문(root: Path) -> dict[str, str]:
+    """생성기 파일마다 sha256 앞 16자. 없는 파일은 `없다` 로 적는다 — 빠진 것도 변화다."""
+    import hashlib
+    것 = {}
+    for rel in 생성기:
+        p = root / "docs/proposal" / rel
+        것[rel] = (hashlib.sha256(p.read_bytes()).hexdigest()[:16] if p.exists() else "없다")
+    return 것
+
+
+def check_build_lock(root: Path) -> list[str]:
+    """빈 리스트가 통과다. 자물쇠가 없거나 어긋나면 **다시 만들어야 한다.**
+
+    ★ 자리를 `root` 에서 구한다 — 모듈 상수를 쓰면 **시험이 제 나무를 못 세운다.**
+    """
+    자물쇠 = root / "docs/proposal/build.lock.json"
+    if not 자물쇠.exists():
+        return ["docs/proposal/build.lock.json 이 없다 — "
+                "docx 가 생성기의 지금 출력인지 아무도 모른다\n"
+                "        bash tools/build_proposal.sh   (그림 · docx · 자물쇠 · 대조)"]
+    try:
+        적힌 = json.loads(자물쇠.read_text(encoding="utf-8")).get("생성기", {})
+    except ValueError as e:
+        return [f"docs/proposal/build.lock.json 을 읽지 못했다 — {e}"]
+    참 = 생성기지문(root)
+    다른 = [k for k in 참 if 적힌.get(k) != 참[k]]
+    if not 다른:
+        return []
+    return [f"docx 가 생성기보다 낡았다 — {' · '.join(다른)} 이 바뀌었는데 다시 만들지 않았다\n"
+            f"        bash tools/build_proposal.sh"]
+
+
 def main() -> int:
     _canary()
+    배포 = "--deploy" in sys.argv[1:]
     if not DOCX.exists():
         print(f"    {DOCX.relative_to(ROOT)} 가 없다")
         return 1
     fails = check(text_of(DOCX), ROOT) + check_figures(figures_of(DOCX), ROOT)
+    낡음 = check_build_lock(ROOT)
+    if 배포:
+        fails += 낡음
     for f in fails:
         print(f"    {f}")
+    if 낡음 and not 배포:
+        # ★ **WARN 이지 통과가 아니다.** 내보내는 자리에서 막힌다는 것을 여기서 말한다.
+        for f in 낡음:
+            print(f"    WARN {f}")
+        print("    WARN 위 상태로는 `기획서 배포` 가 멈춘다 — 커밋은 막지 않는다")
     return 1 if fails else 0
 
 

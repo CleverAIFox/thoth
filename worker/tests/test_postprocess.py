@@ -93,10 +93,10 @@ def test_join_이_분할_가능한_형태를_만든다():
 
 # ---------- 의문형은 어간을 보고 붙인다 (DECISIONS §106) ----------
 
-import importlib.util as _ilu  # noqa: E402
-import pathlib as _pl  # noqa: E402
+import importlib.util as _ilu
+import pathlib as _pl
 
-import pytest  # noqa: E402
+import pytest
 
 _spec = _ilu.spec_from_file_location(
     "bench_golden", _pl.Path(__file__).resolve().parents[2] / "tools/bench_golden.py")

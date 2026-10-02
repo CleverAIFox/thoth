@@ -65,7 +65,7 @@ def facts(name, items):
 
 try:
     asyncio.run(shoot())
-except Exception as e:  # noqa: BLE001 — 도구가 없으면 옛 그림을 쓴다
+except Exception as e:  # 도구가 없으면 옛 그림을 쓴다
     raise SystemExit(f"화면을 찍지 못했다 ({e}) — playwright · 크로미움을 확인한다")
 a, b = trim(OUT / "shot_popup_on.png"), trim(OUT / "shot_popup_off.png")
 s = Image.new("RGB", (a.width + b.width + 60, max(a.height, b.height)), "white")

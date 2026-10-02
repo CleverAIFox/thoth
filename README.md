@@ -175,7 +175,8 @@ bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
 python3 tools/check_docs.py   # 문서 ↔ 문서 — 문체 · 절 · PLAN 표 · 참조 (규약은 MASTER §0)
 python3 tools/doc_fsck.py     # 문서 ↔ 실물 — 경로 · 테스트 · 죽은 도구
-python3 tools/docx_check.py   # 기획서 ↔ 정본 — 숫자 · 폐기된 값
+python3 tools/docx_check.py   # 기획서 ↔ 정본 — 숫자 · 폐기된 값 · 생성기 지문
+bash tools/build_proposal.sh  # 기획서를 다시 만든다 — 그림 셋 · docx · 자물쇠 · 대조
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
 python3 tools/sweep.py        # 위생 — 저장소 밖에 남긴 흔적
 bash tools/deps.sh            # 의존성 봇 PR — 초록만 합치고 가지를 지운다 (--merge)
@@ -192,7 +193,7 @@ node --test "extension/tests/*.test.js"   # 확장 — 팝업 판정 · 어댑�
 | `echo` | `[KO] 원문` | DOM·렌더링 작업. 과금 0 |
 | `local` | Ollama · `exaone3.5:7.8b` | 오프라인 개발 · 품질 기준선 |
 | `translate` | AWS Translate | 비교 대상 |
-| `bedrock` | Bedrock Converse · `nova-lite` | **배포본. 533자/초** |
+| `bedrock` | Bedrock Converse · `nova-lite` | **배포본. 525자/초** |
 | `http` | 자체 모델 서버 | **갈아끼우는 자리.** 계약과 적합성 검사만 있다(`docs/MASTER.md` §7-4) |
 
 **`local` 과 `bedrock` 은 같은 코드 경로를 탄다.** 용어집 선택, 배치 규약,
@@ -259,7 +260,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->89건 · 워커 <!--count:worker_tests-->403건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->93건 · 워커 <!--count:worker_tests-->426건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |

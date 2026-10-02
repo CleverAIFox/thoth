@@ -79,10 +79,11 @@ id 유일성 · 물음표 위치 · 길이 분포 · `keep` 토큰이 원문에 
 ## 실행
 
 ```bash
-rm -f worker/.cache/translations.json   # 캐시를 비운다
-bash tools/run_worker.sh &              # 재려는 ENGINE 으로
+# ★ **캐시를 지우지 않는다.** 지우면 번역이 버려지고 과금 엔진에서는 재과금이다
+#   (MASTER §11-4 · DECISIONS §5). 딴 파일을 가리켜 식은 캐시로 잰다.
+CACHE_FILE=/tmp/bench-cache.json bash tools/run_worker.sh &   # 재려는 ENGINE 으로
 python3 tools/bench_golden.py           # 점수표. 웜업은 기본으로 돈다
 ```
 
-★ 속도를 볼 때는 캐시와 모델 상태를 둘 다 비운 것으로 본다. 자세한 것은
+★ 속도를 볼 때는 캐시와 모델 상태를 둘 다 식은 것으로 본다. 자세한 것은
 `docs/bench/README.md` 에 있다(DECISIONS §6 · §27).

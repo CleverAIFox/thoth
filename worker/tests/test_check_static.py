@@ -106,6 +106,70 @@ def test_워크플로가_지금_러너를_고정했다():
     assert cs.check_runner() == []
 
 
+# ---------- 액션 고정 (DECISIONS §125) ----------
+
+핀 = "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1\n"
+
+
+def test_맨_메이저_태그를_잡는다():
+    assert cs.unpinned_uses("      - uses: actions/checkout@v7\n") == [(1, "actions/checkout@v7")]
+
+
+def test_SHA_로_고정하면_통과한다():
+    assert cs.unpinned_uses(핀) == []
+
+
+def test_SHA_인데_판_주석이_없으면_잡는다():
+    # ★ 주석은 장식이 아니다 — `node20_uses` 가 메이저를 거기서 읽는다.
+    assert cs.unpinned_uses(핀.split("  #")[0] + "\n")
+
+
+def test_짧은_해시는_고정이_아니다():
+    assert cs.unpinned_uses("      - uses: actions/checkout@3d3c42e  # v7.0.1\n")
+
+
+def test_같은_저장소_경로는_밖이다():
+    assert cs.unpinned_uses("      - uses: ./.github/actions/setup\n") == []
+
+
+def test_주석_안의_uses_는_보지_않는다_고정():
+    assert cs.unpinned_uses("      # uses: actions/checkout@v7 을 쓰던 자리\n") == []
+
+
+def test_워크플로가_지금_전부_고정됐다():
+    assert cs.check_pinned() == []
+
+
+def test_고정한_줄에서도_Node20_을_읽는다():
+    """★ **이것이 이 묶음의 핵이다.**
+
+    2026-10-03 에 `uses:` 를 전부 SHA 로 바꾸자 `node20_uses` 가 주석을 벗기는
+    바람에 조용히 0건이 됐다. 꼴을 바꾸는 고침이 **그 꼴을 읽던 검사를 껐다.**
+    옛 메이저를 SHA 로 고정해도 잡혀야 한다 — 고정은 판을 못 박는 것이고
+    **옛 판을 허락하는 것이 아니다.**
+    """
+    옛 = "      - uses: actions/checkout@" + "a" * 40 + "  # v4.2.2\n"
+    assert cs.node20_uses(옛) == [(1, "actions/checkout@v4")]
+
+
+# ---------- 번역 캐시 삭제 지시 (DECISIONS §125) ----------
+
+def test_캐시를_지우라는_줄을_잡는다():
+    assert cs.cache_rm("rm -f worker/.cache/translations.json   # 캐시를 비운다\n") == [1]
+
+
+def test_CACHE_FILE_로_가리키면_통과한다():
+    assert cs.cache_rm("CACHE_FILE=/tmp/bench-cache.json bash tools/run_worker.sh &\n") == []
+
+
+def test_다른_파일_삭제는_안_본다():
+    assert cs.cache_rm("rm -f /tmp/golden.json\n") == []
+
+
+def test_저장소에_캐시_삭제_지시가_없다():
+    assert cs.check_cache_rm() == []
+
+
 def test_잘못된_이스케이프를_잡는다():
     # ★ 2026-09-22 `pairs.py` docstring 의 모양이다. 지금은 경고, 나중에는 import 에서 죽는다.
     assert cs.py_warnings('def f():\n    """`:\\d+$` 로 벗긴다"""\n', "x.py")
@@ -117,3 +181,39 @@ def test_raw_문자열은_통과한다():
 
 def test_저장소에_컴파일_경고가_없다():
     assert cs.check_python() == []
+
+
+# ---------- 작업 시간 상한 (DECISIONS §126) ----------
+
+_WF = """name: x
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - run: echo
+  b:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo
+  c:
+    uses: ./.github/workflows/other.yml
+"""
+
+
+def test_상한_없는_작업을_잡는다():
+    assert cs.timeout_faults(_WF) == ["b"]
+
+
+def test_재사용_워크플로_작업은_밖이다():
+    """★ GitHub 이 그 작업에 `timeout-minutes` 를 거부한다 — 넣으면 통째로 안 돈다."""
+    assert "c" not in cs.timeout_faults(_WF)
+
+
+def test_작업을_다_센다():
+    assert sorted(cs.jobs(_WF)) == ["a", "b", "c"]
+
+
+def test_저장소의_모든_작업에_상한이_있다():
+    assert cs.check_timeouts() == []

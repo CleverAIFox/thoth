@@ -1,0 +1,15 @@
+{
+  "적는이": "docs/proposal/build.js",
+  "만든때": "2026-10-02T16:03:20.421Z",
+  "생성기": {
+    "build.js": "6756b91a875523c5",
+    "lib.js": "bfd690811cfdc199",
+    "part1.js": "0fee01fd96370e5c",
+    "part2.js": "d0319f4fa9a7665c",
+    "part3.js": "64e60c677ff1b89d",
+    "figures/figlib.py": "8d925bcbbd91ce2f",
+    "figures/charts.py": "e03cc69517d39903",
+    "figures/diagrams.py": "1536d1035359cfdd",
+    "figures/shots.py": "c1a8f4f95b3064dc"
+  }
+}

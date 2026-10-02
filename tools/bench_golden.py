@@ -25,7 +25,7 @@ import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "worker"))
-from app import glossary  # noqa: E402
+from app import glossary
 CASES = ROOT / "worker/tests/golden/cases.json"
 GLOSSARY = ROOT / "worker/app/glossary"
 

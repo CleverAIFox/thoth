@@ -8,6 +8,7 @@
 > | `docs/PLAN.md` | 미래 | 남은 일 · 미결정 · 범위 밖 |
 > | **`docs/MASTER.md`** | **현재** | **계약 · 운영 · 비용 (이 문서)** |
 > | `docs/DECISIONS.md` | 과거 | 왜 그렇게 됐나 (append-only) |
+> | `docs/proposal.docx` | — | 제출본. 시제 규칙 밖. 생성기 `docs/proposal/` 가 만든다(§0-7) |
 > | `README.md` | — | 대외 공개용. 시제 규칙 밖 |
 >
 > 3인칭 · 평어체 `-다` · 단정. **절 번호는 자산이다.** 커밋 메시지와
@@ -100,6 +101,16 @@ PLAN 머리의 「이 문서의 규약」 표가 정본이다 — §1 표 하나
 `.github/workflows/proposal.yml`). **docx 는 손으로 고치지 않는다** — 생성기 `docs/proposal/` 가
 만든다(DECISIONS §116).
 
+★ **docx 를 생성기에 묶는 것은 `docs/proposal/build.lock.json` 이다**(DECISIONS §126).
+`build.js` 가 생성기 아홉 파일의 지문을 거기 적고 `docx_check` 가 견준다.
+**다시 만드는 입구는 `tools/build_proposal.sh` 하나다** — 그림 셋의 의존성 묶음이
+거기 산다(전에는 README 에 명령 넷이 늘어서 있었고 한 묶음에서 `matplotlib` 이 빠져 있었다). 2026-10-03 까지 그
+자물쇠가 없어서 **배포본이 생성기보다 뒤진 채로 초록이었다** — 가운데 화살표(`node build.js`)를
+사람이 돌리는데 그것을 확인하는 것이 아무것도 없었다. `doctor` 는 WARN, 배포는 실패다.
+
+★ **`site/proposal.html` 은 docx 를 `cache: "reload"` 로 받는다.** 같은 URL 의 1.9MB
+바이너리라 브라우저와 Pages CDN 이 옛 사본을 준다 — 배포가 맞게 돌아도 화면이 옛것이었다.
+
 ```bash
 cd docs/proposal && npm install                       # 처음 한 번 (docx)
 uv run --with matplotlib --with numpy --with pillow python figures/charts.py
@@ -182,8 +193,9 @@ Translate 로 미리 번역해 두고 화면에서 사전을 조회했다(DECISI
 ★ **ASGI 어댑터를 쓰지 않는다.** Mangum 을 끼우면 Lambda 패키지에 FastAPI 와
 pydantic 이 들어간다. 계약을 떼는 쪽이 중복도 0 이고 배포 패키지가 **18KB** 다.
 
-★ 배포본은 2026-09-14 에 섰고 Udemy 실사이트에서 확인했다. 문항 하나에 **5.2초**
-(로컬 엔진 80.7초), 45유닛 골든셋 위반 2건이다.
+★ 배포본은 2026-09-14 에 섰고 Udemy 실사이트에서 확인했다. **수는 여기 안 적는다** —
+정본은 §7-0 의 표와 `docs/bench/baseline.json` 이다(DECISIONS §125). 2026-10-02 까지
+이 줄이 「5.2초 · 위반 2건」 이었고 정본은 「5.3초 · 위반 4유닛」 이었다.
 
 ---
 
@@ -324,7 +336,7 @@ FastAPI 배선만 들고, 배포본의 Lambda 핸들러도 같은 함수를 부�
 | `lambda_handler.py` | 배포본. Function URL 이벤트의 모양 |
 
 ★ **ASGI 어댑터를 쓰지 않는다.** Mangum 을 끼우면 Lambda 패키지에 FastAPI 와
-pydantic 이 들어가고 콜드스타트가 1초 넘게 붙는다. 첫 문항 5.2초에 얹히는
+pydantic 이 들어가고 콜드스타트가 1초 넘게 붙는다. 첫 문항(§7-0 의 표)에 얹히는
 시간이라 사용자가 체감한다(DECISIONS §68).
 
 ★ **두 경로의 응답 바이트가 같다.** 파싱 결과만 맞추면 `{"a": 1}` 과 `{"a":1}`
@@ -438,7 +450,7 @@ res : { "translations": ["번역", null], "cached": [true, false],
 |---|---|---|
 | `memory` | 프로세스 | 테스트 전용 |
 | `file` | `.cache/translations.json` | 로컬 개발. 현재 값 |
-| `ddb` | DynamoDB | 배포 (미구현) |
+| `ddb` | DynamoDB | 배포. `cache.py` · `guard.py` 가 돈다(§11-11) |
 
 ★ **캐시가 휘발이면 워커 재시작마다 전량 재번역이다.** 로컬 엔진에서는 시간
 손실이지만 과금 엔진에서는 그대로 재과금이다(DECISIONS §5).
@@ -457,11 +469,12 @@ res : { "translations": ["번역", null], "cached": [true, false],
 |---|---|---|
 | `MAX_CHARS_PER_MONTH` | 2000000 | 월 상한 |
 | `MAX_TEXT_LEN` | 5000 | 단일 텍스트 상한 |
-
 | `QUOTA_FILE` | `.cache/quota.json` | `CACHE=file` 일 때 카운터 위치 |
 
-★ **카운터 백엔드는 `CACHE=ddb` 일 때만 원격이다.** `memory` 가 아니면
-DynamoDB 로 가르면 `CACHE=file` 에서 카운터만 AWS 로 샌다(DECISIONS §10).
+★ **카운터 백엔드는 `CACHE=ddb` 일 때만 원격이다.** 「`memory` 가 아니면 DynamoDB」
+로 가르면 `CACHE=file` 에서 **카운터만 AWS 로 샌다** — 캐시는 파일인데 사용량은
+원격이 되고, 그러면 로컬 개발이 계정의 테이블을 때린다(DECISIONS §10).
+정본은 `worker/app/guard.py` 의 백엔드 선택이다.
 
 ★ **`file` 모드는 카운터도 파일에 남긴다.** 메모리에 두면 워커 재시작마다 월
 사용량이 0 이 되어 상한이 무의미하다. 캐시를 지워도 사용량은 남아야 하므로
@@ -547,7 +560,9 @@ seed 를 함께 주므로 유닛 이름까지 재현된다. **재현성이 엔�
 §30 · §32 로 0 이 된 항목인데 프롬프트는 그대로였다 — 지시가 모델에게 "이것이
 고유명사인가" 를 묻는 형식이어서, 그 판정이 빗나가면 목록이 있어도 안 걸렸다.
 지시를 고쳐 0 이 되었다고 §66 에 적었으나 **그것이 두 판의 값이었다.**
-2026-09-15 배치 3 네 판에서 전부 다시 났다(§81). 이 항목은 열려 있다.
+2026-09-15 배치 3 네 판에서 전부 다시 났다(DECISIONS §81). **이 항목은 열려 있고
+`PLAN #64` 가 그 자리다** — 「열려 있다」 만 적으면 넉 달이 지나도 아무도 안 본다
+(DECISIONS §125). README 가 밖으로도 보이는 자리다.
 
 ★ 정본은 `docs/bench/baseline.json` 의 `engines` 블록이며 이 표는 그 요약이다.
 
@@ -706,7 +721,7 @@ VRAM 이 1.4GB 남아 있어도 일부 레이어가 CPU 에 남는다. 볼 것�
 | `worker/tests/endings/lexicon.json` | 용언 108 · 이다 6. 부류 15 — 규칙 · ㄹ탈락 · ㅂ ㄷ ㅅ 르 러 ㅎ 불규칙 · 으탈락 · 하다 · 보조 용언 · 이다 |
 | `worker/tests/endings/corpus.jsonl` | 해요체 → 합쇼체 2,472줄. Kiwi 의 `join` 이 활용했다(생성기 2판) |
 | `worker/tests/endings/hand.jsonl` | 손으로 쓴 43줄. 실사용 문장 · 여러 문장 · 괄호 · 바뀌면 안 되는 줄 |
-| `worker/tests/endings/review.tsv` | 사람이 판정할 283줄(부류 × 문형마다 둘 + 손 전부). **채우지 않았다** |
+| `worker/tests/endings/review.tsv` | 사람이 판정할 283줄(부류 × 문형마다 둘 + 손 전부). **채우지 않았다 — `PLAN #66`** |
 
 ```bash
 python3 tools/bench_endings.py --fails 20                  # Kiwi 없이 돈다
@@ -966,6 +981,11 @@ UI 를 가린다. `Alt+K` 로 `html.st-off` 클래스를 전환하고 상태를
 상대 경로는 확장 오리진으로 풀리지 않는다** — 이 문단이 한때 그렇게 적었고 틀렸다
 (DECISIONS §103).
 
+★ **`use_dynamic_url: true` 를 함께 단다**(DECISIONS §125). `matches` 가
+`<all_urls>` 라 **아무 사이트나 이 폰트 주소를 찔러 볼 수 있고**, 200 이 오면
+이 확장이 깔렸다는 것을 알아낸다(지문 수집). 동적 URL 은 그 주소를 세션마다
+바꿔 추측을 막는다. 범위를 좁히는 쪽은 안 된다 — 번역은 어느 사이트에서나 돈다.
+
 ★ **글자 크기가 `px` 다.** `em` 은 부모를 따라가는데 문항 · 보기 · 해설의 부모
 크기가 달라 같은 번역이 자리마다 다른 크기로 나왔다.
 
@@ -977,7 +997,8 @@ UI 를 가린다. `Alt+K` 로 `html.st-off` 클래스를 전환하고 상태를
 ★ **색도 사이트에서 뽑는다.** 브로커가 배경과 글자색을 읽어 `--st-site-*` 로
 넘기고, 면 · 테두리 · 뼈대가 거기서 파생된다. **사이트의 CSS 를 알 필요가
 없다** — 계산된 값만 읽는다. 대비가 4.5 미만이면 아무것도 넘기지 않고
-`content.css` 의 기본값이 선다(§59).
+`content.css` 의 기본값이 선다 — 문턱의 정본은 `extension/src/broker.js` 의
+`contrast(text, bg) < 4.5` 다.
 
 ★ **테마를 추측하지 않고 잰다.** 브로커가 앵커에서 위로 올라가며 실제로
 칠해진 첫 배경색을 찾아 상대 휘도를 구하고 `html[data-st-theme]` 에 남긴다.
@@ -1000,8 +1021,9 @@ CSS 는 그 속성만 본다. `prefers-color-scheme` 은 OS 설정이라 크롬�
 줄 세 개가 놓인다. **글자를 흘리지 않는 이유**는 번역이 도착할 때 높이가 튀지
 않게 하기 위해서다. `prefers-reduced-motion` 이면 깜빡이지 않고 뼈대만 남는다.
 
-★ **어댑터의 `decorate` 가 아직 인라인 `!important` 로 세 속성을 덮는다.**
-CSS 와 값이 같아 충돌하지는 않으나 **스타일이 두 곳에 산다**(DECISIONS §91).
+★ **어댑터의 `decorate` 가 인라인 `!important` 로 세 속성을 덮는다.** CSS 와 값이
+같아 충돌하지는 않으나 **스타일이 두 곳에 산다**(DECISIONS §91) — `PLAN #65`.
+「아직」 을 적으면 그것이 할 일인지 받아들인 상태인지 안 갈린다(DECISIONS §125).
 
 ### 10-2. 팝업
 
@@ -1025,8 +1047,13 @@ id 로 붙잡으므로 요소를 늘리면 스크립트와 한 쌍이 더 생긴
 고치고 새로고침하면 바로 보이고 **확장 동기화가 필요 없다.** 동기화 대상에서는
 뺀다 — 크롬은 폴더 안의 모든 파일을 확장의 일부로 본다.
 
-★ **그려진 노드를 보는 검사가 없다.** 확장 검사 43건은 실패 판정과 클라이언트
-계약만 본다. 로딩 클래스가 붙고 떨어지는 것은 **눈으로만 확인됐다**.
+★ **그려진 노드를 보는 검사가 없다.** 확장 검사 <!--count:ext_tests-->93건은 실패
+판정과 클라이언트 계약만 본다. 로딩 클래스가 붙고 떨어지는 것은 **눈으로만 확인됐다**
+— PLAN #63 이 그 자리다.
+
+★ **이 수에 `<!--count:-->` 를 달았다**(DECISIONS §125). 2026-10-02 까지 `43` 이었다 —
+README 의 같은 수는 표시가 붙어 `check_counts` 가 보는데 여기는 표시가 없어 **검사 밖에서
+넉 달을 늙었다.** 같은 수가 두 곳에 살 때 묶이지 않은 쪽만 늙는다.
 
 URL 은 번역 대상에서 분리해 클릭 가능한 링크로 되붙인다. 번역기에 넣으면
 경로가 깨지고, 깨진 채로 캐시에 박제된다. 삽입은 `innerHTML` 이 아니라 DOM
@@ -1095,7 +1122,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->403건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->426건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1675,7 +1702,12 @@ workflows named ..." 를 내는데, 그 문구는 파일이 아예 없을 때와
 
 ★ **액션 메이저**(2026-09-16). `checkout@v5` · `setup-python@v6` · `setup-node@v5`
 · `setup-uv@v7` · `setup-terraform@v4` · `configure-aws-credentials@v6` 가 Node 24 다.
-`gitleaks-action@v3` 도 Node 24 다(DECISIONS §101).
+`gitleaks-action@v3` 도 Node 24 다(DECISIONS §101). **쓰는 판이 아니라 Node 24 가 되는
+하한이다** — 목록은 `check_static.py` 의 `NODE20` 이 든다.
+
+★ **`uses:` 는 전부 40자 SHA 로 고정한다**(DECISIONS §125). 메이저 태그는 업스트림이
+옮기고, 가장 무거운 자리가 배포 자격증명과 같은 잡에서 도는 액션이다. 판은 `# v7.0.1`
+주석에 적는다 — **그 주석이 위 Node 24 검사가 메이저를 읽는 자료다.**
 
 ★ **`yaml` 이 없으면 `SKIP` 이다.** 린터 취급과 같고 CI 가 그것을 따로 막는다
 (DECISIONS §54).
@@ -1856,6 +1888,13 @@ bash tools/pairs_check.sh 2026-09-16
 ★ **월 상한은 비용을 막지 남용을 막지 않는다.** 지출은 상한에서 멈추지만
 그 상한을 누가 태우는지는 상한이 정하지 않는다. 남이 태우면 지출은 0 원 늘지
 않은 채 정당한 사용자가 429 를 받는다(DECISIONS §25).
+
+★ **남의 호스트에는 `https` 를 요구한다**(DECISIONS §125). 토큰이 요청 헤더에
+실려 가므로 평문으로 보내면 **중간에서 그대로 읽힌다** — 위의 「확장에 심는 토큰은
+비밀이 아니다」 와 다른 이야기다. 그쪽은 **설치한 사람**이 꺼내는 것이고 이쪽은
+**지나가는 남**이 줍는 것이다. 되돌이 주소(`127.0.0.1` · `::1` · `localhost`)만
+평문을 허락한다 — 강제자는 `extension/src/state.js` 의 `normalizeSettings` 와
+`extension/tests/state.test.js` 의 네 건이다.
 
 ★ **확장에 심는 토큰은 비밀이 아니다.** 사용자가 꺼내볼 수 있으므로 작정한
 공격자를 막지 못한다. 막는 대상은 엔드포인트를 주운 사람이고, 그것이 실제
