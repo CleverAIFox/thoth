@@ -17,6 +17,10 @@
 //   개행으로 만들지 않는다. 그래서 **이 하네스로는 수집 구조만 본다.** 무엇이
 //   몇 개 모였는지 · 어떻게 묶였는지 · 어디에 위임했는지가 검사 대상이고,
 //   텍스트가 정확히 무엇인지는 브라우저에서 본다(픽스처, MASTER §11-5).
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { JSDOM } from "jsdom";
 
 // ★ 어댑터는 `new Function(src)()` 로 평가되며 그 시점의 전역을 본다.
@@ -174,10 +178,21 @@ export function fakeFetch(responses) {
  * ★ 타이머를 통째로 가짜로 바꾸지 않는다. 그것도 흉내이고, 지금 보려는 것은
  *   주기가 아니라 판정이다. **필요 없는 흉내는 하지 않는다**(DECISIONS §47).
  */
+// ★ **실을 파일을 여기 적지 않는다.** `background.js` 의 `ST_FILES` 가 정본이고
+//   여기서 읽는다 — 따로 적으면 새 파일이 늘었을 때 **검사만 그 파일 없이 돈다.**
+//   통과하면서 틀리는 자리다(DECISIONS §132 · §137).
+//
+// ★ 어댑터는 `loadAdapters` 가 이름을 받아 따로 싣고, `config.local` 은 저장소
+//   사본이 언제나 비어 있어 실어도 아무 일이 없다. 나머지를 여기서 싣는다.
+export const BROKER_FILES = (() => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const bg = readFileSync(join(here, "..", "src", "background.js"), "utf8");
+  return [...bg.matchAll(/"src\/([^"]+)\.js"/g)]
+    .map((m) => m[1])
+    .filter((n) => !n.startsWith("adapters/") && n !== "config.local");
+})();
+
 export async function loadBroker() {
-  const { readFileSync } = await import("node:fs");
-  const { fileURLToPath } = await import("node:url");
-  const { dirname, join } = await import("node:path");
   const here = dirname(fileURLToPath(import.meta.url));
   const timers = [];
   const realSI = globalThis.setInterval;
@@ -185,7 +200,7 @@ export async function loadBroker() {
   globalThis.setInterval = (fn, ms) => { const t = realSI(fn, ms); timers.push(t); return t; };
   globalThis.setTimeout = (fn, ms) => { const t = realST(fn, ms); timers.push(t); return t; };
 
-  for (const n of ["client", "broker"]) {
+  for (const n of BROKER_FILES) {
     new Function(readFileSync(join(here, "..", "src", `${n}.js`), "utf8"))();
   }
 
