@@ -31,7 +31,7 @@ import os
 import re
 import urllib.request
 
-from . import glossary
+from . import glossary, particle
 
 log = logging.getLogger("thoth")
 
@@ -174,6 +174,7 @@ def _strip_markdown(src: str, ko: str) -> str:
 #   지울 수 있고, 늘면 모델이나 배치가 나빠진 것이다 — 조용히 고쳐 주기만 하면
 #   **고친 사실이 사라진다**(§97 이 `raw` 를 남기는 것과 같은 까닭).
 RESTORED: dict[str, int] = {}
+PARTICLE_FIXED: dict[str, int] = {}
 
 
 def postprocess(src: str, ko: str) -> str:
@@ -182,6 +183,11 @@ def postprocess(src: str, ko: str) -> str:
 
     ★ **되돌리기는 맨 끝이다.** 앞 단계들이 글자를 지우거나 자르므로, 그보다
       먼저 되돌리면 되돌린 것이 다시 잘릴 수 있다.
+
+    ★ **조사 교정은 되돌리기보다 더 뒤다**(DECISIONS §143). 되돌리기가 앞말을
+      바꾸면 조사가 가리키는 받침도 바뀐다 — `DynamoDB 스트림을`(ㅁ) 을 되돌리면
+      `DynamoDB Streams을` 이 되는데 스트림스는 받침이 없어 `를` 이 맞다.
+      **되돌리기가 조사를 틀리게 만든다.** 그래서 그 뒤에서 센다.
     """
     ko = _strip_markdown(src, ko.strip())
     ko = _truncate_after_question(src, ko)
@@ -195,6 +201,15 @@ def postprocess(src: str, ko: str) -> str:
         #   언제 나빠졌는지도 모른다**(§97 이 `raw` 를 남기는 것과 같은 까닭).
         log.info("thoth restore %s", json.dumps(
             {"terms": 되돌린것, "model": model_name()}, ensure_ascii=False))
+
+    ko, 고친조사 = particle.fix(ko)
+    for x in 고친조사:
+        PARTICLE_FIXED[x] = PARTICLE_FIXED.get(x, 0) + 1
+    if 고친조사:
+        # ★ **이 수가 이 결함의 유병률이다.** 모델이 조사를 틀린 횟수 + 되돌리기가
+        #   틀리게 만든 횟수를 함께 센다. 0 으로 가면 둘 다 멎은 것이다.
+        log.info("thoth particle %s", json.dumps(
+            {"fixed": 고친조사, "model": model_name()}, ensure_ascii=False))
     return ko
 
 

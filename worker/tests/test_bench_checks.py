@@ -693,3 +693,35 @@ def test_선언이_늘면_문다():
 def test_선언이_줄어도_문다():
     # ★ 양방향 래칫. 필요 없어졌으면 **수를 같이 고치는 일**이다.
     assert any("빼는 자리가 0곳이다" in x for x in bench.exempt_fails([]))
+
+
+# ── 조사 축 (DECISIONS §143) ─────────────────────────────────────────────
+
+def test_조사가_틀리면_위반으로_센다():
+    # ★ 종결어미 검사(§93)는 문장 끝만 본다. 문장 가운데의 `Streams을` 은
+    #   **아무 검사에도 걸리지 않고 있었다.**
+    unit = {"text": "The pipeline consumes DynamoDB Streams records nightly.",
+            "ratio_max": 9.0, "kind": "prompt"}
+    bad = bench.check(unit, "DynamoDB Streams을 매일 밤 읽습니다.", {})
+    assert any(x.startswith("조사:") for x in bad), bad
+
+
+def test_조사가_맞으면_안_센다():
+    # ★ 음성 대조 — 영어가 섞인 문장마다 우는 검사는 아무것도 안 재는 것이다.
+    unit = {"text": "The pipeline consumes DynamoDB Streams records nightly.",
+            "ratio_max": 9.0, "kind": "prompt"}
+    bad = bench.check(unit, "DynamoDB Streams를 매일 밤 읽습니다.", {})
+    assert not [x for x in bad if x.startswith("조사:")], bad
+
+
+def test_받침_모르는_이름이_선언_없이_들어오면_문다():
+    # ★ 묻는 것은 「이 받침이 맞나」 가 아니라 **「선언 안 된 모르는 이름이 있나」** 다.
+    사례 = [{"units": [{"text": "The team migrated the archive to Route 53 last quarter."}]}]
+    assert any("Route 53" in x for x in bench.particle_fails(사례))
+
+
+def test_지금_골든셋은_조용하다():
+    import json as _j
+    import pathlib as _p
+    g = lambda n: _j.loads((_p.Path(__file__).parent / "golden" / n).read_text(encoding="utf-8"))
+    assert bench.particle_fails(g("cases.json"), g("terms.json")) == []

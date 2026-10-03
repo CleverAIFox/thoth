@@ -441,6 +441,25 @@ else
   printf '%s\n' "$EXM_OUT" | head -6 | sed 's/^/       /'
 fi
 
+# ★ **조사는 모델이 고를 일이 아니다**(DECISIONS §143). 받침 한 비트로 닫힌 규칙이
+#   정하고, **규칙이 손 떼는 자리는 선언해야** 한다. 묻는 것은 「이 받침이 맞나」 가
+#   아니라 **「재는 글에 선언 안 된 모르는 이름이 있나」** 다(족 가드). 파일만 읽는다.
+PTC_OUT="$(python3 -c 'import importlib.util, json, pathlib, sys
+sp = importlib.util.spec_from_file_location("b", "tools/bench_golden.py")
+b = importlib.util.module_from_spec(sp); sp.loader.exec_module(b)
+sys.path.insert(0, "worker")
+from app import particle
+def g(n):
+    return json.loads((pathlib.Path("worker/tests/golden") / n).read_text(encoding="utf-8"))
+f = particle.decl_fails() + b.particle_fails(g("cases.json"), g("terms.json"))
+print("\n".join(f)); sys.exit(1 if f else 0)' 2>&1)"; PTC_RC=$?
+if [ "$PTC_RC" = 0 ]; then
+  ok "영어 이름마다 받침을 알거나 선언돼 있다"
+else
+  no "받침을 모르는 이름이 선언 없이 재는 글에 있다"
+  printf '%s\n' "$PTC_OUT" | head -6 | sed 's/^/       /'
+fi
+
 echo "== 인프라 =="
 # ★ **형식은 늘 보고 의미는 초기화됐을 때만 본다.** `terraform validate` 는
 #   `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다 받게 하면 검사가

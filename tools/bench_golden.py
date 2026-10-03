@@ -25,7 +25,7 @@ import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "worker"))
-from app import glossary
+from app import glossary, particle
 CASES = ROOT / "worker/tests/golden/cases.json"
 GLOSSARY = ROOT / "worker/app/glossary"
 
@@ -312,6 +312,29 @@ def exempt_fails(cases: list[dict]) -> list[str]:
     return 난것
 
 
+# ★ 숫자로 끝나는 이름(`S3`·`Route 53`)이 바로 그 「모르는 자리」 이므로
+#   숫자 토막을 이름의 일부로 받는다. 실측에서 오탐은 0건이다(골든셋 69유닛).
+_대문자말 = re.compile(r"\b[A-Z][A-Za-z0-9]*(?:\s(?:[A-Z][A-Za-z0-9]*|[0-9]+))*\b")
+
+
+def particle_fails(*묶음: list) -> list[str]:
+    """재는 글에 **규칙이 받침을 모르는 영어 이름**이 있나 (DECISIONS §143).
+
+    ★ 묻는 것은 「이 받침이 맞나」 가 아니라 **「선언 안 된 모르는 자리가 있나」** 다.
+      규칙이 손 떼는 이름(숫자로 끝나는 `S3`·`Route 53` 처럼 읽기가 갈리는 것)이
+      재는 글에 들어오면, **그 이름 뒤 조사는 아무도 안 고치고 그냥 나간다.**
+      새 케이스가 그런 이름을 들고 오면 선언을 요구해야 한다 — 족 가드다.
+    """
+    난것: set[str] = set()
+    for 묶 in 묶음:
+        for q in 묶:
+            for u in q.get("units", []):
+                for m in _대문자말.finditer(u.get("text", "")):
+                    if particle.영어받침(m.group(0)) is None:
+                        난것.add(f"{m.group(0)}: 받침을 모른다 — worker/app/particle.json 이 선언해야 한다")
+    return sorted(난것)
+
+
 def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     """불변식 위반 목록. 빈 리스트가 통과다."""
     src, bad = unit["text"], []
@@ -435,6 +458,18 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     # 5. 합니다체 (MASTER §7-2 규칙 3)
     if not POLITE.search(ko):
         bad.append("합니다체 아님")
+
+    # 5-b. **영어 낱말 뒤 조사가 받침에 맞는가** (DECISIONS §143)
+    #
+    # ★ **이 자리를 아무도 안 보고 있었다.** 모델은 영어 표기를 보고 조사를
+    #   추측하다 틀리고(`Data Catalog이`), **§139 의 되돌리기는 모델이 고른 조사를
+    #   그대로 들고 간다**(`DynamoDB 스트림을` → `DynamoDB Streams을`). 둘 다 비문이고
+    #   종결어미 검사(§93)는 문장 끝만 보므로 걸리지 않는다.
+    #
+    # ★ 여기 걸린다는 것은 **후처리가 못 고쳤다**는 뜻이다 — 규칙이 손 떼는 자리면
+    #   `particle.json` 이 선언해야 하고, 규칙이 틀렸으면 규칙을 고쳐야 한다.
+    for 틀린것 in particle.fix(ko)[1]:
+        bad.append(f"조사:{틀린것}")
 
     # 6. 어간과 어미가 맞는가 (DECISIONS §93)
     bad += bad_conjugation(ko)
