@@ -13,7 +13,10 @@ cd "$ROOT" || exit 1
 . ./tools/lib/infra.sh
 SCOPE="${1:-all}"
 FAIL=0
-skip(){ printf '  \033[33mSKIP\033[0m %s\n' "$1"; }
+# ★ **SKIP 은 「통과」 가 아니라 「안 봤다」 다.** 화면에서는 OK 와 나란히 지나가고
+#   수가 늘어도 아무도 안 센다 — 그래서 센다(DECISIONS §136).
+SKIPPED=0
+skip(){ printf '  \033[33mSKIP\033[0m %s\n' "$1"; SKIPPED=$((SKIPPED+1)); }
 ok(){ printf '  \033[32mOK\033[0m   %s\n' "$1"; }
 no(){ printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=1; }
 # ★ **등급이 하나뿐이면 모든 검사가 최악의 검사와 같은 힘을 갖는다.** 문서 세
@@ -395,6 +398,20 @@ else
   fi
 fi
 
+echo "== 검사의 검사 (MASTER §0-8) =="
+# ★ **검사를 끄는 가장 쉬운 길은 `skip` 한 줄을 더하는 것이다.** 그러면 그 자리는
+#   영원히 안 보이면서 화면에는 「이상 없음」 이 뜬다. 건너뛸 수는 있다 — 다만
+#   **왜 건너뛰는지를 적어야** 하고, 적는 순간 범위인지 도구인지 빚인지 갈린다.
+#   묻는 것은 「이 skip 이 옳은가」 가 아니라 **「선언 안 된 skip 이 있나」** 다(족 가드).
+SKP_OUT="$(python3 tools/check_skips.py 2>&1)"; SKP_RC=$?
+if [ "$SKP_RC" = 0 ]; then
+  ok "건너뛰는 자리가 전부 선언됐다"
+  printf '%s\n' "$SKP_OUT" | head -1 | sed 's/^    /       /'
+else
+  no "건너뛰는 자리에 선언이 없다"
+  printf '%s\n' "$SKP_OUT" | sed 's/^/    /'
+fi
+
 echo "== 인프라 =="
 # ★ **형식은 늘 보고 의미는 초기화됐을 때만 본다.** `terraform validate` 는
 #   `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다 받게 하면 검사가
@@ -589,10 +606,21 @@ fi
 #   크로미움이 없으면 **SKIP 이다 — 없는 도구를 통과로 세지 않는다**(§59).
 #
 # ★ **상태를 종료 코드가 든다**(§127). 0 통과 · 1 어긋남 · 2 재지 못함.
-CAS_OUT="$(python3 tools/cascade_check.py 2>&1)"; CAS_RC=$?
+#
+# ★ **`uv` 로 부른다.** playwright 는 이 저장소의 상시 의존성이 아니라 그림을 찍을
+#   때만 쓰는 것이고(`build_proposal.sh` 도 같다), 시스템 파이썬에 깔려 있지 않다.
+#   **2026-10-03 에 `python3` 로 부르고 「없으면 `uv run --with playwright` 로
+#   깔아라」 는 안내를 찍었다 — 그 명령은 임시 환경에 깔므로 `python3` 쪽은
+#   영영 안 고쳐진다.** 제가 낸 오류를 못 고치는 안내다(DECISIONS §136).
+if command -v uv >/dev/null 2>&1; then
+  CAS_OUT="$(uv run --quiet --with playwright python tools/cascade_check.py 2>&1)"; CAS_RC=$?
+else
+  CAS_OUT="$(python3 tools/cascade_check.py 2>&1)"; CAS_RC=$?
+fi
+CAS_1="$(printf '%s' "$CAS_OUT" | head -1)"
 case "$CAS_RC" in
   0) ok "박스가 사이트 CSS 를 이긴다 (적수 사다리)" ;;
-  2) skip "캐스케이드를 재지 못했다 — $(printf '%s' "$CAS_OUT" | head -1)" ;;
+  2) skip "캐스케이드 — ${CAS_1}" ;;
   *) no "박스가 지는 자리가 표와 다르다"
      printf '%s\n' "$CAS_OUT" | tail -8 | sed 's/^/       /' ;;
 esac
@@ -692,5 +720,13 @@ case "$CNT_RC" in
 esac
 
 echo
-[ "$FAIL" = "0" ] && echo "이상 없음" || echo "위 FAIL 항목을 확인한다"
+# ★ **「이상 없음」 과 「다 봤다」 는 다른 말이다.** 건너뛴 수를 함께 적어야 초록이
+#   무엇을 뜻하는지가 한 줄에서 읽힌다 — 2026-10-03 에 69건이 건너뛰어진 초록을
+#   통과로 읽었다(DECISIONS §135 · §136).
+if [ "$FAIL" = "0" ]; then
+  [ "$SKIPPED" = "0" ] && echo "이상 없음 — 건너뛴 것 없다" \
+                       || echo "이상 없음 (건너뛴 것 ${SKIPPED}건 — 위 SKIP 을 읽는다)"
+else
+  echo "위 FAIL 항목을 확인한다 (건너뛴 것 ${SKIPPED}건)"
+fi
 exit "$FAIL"

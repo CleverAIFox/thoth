@@ -144,7 +144,12 @@ def main() -> int:
     행들, 왜 = 잰다(FIXTURE)
     if 행들 is None:
         print(f"재지 못했다 — {왜}")
-        print("  uv run --with playwright python -m playwright install chromium")
+        # ★ **되는 명령을 적는다.** `uv run --with playwright` 는 **임시 환경**에
+        #   깔므로, 그 뒤에 `python3` 로 다시 부르면 **똑같이 없다.** 크로미움만
+        #   `~/.cache/ms-playwright` 에 남아 영영 안 맞는다(DECISIONS §136).
+        print("  uv run --with playwright python -m playwright install chromium   # 한 번")
+        print("  uv run --with playwright python tools/cascade_check.py           # 그 뒤로는 이렇게 부른다")
+        print("  (시스템 파이썬에 두려면 : pip install --break-system-packages playwright)")
         return 2
 
     if "--json" in sys.argv:
