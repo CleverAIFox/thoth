@@ -85,9 +85,12 @@ globalThis.ST.adapters.push({
     );
   },
 
+  // ★ **값을 여기 적지 않는다**(DECISIONS §132). 전에는 `width` · `white-space` ·
+  //   `overflow-wrap` 을 인라인 `!important` 로 박았는데, 같은 세 값이
+  //   `content.css` 에도 있어서 **한 사실이 두 곳에 살았다**(§91).
+  //   어댑터가 아는 것은 「이 사이트는 넓게 눕혀야 한다」 까지이고,
+  //   **무엇이 그 꼴인지는 CSS 가 정한다.**
   decorate(node) {
-    node.style.setProperty("width", "100%", "important");
-    node.style.setProperty("white-space", "pre-wrap", "important");
-    node.style.setProperty("overflow-wrap", "break-word", "important");
+    node.classList.add("st-translation--wide");
   },
 });

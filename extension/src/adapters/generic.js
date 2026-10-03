@@ -76,7 +76,8 @@ globalThis.ST.adapters.push({
     return el.matches("td,th") ? el : el;
   },
 
+  // ★ 값이 아니라 **자리**를 말한다(DECISIONS §132) — udemy 쪽과 같은 규율이다.
   decorate(node, unit) {
-    if (unit.el.matches("td,th")) node.style.setProperty("display", "block");
+    if (unit.el.matches("td,th")) node.classList.add("st-translation--cell");
   },
 });

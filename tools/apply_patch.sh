@@ -103,30 +103,31 @@ else
   #   이 검사를 나무로 바꾸는 패치 자체는 **커밋을 보던 옛 판**이 받아야 한다 —
   #   2026-10-03 에 실제로 그 패치가 제 손으로 거절당했다. **검사를 바꾸는 패치는
   #   옛 검사를 통과해야 한다**(부트스트랩). 둘 다 받으면 그 덫이 없어진다.
+  # ★ **둘 다 앞에서부터 맞춘다**(DECISIONS §132). 첫 판은 「어느 쪽에도 안 맞으면」 을
+  #   `case "$TREE$HEADSHA" in *"$BASE"*` 로 적었는데 그것은 **가운데서도 맞는다** —
+  #   짧게 적은 바탕(7글자)이 나무 해시 **안쪽**에 우연히 들어 있으면 **틀린 바탕이
+  #   통과한다.** 맞는지를 먼저 깃발에 담고, 깃발이 비었을 때만 운다.
   TREE="$(git rev-parse "HEAD^{tree}")"
   HEADSHA="$(git rev-parse HEAD)"
-  case "$TREE" in
-    "$BASE"*) echo "       바탕 맞다 : 나무 $(echo "$BASE" | cut -c1-8)" ;;
-  esac
-  case "$HEADSHA" in
-    "$BASE"*) echo "       바탕 맞다 : 커밋 $(echo "$BASE" | cut -c1-8) — **나무로 적는 쪽이 낫다**" ;;
-  esac
-  case "$TREE$HEADSHA" in
-    *"$BASE"*) : ;;
-    *)
-      # ★ 이미 붙었으면 나무가 바탕보다 앞선 것이 **정상**이다. 그것부터 가른다.
-      if already_applied; then
-        echo "       이미 적용되어 있다. 아무것도 하지 않는다"
-        exit 0
-      fi
-      echo "바탕이 다르다 :" >&2
-      echo "       패치는 $(echo "$BASE" | cut -c1-8) 에서 만들었고" >&2
-      echo "       지금 나무는 $(echo "$TREE" | cut -c1-8) · 커밋은 $(echo "$HEADSHA" | cut -c1-8) 다" >&2
-      echo "       사이에 무엇이 들어왔거나, 들어왔어야 할 패치가 안 붙어 있다" >&2
-      echo "       git log --oneline -5 와 git rev-parse HEAD^{tree} 를 보내면" >&2
-      echo "       그 나무로 다시 만든다" >&2
-      exit 1 ;;
-  esac
+  MATCH=""
+  case "$TREE" in "$BASE"*) MATCH="나무" ;; esac
+  case "$HEADSHA" in "$BASE"*) MATCH="${MATCH:-커밋}" ;; esac
+  if [ -n "$MATCH" ]; then
+    echo "       바탕 맞다 : $MATCH $(echo "$BASE" | cut -c1-8)"
+  else
+    # ★ 이미 붙었으면 나무가 바탕보다 앞선 것이 **정상**이다. 그것부터 가른다.
+    if already_applied; then
+      echo "       이미 적용되어 있다. 아무것도 하지 않는다"
+      exit 0
+    fi
+    echo "바탕이 다르다 :" >&2
+    echo "       패치는 $(echo "$BASE" | cut -c1-8) 에서 만들었고" >&2
+    echo "       지금 나무는 $(echo "$TREE" | cut -c1-8) · 커밋은 $(echo "$HEADSHA" | cut -c1-8) 다" >&2
+    echo "       사이에 무엇이 들어왔거나, 들어왔어야 할 패치가 안 붙어 있다" >&2
+    echo "       git log --oneline -5 와 git rev-parse HEAD^{tree} 를 보내면" >&2
+    echo "       그 나무로 다시 만든다" >&2
+    exit 1
+  fi
 fi
 
 if ! git apply --check -p1 "$TMP" 2>/tmp/thoth-patch.err; then
