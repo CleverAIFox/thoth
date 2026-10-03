@@ -176,6 +176,7 @@ bash tools/doctor.sh          # 비밀값 · .env 정합 · 훅 · 산출물 · 
 bash tools/doctor.sh --repo   # 저장소 불변식만. 커밋 훅과 CI 가 쓰는 범위
 python3 tools/check_docs.py   # 문서 ↔ 문서 — 문체 · 절 · PLAN 표 · 참조 (규약은 MASTER §0)
 python3 tools/check_infra.py  # 인프라 ↔ 인프라 — 한 부모에 같은 설정이 둘인가
+python3 tools/cascade_check.py # 번역 박스가 사이트 CSS 에 어디서부터 지는가 (크로미움 필요)
 python3 tools/doc_fsck.py     # 문서 ↔ 실물 — 경로 · 테스트 · 죽은 도구
 python3 tools/docx_check.py   # 기획서 ↔ 정본 — 숫자 · 폐기된 값 · 생성기 지문
 bash tools/build_proposal.sh  # 기획서를 다시 만든다 — 그림 셋 · docx · 자물쇠 · 대조
@@ -262,7 +263,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->97건 · 워커 <!--count:worker_tests-->470건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->99건 · 워커 <!--count:worker_tests-->470건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |

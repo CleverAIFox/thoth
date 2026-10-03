@@ -584,6 +584,19 @@ else
   skip "node 가 없어 JS 문법을 보지 못한다"
 fi
 
+# ★ **번역 박스가 사이트 CSS 에 지는 자리**(DECISIONS §135). 명시도 다툼은
+#   레이아웃이 있어야 재므로 jsdom 으로는 안 되고 진짜 엔진이 필요하다. playwright 나
+#   크로미움이 없으면 **SKIP 이다 — 없는 도구를 통과로 세지 않는다**(§59).
+#
+# ★ **상태를 종료 코드가 든다**(§127). 0 통과 · 1 어긋남 · 2 재지 못함.
+CAS_OUT="$(python3 tools/cascade_check.py 2>&1)"; CAS_RC=$?
+case "$CAS_RC" in
+  0) ok "박스가 사이트 CSS 를 이긴다 (적수 사다리)" ;;
+  2) skip "캐스케이드를 재지 못했다 — $(printf '%s' "$CAS_OUT" | head -1)" ;;
+  *) no "박스가 지는 자리가 표와 다르다"
+     printf '%s\n' "$CAS_OUT" | tail -8 | sed 's/^/       /' ;;
+esac
+
 # manifest 와 실제 파일이 어긋나면 주입이 조용히 실패한다.
 python3 - <<'EOF' && ok "manifest 정합" || no "manifest 가 없는 파일을 가리킨다"
 import json, pathlib, re, sys

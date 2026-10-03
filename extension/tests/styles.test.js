@@ -70,8 +70,44 @@ test("비상구의 값이 바탕 규칙과 같다", () => {
   const 바탕 = css.match(/\.st-translation\.st-translation \{([\s\S]*?)\n\}/)?.[1];
   const 비상구 = css.match(/\.st-translation--wide\.st-translation--wide \{([\s\S]*?)\n\}/)?.[1];
   assert.ok(바탕 && 비상구, "두 규칙 중 하나를 못 찾았다 — 검사가 아무것도 안 보고 있다");
-  for (const [속성, 값] of [["width", "100%"], ["white-space", "pre-wrap"], ["overflow-wrap", "break-word"]]) {
+  for (const [속성, 값] of [["display", "block"], ["width", "100%"],
+                            ["white-space", "pre-wrap"], ["overflow-wrap", "break-word"]]) {
     assert.ok(new RegExp(`${속성}:\\s*${값}\\s*;`).test(바탕), `바탕에 ${속성}: ${값} 이 없다`);
     assert.ok(new RegExp(`${속성}:\\s*${값}\\s*!important`).test(비상구), `비상구에 ${속성}: ${값} 이 없다`);
   }
+});
+
+test("재는 기대값이 CSS 가 선언한 값과 같다", () => {
+  // ★ **같은 사실이 두 파일에 산다** — `content.css` 가 선언하고 `cssaudit.js` 가
+  //   그것을 기대한다. 피할 수 없으면 **검사가 둘을 묶는다**(DECISIONS §131 · §135).
+  //   한쪽만 고치면 자가 신고가 **멀쩡한 박스를 졌다고 말하거나 진 박스를 놓친다.**
+  const 바탕 = css.match(/\.st-translation\.st-translation \{([\s\S]*?)\n\}/)?.[1];
+  const audit = fs.readFileSync(path.join(뿌리, "src/cssaudit.js"), "utf8");
+  const 기대 = audit.match(/CSS_EXPECT\s*=\s*\{([\s\S]*?)\}/)?.[1];
+  assert.ok(바탕 && 기대, "둘 중 하나를 못 찾았다 — 검사가 아무것도 안 보고 있다");
+
+  // camelCase → kebab-case. CSS 는 `overflow-wrap`, JS 는 `overflowWrap` 이다.
+  const 짝 = [...기대.matchAll(/(\w+)\s*:\s*"([^"]+)"/g)]
+    .map(([, k, v]) => [k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`), v]);
+  assert.ok(짝.length >= 3, `기대값을 ${짝.length} 개밖에 못 읽었다 — 정규식이 늙었다`);
+  for (const [속성, 값] of 짝)
+    assert.match(바탕, new RegExp(`\\n\\s*${속성}:\\s*${값}\\s*;`),
+      `content.css 의 바탕 규칙에 ${속성}: ${값} 이 없다 — cssaudit 이 기대하는 값이다`);
+});
+
+test("판정 함수가 무는 것과 안 무는 것", async () => {
+  // ★ **DOM 을 안 읽는 함수라 브라우저도 jsdom 도 없이 돈다**(§21). 캐스케이드 자체는
+  //   `tools/cascade_check.py` 가 진짜 엔진으로 재고, 여기서는 **판정의 갈래**를 본다.
+  const src = fs.readFileSync(path.join(뿌리, "src/cssaudit.js"), "utf8");
+  new Function(src)();
+  const { cssFaults, CSS_EXPECT } = globalThis.ST;
+  const 맞는것 = { ...CSS_EXPECT };
+
+  assert.deepEqual(cssFaults(맞는것, 580, 580), [], "맞는 박스를 졌다고 한다");
+  assert.deepEqual(cssFaults({ ...맞는것, display: "inline" }, 580, 580), ["display"]);
+  assert.deepEqual(cssFaults(맞는것, 60, 580), ["width"], "폭이 갈렸는데 조용하다");
+  assert.deepEqual(cssFaults(맞는것, 580.4, 580), [], "1px 안쪽 반올림에 운다");
+  // ★ 음성 대조 — **못 잰 것을 틀렸다고 적지 않는다.** 부모가 inline 이면 0 이 온다.
+  assert.deepEqual(cssFaults(맞는것, 60, 0), [], "그릇 폭을 못 쟀는데 폭을 판정한다");
+  assert.deepEqual(cssFaults(맞는것, 60, -20), [], "그릇 폭이 음수인데 폭을 판정한다");
 });

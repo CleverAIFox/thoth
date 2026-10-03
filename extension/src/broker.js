@@ -158,11 +158,58 @@
   const chunk = (arr, n) =>
     arr.reduce((acc, x, i) => (i % n ? acc[acc.length - 1].push(x) : acc.push([x]), acc), []);
 
+  // ── 박스가 스스로를 잰다 (DECISIONS §135) ──────────────────
+  //
+  // ★ **「브라우저에서 눈으로 확인」 은 검사가 아니었다.** 사람은 한 페이지만 보고,
+  //   본 것을 기록으로 안 남기고, 사이트가 내일 CSS 를 바꾸면 다시 봐야 한다.
+  //   박스가 그려진 뒤 스스로 재면 **실사용 전부가 표본**이 된다.
+  //
+  // ★ **픽스처와 겹치지 않는다.** `tools/cascade_check.py` 는 **우리가 상상한 적수**를
+  //   재고 이것은 **상상 못 한 적수**를 잰다. 캐스케이드는 열거할 수 없고 — 우리를
+  //   이기는 선택자는 남이 앞으로 쓸 글이다 — 탐지는 한 줄이다. **열거가 불가능해서
+  //   계기를 다는 것이 아니라 탐지가 열거보다 싸서 단다.**
+  // ★ **재는 자리는 `src/cssaudit.js` 하나다.** 여기와 `tools/cascade_check.py` 와
+  //   시험이 같은 것을 재므로, 각자 적으면 셋이 갈린다(§132).
+  //
+  // 같은 어긋남을 페이지마다 한 번만 말한다. 박스가 쉰 개면 쉰 줄이 되고 그러면 안 읽힌다.
+  ST.cssFaultLog = [];
+  const cssSeen = new Set();
+
+  const cssAudit = (node) => {
+    try {
+      const faults = ST.cssMeasure(node);
+      if (!faults.length) return;
+      const key = faults.join(",");
+      if (cssSeen.has(key)) return;
+      cssSeen.add(key);
+      const rec = {
+        k: "css", v: 1,
+        site: location.hostname,
+        adapter: pickAdapter()?.name || "",
+        어긋남: faults,
+        비상구: [...node.classList].filter((c) => c.startsWith(`${CLS}--`)),
+      };
+      ST.cssFaultLog.push(rec);
+      // ★ `warn` 이다. `info` 는 기본 필터에서 접히고, 이것은 **박스가 깨진 채로
+      //   나가고 있다**는 말이라 접히면 안 된다.
+      console.warn("[st] 박스가 사이트 CSS 에 진다", rec);
+    } catch { /* 재다 죽어도 번역은 계속된다 */ }
+  };
+
   const finish = (u, text) => {
     if (!u.node.isConnected) return;   // 그 사이 SPA 가 갈아엎었다
     u.node.classList.remove(`${CLS}--loading`);
     u.node.textContent = text;
     appendLinks(u.node, u.urls);
+    // ★ **레이아웃이 끝난 뒤에 잰다.** 같은 틱에 재면 폭이 0 이라 전부 어긋남으로 찍힌다.
+    //
+    // ★ **레이아웃이 없는 곳에서는 아예 재지 않는다.** jsdom 에는
+    //   `requestAnimationFrame` 도 레이아웃도 없다 — 거기서 부르면 `finish` 가
+    //   터져 번역이 안 채워지고, 같은 유닛이 다시 수집된다(검사에서 5 가 10 이
+    //   됐다). `setTimeout` 으로 떨어뜨려도 **잰 값이 사이트가 아니라 환경**이다.
+    //   **못 재는 자리에서는 안 재는 것이 맞다**(DECISIONS §59 · §135).
+    if (typeof requestAnimationFrame === "function")
+      requestAnimationFrame(() => { if (u.node.isConnected) cssAudit(u.node); });
   };
 
   // ★ 실패한 자리를 그냥 비우면 안 된다. stDone 을 지우면 다음 순회가 같은

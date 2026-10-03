@@ -59,6 +59,22 @@ globalThis.ST.translate = async function (texts, source) {
                       : stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;
   const token = fixture ? "" : stToken || globalThis.ST.CONFIG?.token || "";
 
+  // ★ **어느 쪽이 이겼는지 말한다**(DECISIONS §135). 2026-10-03 에 팝업에 남아 있던
+  //   옛 토큰이 `ext-build` 의 파일을 이겨 401 이 났고, **콘솔에는 `401 unauthorized`
+  //   만 찍혔다.** 확장은 그 순간 자기가 무엇을 실었는지 알고 있었는데 말하지 않았다 —
+  //   `smoke.sh` 가 맨 위에 적어 둔 **「틀린 원인을 단정하는 메시지는 침묵보다
+  //   나쁘다」**(§37 · §70)를 이 파일만 안 지키고 있었다.
+  //
+  // ★ **값은 안 찍는다. 출처만 찍는다.** 한 번만 말한다 — 호출마다 찍으면 안 읽힌다.
+  if (!globalThis.ST._출처말함) {
+    globalThis.ST._출처말함 = true;
+    const 출처 = fixture ? "픽스처 — 토큰을 싣지 않는다"
+      : stToken ? "팝업(chrome.storage) — 파일보다 이것이 이긴다"
+      : globalThis.ST.CONFIG?.token ? "파일(ext-build 의 config.local.js)"
+      : "없다 — 401 이 나면 이것이 까닭이다";
+    console.info(`[st] 토큰 출처 : ${출처}`);
+  }
+
   // ★ **호스트만 남긴다**(DECISIONS §104). 픽스처가 "지금 어느 워커로 나가는가" 를
   //   보여 주는 데 쓴다 — 배포본을 때리면 픽스처의 영어 문장이 과금되고 쌍으로
   //   쌓인다. 토큰도 경로도 싣지 않는다.

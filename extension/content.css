@@ -52,6 +52,12 @@
   --st-skel: var(--st-site-skel, #eef1f5);
 
   box-sizing: border-box;
+  /* ★ **선언하지 않으면 싸움에 안 나간 것이다**(DECISIONS §135). div 의 `block` 은
+   *   UA 기본값이라 사이트의 `(0,0,1)` 짜리 규칙에도 진다 — 명시도 (0,2,0) 은
+   *   **적은 속성에만** 걸린다. 그리고 `display: inline` 이 되는 순간 아래
+   *   `width: 100%` 는 **적용 자체가 안 돼서** 폭까지 함께 무너진다.
+   *   `tools/cascade_check.py` 가 이 한 줄의 유무로 L1 다섯 칸이 갈리는 것을 잰다. */
+  display: block;
   width: 100%;
   margin: 12px 0 16px;
   padding: 15px 18px 17px;
@@ -190,18 +196,23 @@ html.st-off .st-translation { display: none !important; }
  *   이 확장이 만든 div 라 **남이 인라인 스타일을 박을 수 없다** — 인라인
  *   `!important` 가 이기던 상대는 전부 선택자이고 그쪽은 이 규칙도 이긴다.
  *
- * ★ **비상구가 아직 필요한지는 안 쟀다.** 위의 `(0,2,0)` 이 Udemy 를 이기는지는
- *   **브라우저에서만 안다**(§91). 여기서 지웠다가 지면 박스가 깨진 채로 나간다 —
- *   그 확인은 `PLAN #67` 이 든다. **중복을 없애는 것과 비상구를 없애는 것은
- *   다른 일이고, 앞엣것은 지금 할 수 있다.**
+ * ★ **이제 쟀다**(DECISIONS §135). `extension/tests/fixtures/cascade.html` 이 구조
+ *   다섯 × 적수 다섯을 깔고 `tools/cascade_check.py` 가 실제 엔진으로 잰다.
+ *   바탕 규칙은 `(0,1,2)` 까지 이기고 `(0,2,2)` · `(1,0,2)` · `!important` 에 진다 —
+ *   **지는 칸 열다섯을 이 비상구가 전부 구한다.** 그래서 남긴다.
+ *
+ * ★ **Udemy 에서 안 쓰인다고 쓸모없는 것이 아니다.** 실사이트 측정에서 이 비상구를
+ *   떼도 한 픽셀도 안 변했는데, 그것은 Udemy 가 `(0,2,0)` 을 이기는 규칙을 안 들고
+ *   있다는 뜻이지 비상구가 죽었다는 뜻이 아니다. **한 사이트는 모집단이 아니다.**
+ *
+ * ★ **`st-translation--cell` 은 지웠다.** 재어 보니 구해 내는 자리가 **0** 이었다 —
+ *   표 칸에서 눕던 것은 `display` 를 아무도 선언하지 않아서였고, 바탕 규칙이
+ *   그것을 적는 순간 비상구가 할 일이 없어졌다. **국소 반창고였지 치료가 아니었다.**
  */
 .st-translation--wide.st-translation--wide {
+  /* 바탕과 같은 까닭으로 여기도 적는다 — 빠지면 L4 에서 폭까지 함께 진다. */
+  display: block !important;
   width: 100% !important;
   white-space: pre-wrap !important;
   overflow-wrap: break-word !important;
-}
-
-/* 표 안에서는 블록이어야 한다 — `td`/`th` 는 자식 div 를 제 흐름에 눕힌다. */
-.st-translation--cell.st-translation--cell {
-  display: block !important;
 }

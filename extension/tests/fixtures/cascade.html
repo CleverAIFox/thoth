@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>캐스케이드 — 바탕 규칙이 어디서부터 지는가</title>
+
+<!--
+  ★ **이 픽스처는 번역을 하지 않는다.** 번역 박스와 **똑같은 모양의 div** 를
+    자리마다 꽂아 놓고, 사이트가 점점 센 선택자로 때릴 때 `content.css` 의
+    바탕 규칙이 **어디서부터 지는지**를 잰다(DECISIONS §91 · §135).
+
+  ★ **jsdom 으로는 못 잰다.** 레이아웃을 안 하므로 `width` 가 픽셀로 안 나온다.
+    진짜 엔진이 필요하고 `tools/cascade_check.py` 가 playwright 로 연다.
+
+  ★ **구조는 유한하고 캐스케이드는 아니다.** 아래 구조 다섯은 셀 수 있다 —
+    블록 · 표 칸 · 목록 · flex 자식 · grid 자식. 반면 우리를 이기는 선택자는
+    **남이 앞으로 쓸 글**이라 열거할 수 없다. 그래서 여기서 재는 것은
+    「전부 막았나」 가 아니라 **「어디서부터 지는가」** 다. 그 수를 알면
+    런타임 자가 신고가 무엇을 봐야 하는지가 정해진다.
+
+  ★ **꽂는 자리를 브로커와 똑같이 한다.** `broker.js` 는 앵커가 `td`/`th` 면
+    `appendChild`, 아니면 `insertAdjacentElement("afterend")` 다. 여기서
+    다르게 꽂으면 재는 것이 실물과 달라진다.
+-->
+
+<link rel="stylesheet" href="../../content.css">
+<!-- ★ 재는 자리는 확장이 실제로 쓰는 것과 **같은 파일**이어야 한다(§135). -->
+<script src="../../src/cssaudit.js"></script>
+
+<style>
+  /* 페이지 바탕. 재는 값에 영향을 주지 않도록 단순하게 둔다. */
+  body { margin: 0; padding: 20px; width: 900px; font: 14px/1.5 system-ui; }
+  .case { margin: 0 0 24px; }
+  .case > h2 { margin: 0 0 6px; font-size: 13px; color: #555; }
+  /* 담는 그릇의 폭을 못 박는다 — 100% 가 무엇의 100% 인지 고정해야 잰 값이 안 흔들린다. */
+  .host { box-sizing: border-box; width: 600px; padding: 0 10px; border: 1px dashed #ccc; }
+  table.host { border-collapse: collapse; }
+  table.host td { box-sizing: border-box; width: 600px; padding: 0 10px; border: 1px dashed #ccc; }
+  ul.host { margin: 0; padding: 0 10px; list-style: none; }
+  .flex.host { display: flex; flex-direction: column; }
+  .grid.host { display: grid; }
+
+  /* ── 적수 사다리 ──────────────────────────────────────────────────────
+   * 바탕 규칙은 `.st-translation.st-translation` 으로 **(0,2,0)** 이다(§91).
+   * 아래는 그보다 낮은 것부터 `!important` 까지 **한 칸씩 올린다.**
+   * 때리는 값은 전부 「박스가 깨지는 쪽」 이다 — 좁아지고, 줄이 안 접히고,
+   * 표 안에서 눕는다. 이기면 그 세 가지가 그대로 보인다.
+   */
+
+  /* ★ **적수는 박스만 때려야 한다.** 처음에는 `.advN div` 로 적었는데 그것이
+   *   **그릇까지 때렸다** — 그릇이 좁아지고 inline 이 되니 `clientWidth` 가 0 이
+   *   되어, 잰 값이 「박스가 졌다」 가 아니라 「그릇이 사라졌다」 가 됐다.
+   *   `p + div` 는 원문 바로 뒤 형제만 잡으므로 그릇에 안 걸린다
+   *   (DECISIONS §135). 명시도는 괄호 안이 정본이다. */
+
+  /* L1 — (0,1,2). 바탕 (0,2,0) 에 진다. */
+  .adv1 p + div {
+    width: 60px; white-space: nowrap; overflow-wrap: normal; display: inline;
+  }
+  /* L2 — (0,2,2). 이긴다. */
+  .adv2 .inner p + div {
+    width: 60px; white-space: nowrap; overflow-wrap: normal; display: inline;
+  }
+  /* L3 — (1,0,2). 이긴다. */
+  #adv3 p + div {
+    width: 60px; white-space: nowrap; overflow-wrap: normal; display: inline;
+  }
+  /* L4 — (0,1,2) 이지만 `!important`. 명시도와 무관하게 이긴다. */
+  .adv4 p + div {
+    width: 60px !important; white-space: nowrap !important;
+    overflow-wrap: normal !important; display: inline !important;
+  }
+</style>
+</head>
+<body>
+
+<div id="cases"></div>
+
+<script>
+// ★ **손으로 서른 덩이를 적지 않는다.** 구조 다섯 × 사다리 다섯 × 비상구 유무면
+//   쉰 덩이고, 손으로 적으면 하나가 달라도 아무도 못 본다. 여기서 만들면
+//   **모든 칸이 같은 코드에서 나온다** — 차이는 구조와 사다리뿐이다.
+const 구조 = ["block", "cell", "list", "flex", "grid"];
+const 사다리 = ["L0", "L1", "L2", "L3", "L4"];
+const 비상구 = ["없음", "wide"];
+
+const ADV = { L0: "", L1: "adv1", L2: "adv2", L3: "adv3", L4: "adv4" };
+
+// 비상구 이름 → 실제 클래스. `broker.js` 가 붙이는 것과 같은 이름이어야 한다.
+const 비상구클래스 = {
+  "없음": [],
+  "wide": ["st-translation--wide"],
+};
+
+function 박스(비상구이름) {
+  const n = document.createElement("div");
+  n.className = ["st-translation", ...비상구클래스[비상구이름]].join(" ");
+  // 길게 둔다 — `white-space` 와 `overflow-wrap` 이 지면 한 줄로 삐져나간다.
+  n.textContent = "이 문장은 접혀야 한다 ".repeat(6);
+  return n;
+}
+
+const 뿌리 = document.getElementById("cases");
+
+for (const s of 구조) {
+  for (const L of 사다리) {
+    for (const e of 비상구) {
+      const 칸 = document.createElement("div");
+      칸.className = "case";
+      const 제목 = document.createElement("h2");
+      제목.textContent = `${s} · ${L} · 비상구=${e}`;
+      칸.appendChild(제목);
+
+      // 사다리 L2 는 `.adv2 .inner div` 라 안쪽 겹이 하나 더 필요하다.
+      // L3 는 id 로 때리므로 id 를 단다 — 칸마다 다른 id 를 줄 수 없으니
+      // L3 칸에만 `#adv3` 를 달고 한 번만 쓴다(문서에 id 는 하나여야 한다).
+      let 바깥 = document.createElement("div");
+      바깥.className = ADV[L] || "";
+      if (L === "L3") { 바깥.className = ""; 바깥.setAttribute("data-adv3", "1"); }
+
+      let 그릇;
+      const 원문 = document.createElement("p");
+      원문.textContent = "The original sentence.";
+      const 노드 = 박스(e);
+      // 표시용 이름 — 측정 쪽이 이걸로 행을 찾는다.
+      노드.setAttribute("data-case", `${s}|${L}|${e}`);
+
+      if (s === "cell") {
+        그릇 = document.createElement("table");
+        그릇.className = "host";
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        tr.appendChild(td);
+        그릇.appendChild(tr);
+        // ★ 브로커와 같다 — `td`/`th` 앵커에는 `appendChild`.
+        td.appendChild(원문);
+        td.appendChild(노드);
+      } else if (s === "list") {
+        그릇 = document.createElement("ul");
+        그릇.className = "host";
+        const li = document.createElement("li");
+        li.appendChild(원문);
+        li.appendChild(노드);     // 앵커 뒤 형제
+        그릇.appendChild(li);
+      } else {
+        그릇 = document.createElement("div");
+        그릇.className = `host ${s === "flex" ? "flex" : s === "grid" ? "grid" : ""}`.trim();
+        그릇.appendChild(원문);
+        그릇.appendChild(노드);   // 앵커 뒤 형제
+      }
+
+      if (L === "L2") {
+        const 안 = document.createElement("div");
+        안.className = "inner";
+        안.appendChild(그릇);
+        바깥.appendChild(안);
+      } else {
+        바깥.appendChild(그릇);
+      }
+      칸.appendChild(바깥);
+      뿌리.appendChild(칸);
+    }
+  }
+}
+
+// ★ **`#adv3` 는 문서에 하나뿐이어야 한다.** 위에서 표시만 해 두고 여기서
+//   한 묶음으로 감싼다 — id 선택자를 여러 번 쓰면 브라우저는 받아 주지만
+//   그것은 측정이 아니라 우연이다.
+const l3 = [...document.querySelectorAll("[data-adv3]")];
+if (l3.length) {
+  const 통 = document.createElement("div");
+  통.id = "adv3";
+  l3[0].parentNode.insertBefore(통, l3[0]);
+  for (const x of l3) 통.appendChild(x);
+}
+</script>
+</body>
+</html>

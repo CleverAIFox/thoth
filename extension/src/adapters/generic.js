@@ -70,14 +70,14 @@ globalThis.ST.adapters.push({
   match: () => true,
   collect: (root) => globalThis.ST.genericCollect(root),
 
-  anchorFor(el) {
-    // td · th 뒤에 div 를 꽂으면 브라우저가 테이블 밖으로 튕겨낸다.
-    // 표 안에서는 셀 내부에 붙인다.
-    return el.matches("td,th") ? el : el;
-  },
-
-  // ★ 값이 아니라 **자리**를 말한다(DECISIONS §132) — udemy 쪽과 같은 규율이다.
-  decorate(node, unit) {
-    if (unit.el.matches("td,th")) node.classList.add("st-translation--cell");
-  },
+  // ★ **`anchorFor` 도 `decorate` 도 없다**(DECISIONS §135).
+  //
+  //   `anchorFor` 는 `el.matches("td,th") ? el : el` 이었다 — **두 갈래가 같은 값을
+  //   돌려주는 삼항**이라 아무 일도 안 하면서 「표를 특별히 다룬다」 고 말하고 있었다.
+  //   표 안에 꽂는 일은 `broker.js` 가 앵커를 보고 직접 한다.
+  //
+  //   `decorate` 는 표 칸에 `st-translation--cell` 을 붙였는데, 재어 보니 그 비상구가
+  //   구해 내는 자리가 **0** 이었다. 표 칸에서 박스가 눕던 것은 `content.css` 의 바탕
+  //   규칙이 `display` 를 **선언하지 않아서**였고, 거기 한 줄을 적는 순간 사라졌다.
+  //   **증상이 난 자리에 반창고를 붙이면 원인은 그대로 남는다.**
 });
