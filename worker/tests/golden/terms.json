@@ -1,0 +1,262 @@
+[
+  {
+    "qid": "amb-bare",
+    "units": [
+      {
+        "id": "a1",
+        "kind": "prompt",
+        "text": "The analytics team queries table metadata that is registered in the Data Catalog before each scheduled extraction job runs against the warehouse.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Data Catalog"
+        ]
+      },
+      {
+        "id": "a2",
+        "kind": "prompt",
+        "text": "A workflow that coordinates three serverless functions in a strict order is implemented with Step Functions rather than with direct invocation chaining.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Step Functions"
+        ]
+      },
+      {
+        "id": "a3",
+        "kind": "prompt",
+        "text": "Column level permissions on the shared tables are granted through Lake Formation so that the finance group cannot read salary fields.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Lake Formation"
+        ]
+      },
+      {
+        "id": "a4",
+        "kind": "prompt",
+        "text": "The compliance engineer enables Config so that every change to a security group is recorded and evaluated against the organization rules.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Config"
+        ]
+      },
+      {
+        "id": "a5",
+        "kind": "prompt",
+        "text": "Trusted Advisor reports that several load balancers have been idle for more than thirty days and recommends removing them to reduce spend.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Trusted Advisor"
+        ]
+      },
+      {
+        "id": "a6",
+        "kind": "prompt",
+        "text": "The finance analyst opens Cost Explorer to compare the monthly spend of two accounts across the last six billing periods in one chart.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Cost Explorer"
+        ]
+      },
+      {
+        "id": "a7",
+        "kind": "prompt",
+        "text": "Database credentials are stored in Secrets Manager and rotated automatically every thirty days without any change to the application code.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Secrets Manager"
+        ]
+      },
+      {
+        "id": "a8",
+        "kind": "prompt",
+        "text": "Partners upload nightly files over SFTP through Transfer Family, which writes the objects directly into the landing prefix of the bucket.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Transfer Family"
+        ]
+      }
+    ]
+  },
+  {
+    "qid": "amb-prefix",
+    "units": [
+      {
+        "id": "b1",
+        "kind": "prompt",
+        "text": "The analytics team queries table metadata that is registered in the AWS Glue Data Catalog before each scheduled extraction job runs against the warehouse.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Glue Data Catalog"
+        ]
+      },
+      {
+        "id": "b2",
+        "kind": "prompt",
+        "text": "A workflow that coordinates three serverless functions in a strict order is implemented with AWS Step Functions rather than with direct invocation chaining.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Step Functions"
+        ]
+      },
+      {
+        "id": "b3",
+        "kind": "prompt",
+        "text": "Column level permissions on the shared tables are granted through AWS Lake Formation so that the finance group cannot read salary fields.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Lake Formation"
+        ]
+      },
+      {
+        "id": "b4",
+        "kind": "prompt",
+        "text": "The compliance engineer enables AWS Config so that every change to a security group is recorded and evaluated against the organization rules.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Config"
+        ]
+      },
+      {
+        "id": "b5",
+        "kind": "prompt",
+        "text": "AWS Trusted Advisor reports that several load balancers have been idle for more than thirty days and recommends removing them to reduce spend.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Trusted Advisor"
+        ]
+      },
+      {
+        "id": "b6",
+        "kind": "prompt",
+        "text": "The finance analyst opens AWS Cost Explorer to compare the monthly spend of two accounts across the last six billing periods in one chart.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Cost Explorer"
+        ]
+      },
+      {
+        "id": "b7",
+        "kind": "prompt",
+        "text": "Database credentials are stored in AWS Secrets Manager and rotated automatically every thirty days without any change to the application code.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Secrets Manager"
+        ]
+      },
+      {
+        "id": "b8",
+        "kind": "prompt",
+        "text": "Partners upload nightly files over SFTP through AWS Transfer Family, which writes the objects directly into the landing prefix of the bucket.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "AWS Transfer Family"
+        ]
+      }
+    ]
+  },
+  {
+    "qid": "obvious",
+    "units": [
+      {
+        "id": "c1",
+        "kind": "prompt",
+        "text": "Each item written to DynamoDB carries a partition key and an optional sort key, and the table scales its throughput on demand.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "DynamoDB"
+        ]
+      },
+      {
+        "id": "c2",
+        "kind": "prompt",
+        "text": "The entire stack is described in CloudFormation so that the same environment can be recreated in another region without manual steps.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "CloudFormation"
+        ]
+      },
+      {
+        "id": "c3",
+        "kind": "prompt",
+        "text": "Raw export files land in Amazon S3 and are moved to a colder storage class after ninety days by a lifecycle rule.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "Amazon S3"
+        ]
+      },
+      {
+        "id": "c4",
+        "kind": "prompt",
+        "text": "An IAM role grants the function permission to read one table and to write log events, and nothing else beyond that.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "keep": [
+          "IAM"
+        ]
+      }
+    ]
+  },
+  {
+    "qid": "common",
+    "units": [
+      {
+        "id": "d1",
+        "kind": "prompt",
+        "text": "The team keeps every raw file in one central data lake so that later analysis never needs the original source system again.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "drop": [
+          "data lake"
+        ]
+      },
+      {
+        "id": "d2",
+        "kind": "prompt",
+        "text": "Archived reports are placed in object storage because the access pattern is infrequent and the retrieval delay is acceptable.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "drop": [
+          "object storage"
+        ]
+      },
+      {
+        "id": "d3",
+        "kind": "prompt",
+        "text": "Fine grained access control is applied at the column level, and the audit team reviews the granted permissions every quarter.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "drop": [
+          "access control"
+        ]
+      },
+      {
+        "id": "d4",
+        "kind": "prompt",
+        "text": "Shortening the retention period of the stream removes records that the downstream consumers have not finished processing yet.",
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "drop": [
+          "retention period"
+        ]
+      }
+    ]
+  }
+]

@@ -589,3 +589,38 @@ def test_한_문장에_둘이면_둘_다_적는다():
 def test_check_가_이_축을_부른다():
     bad = bench.check(unit("Does it work?"), "동작해야 할습니까?", BOOK)
     assert any(b.startswith("어미:") for b in bad)
+
+
+# ── drop : 보통명사가 영어로 남는가 (과교정 음성 대조, DECISIONS §138) ──
+#
+# ★ **`keep` 만 재면 고치는 쪽이 한 방향으로만 틀린다.** 「대문자로 시작하면 전부
+#   남겨라」 같은 지시는 `keep` 을 0 으로 만들면서 번역돼야 할 말까지 영어로 남긴다.
+#   고친 것이 아니라 증상을 반대편으로 옮긴 것이고, 음성 대조가 없으면 **초록으로
+#   보인다.**
+
+def test_보통명사가_영어로_남으면_잡는다():
+    u = unit("The team keeps raw files in one data lake.", drop=["data lake"])
+    assert "drop:data lake" in bench.check(u, "팀은 원본 파일을 하나의 data lake 에 둡니다.", BOOK)
+
+
+def test_번역됐으면_조용하다():
+    u = unit("The team keeps raw files in one data lake.", drop=["data lake"])
+    assert bench.check(u, "팀은 원본 파일을 하나의 데이터 레이크에 둡니다.", BOOK) == []
+
+
+def test_대소문자를_가리지_않는다():
+    u = unit("Archived reports go to object storage.", drop=["object storage"])
+    assert "drop:object storage" in bench.check(u, "보관 보고서는 Object Storage 로 갑니다.", BOOK)
+
+
+def test_더_긴_낱말_안에_든_것은_위반이_아니다():
+    # ★ `Config` 가 `Configuration` 안에 들어 있는 것은 그 용어가 남은 것이 아니다.
+    #   낱말 경계를 안 보면 **고칠 수 없는 위반**이 생긴다.
+    u = unit("The compliance engineer enables Config.", drop=["Config"])
+    assert bench.check(u, "엔지니어가 Configuration 설정을 켭니다.", BOOK) == []
+
+
+def test_drop_이_없으면_아무것도_안_본다():
+    # ★ 음성 대조. 골든셋의 유닛에는 `drop` 이 없다 — 거기서 울면 안 된다.
+    u = unit("Each item written to DynamoDB carries a key.", keep=["DynamoDB"])
+    assert bench.check(u, "DynamoDB 에 쓰이는 각 항목은 키를 가집니다.", BOOK) == []

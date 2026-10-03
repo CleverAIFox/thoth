@@ -166,6 +166,7 @@ bash tools/bedrock_survey.sh  # Bedrock 쪽 실정을 잰다. 아무것도 바�
 bash tools/apply_patch.sh     # 윈도우 다운로드의 패치를 적용한다
 bash tools/smoke.sh           # 워커를 띄운 상태에서 계약을 실제로 때린다
 python3 tools/bench_golden.py # 골든셋 — 번역 품질 불변식
+python3 tools/bench_golden.py --cases worker/tests/golden/terms.json  # 표적 — 고유명사 누출
 python3 tools/bench_endings.py            # 후처리 어미 — 맞음 · 그대로 · 틀림
 python3 tools/engine_conformance.py <URL>  # 자체 모델 서버가 ENGINE=http 계약을 지키는가
 bash tools/bench_engine.sh <모델>  # 엔진 후보 비교 — 로딩 제외 2회차가 체감
@@ -264,7 +265,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->109건 · 워커 <!--count:worker_tests-->479건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->109건 · 워커 <!--count:worker_tests-->484건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |

@@ -295,6 +295,19 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
         if tok not in ko:
             bad.append(f"keep:{tok}")
 
+    # 1-b. **보통명사는 영어로 남지 않는다** (DECISIONS §138)
+    #
+    # ★ **`keep` 만 재면 고치는 쪽이 한 방향으로만 틀린다.** 「대문자로 시작하면
+    #   전부 남겨라」 같은 지시는 `keep` 을 0 으로 만들면서 **번역돼야 할 말까지
+    #   영어로 남긴다.** 그것은 고친 것이 아니라 증상을 반대편으로 옮긴 것이다.
+    #   음성 대조가 없으면 그 과교정이 **초록으로 보인다**.
+    #
+    # ★ 낱말 경계를 본다. `Config` 가 `Configuration` 안에 들어 있는 것은 위반이
+    #   아니고, 한글 사이에 낀 영어 토막은 경계가 없으므로 그대로 잡힌다.
+    for tok in unit.get("drop", []):
+        if re.search(rf"(?<![A-Za-z]){re.escape(tok)}(?![A-Za-z])", ko, re.I):
+            bad.append(f"drop:{tok}")
+
     # 2. 등재 용어는 등재된 한국어 표기를 쓴다 (MASTER §8)
     #
     # ★ 세 가지를 먼저 뺀다. 실측에서 term 위반 4건이 전부 오탐이었다.
@@ -364,6 +377,11 @@ def main() -> int:
                     help="한 요청에 실을 유닛 수. 기본은 기준선의 배치다")
     ap.add_argument("--timeout", type=int, default=900)
     ap.add_argument("--json", help="결과를 이 경로에 기록한다")
+    # ★ **케이스 파일을 갈아 끼운다.** 재는 길(워커 HTTP · 용어집 · 후처리 · 판정)은
+    #   그대로 두고 **입력만 바꾼다** — 표적 세트를 위해 측정기를 새로 만들면 두
+    #   측정기가 갈린다(DECISIONS §132 · §138).
+    ap.add_argument("--cases", default=str(CASES),
+                    help="케이스 파일. 기본은 골든셋이다")
     ap.add_argument("--no-warmup", action="store_true",
                     help="웜업을 건너뛴다. 콜드 로딩 비용을 재려는 경우에만 쓴다")
     a = ap.parse_args()
@@ -379,7 +397,7 @@ def main() -> int:
         print(f"  배치 {a.batch} (기준선의 {eng} 값)")
 
     book = load_terms()
-    cases = json.loads(CASES.read_text(encoding="utf-8"))
+    cases = json.loads(pathlib.Path(a.cases).read_text(encoding="utf-8"))
     units = [u for q in cases for u in q["units"]]
     if not units:
         print("케이스가 없다"); return 1

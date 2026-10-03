@@ -1219,7 +1219,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->479건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->484건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1306,6 +1306,49 @@ python3 tools/bench_golden.py --json out.json
 2026-09-14 에 실제로 그렇게 `199236자/초` 가 찍혔다. **러너가 히트를 세고
 하나라도 있으면 처리율을 아예 적지 않는다** — 숫자를 적고 옆에 경고를 붙이면
 그 숫자가 인용된다(DECISIONS §64).
+
+★ **케이스 파일을 갈아 끼울 수 있다**(`--cases`). 재는 길 — 워커 HTTP · 용어집 ·
+후처리 · 판정 — 은 그대로 두고 **입력만 바꾼다.** 표적 측정을 위해 측정기를 새로
+만들면 두 측정기가 갈린다(DECISIONS §132 · §138).
+
+```bash
+eval "$(aws configure export-credentials --profile fox --format env)"
+ENGINE=bedrock CACHE_FILE=/tmp/terms-cache.json bash tools/run_worker.sh &
+python3 tools/bench_golden.py --cases worker/tests/golden/terms.json --json /tmp/terms.json
+```
+
+★ **캐시 키에 프롬프트 지문이 없다**(§5 — 키는 `sha256(원문)` 이다). 그래서
+**프롬프트를 고치고 같은 문장을 다시 재면 옛 번역이 돌아온다.** 「고친 뒤」 가 가짜가
+되는 자리다 — 러너가 히트를 세어 `valid: false` 로 막지만, **애초에 `CACHE_FILE` 을
+앞세워 딴 파일로 보내는 것이 맞다**(DECISIONS §138).
+
+### 11-4-0. 표적 세트 — 고유명사 누출
+
+`worker/tests/golden/terms.json` 은 **한 가지만 재는 24유닛**이다. 골든셋은 불변식
+다섯을 한꺼번에 보고, 이쪽은 **「보통명사처럼 읽히는 고유명사가 한글로 새는가」**
+(DECISIONS §81) 하나에 집중한다.
+
+| 묶음 | 수 | 무엇 |
+|---|---|---|
+| `amb-bare` | 8 | `Data Catalog` · `Step Functions` · `Config` … **접두사 없이** |
+| `amb-prefix` | 8 | **같은 문장 · 같은 용어에 `AWS` · `Amazon` 만 붙인 짝** |
+| `obvious` | 4 | `DynamoDB` · `CloudFormation` · `Amazon S3` · `IAM` — 양성 대조 |
+| `common` | 4 | `data lake` · `object storage` … — **음성 대조** |
+
+★ **짝으로 깐 까닭은 변수를 하나만 두기 위해서다.** `amb-bare` 는 새고
+`amb-prefix` 는 안 새면 **「접두사가 있으면 산다」** 가 선다. 둘 다 새면 접두사가
+아니라 다른 것이 원인이다. 한쪽만 재면 **어느 쪽이든 그럴듯한 이야기가 붙는다.**
+
+★ **`obvious` 가 양성 대조다.** 여기까지 새면 「모호해서 샌다」 가 아니라 **지시가
+그냥 안 지켜지는 것**이고, 고칠 자리가 다르다.
+
+★ **`common` 이 음성 대조이고 이것이 핵심이다.** `keep` 만 재면 고치는 쪽이 **한
+방향으로만 틀린다** — 「대문자로 시작하면 전부 남겨라」 는 `keep` 을 0 으로 만들면서
+**번역돼야 할 말까지 영어로 남긴다.** 그것은 고친 것이 아니라 증상을 반대편으로
+옮긴 것이고, 음성 대조가 없으면 **초록으로 보인다.** `drop` 축이 그 방향을 잰다.
+
+★ **낱말 경계를 본다.** `Config` 가 `Configuration` 안에 들어 있는 것은 위반이
+아니다 — 고칠 수 없는 위반을 만들면 그 검사는 곧 꺼진다.
 
 ★ **속도만이 아니라 위반도 그 엔진의 값이 아니다.** 캐시 키는 `sha256(원문)`
 하나라 엔진을 섞지 않으므로, 히트한 문장은 전에 다른 엔진이 번역한 것이다.
