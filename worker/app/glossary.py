@@ -38,6 +38,39 @@ KEEP_HEADER = (
     "Attach Korean particles after them:"
 )
 
+# ── 되돌리기 ────────────────────────────────────────────────────────────────
+#
+# ★ **지시로 안 되는 자리가 있다**(DECISIONS §139). `Data Catalog` 는 keep 목록에
+#   실리고 지시문이 **「보통명사처럼 보여도 절대 한국어로 옮기지 마라」** 까지
+#   적는데도 긴 배치에서 「데이터 카탈로그」 로 나온다. 2026-10-03 실측에서
+#   짧은 배치 24유닛은 8/8 지켜졌고 705자짜리 배치에서 깨졌다 — **프롬프트가 틀린
+#   것이 아니라 모델이 안 지킨 것**이다.
+#
+# ★ **그래서 뒤에서 되돌린다. 모델에게 아무것도 묻지 않는다**(§66). 원문에 있던
+#   항등 용어가 출력에서 사라졌으면, 그것이 무엇이 됐는지를 **선언된 목록**에서
+#   찾아 되돌린다. 결정적이고 호출이 늘지 않는다.
+#
+# ★ **도출하지 않고 선언한다.** `Data Catalog` → 「데이터 카탈로그」 를 도출하려면
+#   `data → 데이터` 가 필요한데 용어집에 없다. 음차표를 새로 만들면 그 표가 또
+#   틀릴 자리가 되고, 틀리면 **멀쩡한 번역을 영어로 되돌린다.** 항등 항목이 둘뿐
+#   이므로 손으로 적는 것이 싸고, **썩지 않게 족 가드가 덮는다** — 항등 항목이
+#   늘었는데 되돌리기 목록이 없으면 운다(`restore_fails`).
+# 되돌리기 꼴의 최소 길이. 짧은 조각은 같은 문장의 멀쩡한 말을 집는다.
+MIN_RESTORE_LEN = 5
+
+RESTORE_FILE = pathlib.Path(__file__).resolve().parent / "restore.json"
+
+_restore: dict[str, list[str]] | None = None
+
+
+def _load_restore() -> dict[str, list[str]]:
+    global _restore
+    if _restore is None:
+        raw = json.loads(RESTORE_FILE.read_text(encoding="utf-8"))
+        _restore = {k: v for k, v in raw.items() if not k.startswith("_")}
+    return _restore
+
+
 _books: dict[str, dict[str, str]] | None = None
 
 
@@ -84,6 +117,83 @@ def match(texts: list[str]) -> tuple[str | None, dict[str, str]]:
         return None, {}
     trimmed = dict(sorted(best.items(), key=lambda kv: -len(kv[0]))[:MAX_TERMS])
     return best_name, trimmed
+
+
+def restore(src: str, ko: str) -> tuple[str, list[str]]:
+    """원문에 있었는데 번역에서 사라진 항등 용어를 되돌린다.
+
+    돌려주는 것은 (고친 번역, 되돌린 용어들). 되돌린 것이 있으면 **그 자체가
+    관측값**이다 — 모델이 지시를 안 지킨 자리를 센다(DECISIONS §139).
+    """
+    name, terms = match([src])
+    if not terms:
+        return ko, []
+    table = _load_restore()
+    고친것 = []
+    # ★ **열쇠는 소문자이고 값이 정규 표기다**(`data catalog` → `Data Catalog`).
+    #   되돌릴 대상은 **값**이다 — 원문에 적힌 꼴로 되돌려야 한다.
+    for en, 정규 in terms.items():
+        if not is_keep(en, 정규):
+            continue
+        # ★ **원문에 그 꼴 그대로 없으면 손대지 않는다.** `match` 는 굴절형까지
+        #   잡으므로 정규 표기가 그대로 있는 자리만 본다 — 없는 것을 넣으면 환각이다.
+        if 정규 not in src:
+            continue
+        # ★ **「이미 지켜졌으면 건너뛴다」 를 넣었다가 돌연변이 시험에서 지웠다.**
+        #   그 줄이 있으면 **한 문장 안에서 모델이 두 꼴을 섞어 쓴 경우**를 못 고친다 —
+        #   `Data Catalog` 한 번, `데이터 카탈로그` 한 번. §20 이 「한 페이지 안에서
+        #   유지한 항목과 번역한 항목이 섞였다」 를 실측으로 적어 두었는데, 그것이
+        #   한 문장 안에서 일어나지 말라는 법이 없다. **깨뜨려 봤더니 그 줄이
+        #   아무것도 막지 않고 한 가지를 놓치고 있었다**(DECISIONS §139).
+        for 틀린꼴 in table.get(정규, []):
+            if 틀린꼴 in ko:
+                ko = ko.replace(틀린꼴, 정규)
+                고친것.append(정규)
+                break
+    return ko, 고친것
+
+
+def restore_fails() -> list[str]:
+    """되돌리기 목록이 용어집과 맞는가. 족 가드다 — 묻는 것은 「이 값이 맞나」 가
+    아니라 **「선언 안 된 항등 항목이 있나」** 다(DECISIONS §139).
+    """
+    table = _load_restore()
+    난것 = []
+    항등 = {}
+    번역값 = set()
+    for book in _load().values():
+        for en, k in book.items():
+            (항등.setdefault(k, en) if is_keep(en, k) else 번역값.add(k.strip()))
+
+    for 정규 in 항등:
+        if not table.get(정규):
+            난것.append(
+                f"항등 항목 '{정규}' 에 되돌리기 목록이 없다 — 번역돼 나와도 못 되돌린다. "
+                f"app/restore.json 에 틀린 꼴을 적는다")
+    for 정규 in table:
+        if 정규 not in 항등:
+            난것.append(f"'{정규}' 은 용어집의 항등 항목이 아니다 — restore.json 에서 뺀다")
+            continue
+        en = 정규
+        for 틀린꼴 in table[정규]:
+            # ★ **한 낱말짜리 꼴을 받지 않는다.** 「카탈로그」 하나를 되돌리면
+            #   원문의 소문자 `catalog` 를 올바르게 옮긴 자리까지 영어로 바꾼다.
+            #   되돌리기가 **반대 방향으로 틀리는** 자리다(§138 의 `drop` 축).
+            if 틀린꼴.strip() in 번역값:
+                난것.append(
+                    f"'{en}' 의 꼴 '{틀린꼴}' 이 용어집의 번역 값과 같다 — "
+                    f"멀쩡한 보통명사까지 되돌린다")
+            # ★ **짧은 조각을 받지 않는다.** 「데이터」 같은 세 글자는 용어집의
+            #   번역 값이 아니라 위 검사에 안 걸리는데, 되돌리기가 그것을 집으면
+            #   같은 문장의 멀쩡한 「데이터」 까지 영어가 된다.
+            #
+            # ★ **길이가 유일한 방어는 아니다.** 되돌리기는 **정규 표기가 원문에
+            #   있고 번역에서 사라진 문장에서만** 돈다 — 그래서 사정거리가 애초에
+            #   좁다. 이 검사는 그 안에서 한 번 더 좁히는 것이다.
+            if len(틀린꼴.strip()) < MIN_RESTORE_LEN:
+                난것.append(
+                    f"'{en}' 의 꼴 '{틀린꼴}' 이 {MIN_RESTORE_LEN}자 미만이다 — 너무 넓게 잡는다")
+    return 난것
 
 
 def is_keep(en: str, ko: str) -> bool:

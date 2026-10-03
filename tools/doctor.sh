@@ -412,6 +412,21 @@ else
   printf '%s\n' "$SKP_OUT" | sed 's/^/    /'
 fi
 
+# ★ **항등 용어가 늘었는데 되돌리기 목록이 없으면 조용히 못 고친다**(DECISIONS §139).
+#   묻는 것은 「이 꼴이 맞나」 가 아니라 **「선언 안 된 항등 항목이 있나」** 다(족 가드).
+#   파일만 읽으므로 `--repo` 안이고 CI 가 본다.
+RST_OUT="$(python3 -c 'import sys; sys.path.insert(0, "worker")
+from app import glossary
+f = glossary.restore_fails()
+print("\n".join(f))
+sys.exit(1 if f else 0)' 2>&1)"; RST_RC=$?
+if [ "$RST_RC" = 0 ]; then
+  ok "항등 용어마다 되돌리기 목록이 있다"
+else
+  no "되돌리기 목록이 용어집과 어긋난다"
+  printf '%s\n' "$RST_OUT" | head -8 | sed 's/^/       /'
+fi
+
 echo "== 인프라 =="
 # ★ **형식은 늘 보고 의미는 초기화됐을 때만 본다.** `terraform validate` 는
 #   `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다 받게 하면 검사가

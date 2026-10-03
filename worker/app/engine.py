@@ -169,12 +169,33 @@ def _strip_markdown(src: str, ko: str) -> str:
     return _MD.sub(r"\1", ko).replace("**", "")
 
 
+# ★ **되돌린 자리를 센다**(DECISIONS §139). 되돌리기가 돌았다는 것은 **모델이
+#   지시를 안 지켰다**는 뜻이고, 그 수는 그 자체로 관측값이다. 0 이 되면 되돌리기를
+#   지울 수 있고, 늘면 모델이나 배치가 나빠진 것이다 — 조용히 고쳐 주기만 하면
+#   **고친 사실이 사라진다**(§97 이 `raw` 를 남기는 것과 같은 까닭).
+RESTORED: dict[str, int] = {}
+
+
 def postprocess(src: str, ko: str) -> str:
     """엔진 출력에 공통으로 거는 후처리. 순서가 중요하다 —
-    답을 잘라낸 뒤에 종결어미를 보아야 잘린 문장의 끝을 본다."""
+    답을 잘라낸 뒤에 종결어미를 보아야 잘린 문장의 끝을 본다.
+
+    ★ **되돌리기는 맨 끝이다.** 앞 단계들이 글자를 지우거나 자르므로, 그보다
+      먼저 되돌리면 되돌린 것이 다시 잘릴 수 있다.
+    """
     ko = _strip_markdown(src, ko.strip())
     ko = _truncate_after_question(src, ko)
-    return _fix_endings(ko)
+    ko = _fix_endings(ko)
+    ko, 되돌린것 = glossary.restore(src, ko)
+    for t in 되돌린것:
+        RESTORED[t] = RESTORED.get(t, 0) + 1
+    if 되돌린것:
+        # ★ **조용히 고치지 않는다.** 되돌리기가 돌았다는 것은 모델이 지시를 안
+        #   지켰다는 뜻이고, 배포본에서 그 수를 못 보면 **언제 좋아졌는지도
+        #   언제 나빠졌는지도 모른다**(§97 이 `raw` 를 남기는 것과 같은 까닭).
+        log.info("thoth restore %s", json.dumps(
+            {"terms": 되돌린것, "model": model_name()}, ensure_ascii=False))
+    return ko
 
 
 # ─── 배치 ─────────────────────────────────────────────────────────────
