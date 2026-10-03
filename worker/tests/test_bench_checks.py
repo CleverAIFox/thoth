@@ -632,3 +632,64 @@ def test_drop_이_없으면_아무것도_안_본다():
     # ★ 음성 대조. 골든셋의 유닛에는 `drop` 이 없다 — 거기서 울면 안 된다.
     u = unit("Each item written to DynamoDB carries a key.", keep=["DynamoDB"])
     assert bench.check(u, "DynamoDB 에 쓰이는 각 항목은 키를 가집니다.", BOOK) == []
+
+
+# ── 케이스가 선언한 예외 (DECISIONS §142) ──────────────────────────────
+#
+# ★ **`-s` 는 굴절로 안 갈린다.** `records` 가 명사 복수인지 3인칭 동사인지는
+#   품사로만 정해진다. 규칙으로 근사하면 한 데이터 점에 맞추는 것이고, 품사
+#   태거는 측정 도구에 의존성을 하나 더 다는 값이다. **도출하지 않고 선언한다.**
+
+def test_선언한_용어는_빼고_본다():
+    u = unit("The description also records that most tasks complete promptly.",
+             term_exempt={"record": "동사다"})
+    assert bench.check(u, "설명은 또한 대부분의 작업이 즉시 완료된다고 적습니다.", BOOK) == []
+
+
+def test_선언이_없으면_그대로_본다():
+    # ★ 음성 대조. 선언이 **그 유닛에만** 걸린다 — 전역으로 꺼지면 안 된다.
+    u = unit("The description also records that most tasks complete promptly.")
+    assert bench.check(u, "설명은 또한 대부분의 작업이 즉시 완료된다고 적습니다.", BOOK) \
+        == ["term:record→레코드"]
+
+
+def test_까닭이_비면_빼지_않는다():
+    # ★ **까닭 없는 예외는 예외가 아니라 구멍이다.**
+    u = unit("The description also records that most tasks complete promptly.",
+             term_exempt={"record": ""})
+    assert bench.check(u, "설명은 또한 대부분의 작업이 즉시 완료된다고 적습니다.", BOOK) \
+        == ["term:record→레코드"]
+
+
+def test_다른_용어는_안_빠진다():
+    # ★ 음성 대조. 한 용어를 뺀다고 같은 유닛의 다른 용어까지 꺼지면 안 된다.
+    u = unit("The description records that the bucket holds every object.",
+             term_exempt={"record": "동사다"})
+    난것 = bench.check(u, "설명은 그 버킷이 모든 객체를 담는다고 적습니다.", BOOK)
+    assert "term:record→레코드" not in 난것
+
+
+def test_실제_골든셋의_선언이_성립한다():
+    import json, pathlib
+    cs = json.loads((pathlib.Path(__file__).resolve().parents[1]
+                     / "tests/golden/cases.json").read_text(encoding="utf-8"))
+    assert bench.exempt_fails(cs) == []
+
+
+def test_원문에_없는_용어를_빼면_문다():
+    # ★ 죽은 선언은 곧 거짓말이 된다.
+    cs = [{"units": [{"id": "x", "text": "The bucket holds objects.",
+                      "term_exempt": {"record": "없는 용어다"}}]}]
+    assert any("원문에 없다" in x for x in bench.exempt_fails(cs))
+
+
+def test_선언이_늘면_문다():
+    cs = [{"units": [
+        {"id": "a", "text": "It records data.", "term_exempt": {"record": "동사"}},
+        {"id": "b", "text": "It catalogs data.", "term_exempt": {"catalog": "동사"}}]}]
+    assert any("빼는 자리가 2곳이다" in x for x in bench.exempt_fails(cs))
+
+
+def test_선언이_줄어도_문다():
+    # ★ 양방향 래칫. 필요 없어졌으면 **수를 같이 고치는 일**이다.
+    assert any("빼는 자리가 0곳이다" in x for x in bench.exempt_fails([]))

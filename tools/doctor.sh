@@ -427,6 +427,20 @@ else
   printf '%s\n' "$RST_OUT" | head -8 | sed 's/^/       /'
 fi
 
+# ★ **검사를 끄는 자리는 선언돼야 한다**(DECISIONS §142). 골든셋 케이스가 용어 검사를
+#   한 자리 빼는데, 그 선언이 썩으면 **검사가 조용히 꺼진다.** 파일만 읽는다.
+EXM_OUT="$(python3 -c 'import importlib.util, json, pathlib, sys
+sp = importlib.util.spec_from_file_location("b", "tools/bench_golden.py")
+b = importlib.util.module_from_spec(sp); sp.loader.exec_module(b)
+f = b.exempt_fails(json.loads(pathlib.Path("worker/tests/golden/cases.json").read_text(encoding="utf-8")))
+print("\n".join(f)); sys.exit(1 if f else 0)' 2>&1)"; EXM_RC=$?
+if [ "$EXM_RC" = 0 ]; then
+  ok "골든셋이 빼는 용어 검사가 선언돼 있다"
+else
+  no "용어 검사 예외 선언이 사실과 다르다"
+  printf '%s\n' "$EXM_OUT" | head -6 | sed 's/^/       /'
+fi
+
 echo "== 인프라 =="
 # ★ **형식은 늘 보고 의미는 초기화됐을 때만 본다.** `terraform validate` 는
 #   `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다 받게 하면 검사가

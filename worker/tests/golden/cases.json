@@ -1,410 +1,413 @@
 [
- {
-  "qid": "q1",
-  "units": [
-   {
-    "id": "q1-p",
-    "kind": "prompt",
-    "ratio_max": 0.75,
-    "text": "A healthcare analytics organization operates a Kinesis Data Streams stream that currently retains records for 168 hours. Following a quarterly infrastructure cost review, the platform engineering team intends to shorten the configured retention period to 72 hours. Several downstream consumer applications read from this stream on an hourly schedule, and one of those applications has been failing intermittently. Before calling DecreaseStreamRetentionPeriod, which condition must be confirmed?",
-    "keep": [
-     "Kinesis Data Streams",
-     "DecreaseStreamRetentionPeriod"
-    ],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-a1",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "Every consumer application has already checkpointed beyond records older than the proposed retention window, leaving no unprocessed record outside the shortened period.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-a2",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "The stream has been resharded beforehand so that the shard count corresponds to expected throughput after the retention period drops to 72 hours.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-a3",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "A snapshot of stream contents has been written to durable object storage, letting affected records be restored whenever a consumer reports missing data.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-a4",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "The producer application has been reconfigured to write records using a partition key that distributes write load evenly across the remaining shards.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-e1",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Correct. Reducing the configured retention period makes records older than the new window inaccessible almost immediately after the operation completes. Any consumer application that has not checkpointed beyond those records loses them permanently, and the intermittently failing application described here is precisely that risk. Confirm checkpoint positions for every registered consumer before proceeding, because the change applies to the entire stream and cannot be reversed afterward.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-e2",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Incorrect. Resharding redistributes available throughput across individual shards, but has no effect whatsoever on how long records remain readable within the stream. The retention period and the shard count are independent configuration settings, so adjusting one provides no protection whatsoever for data that the other governs. Unprocessed records would still become inaccessible immediately.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-e3",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Incorrect. The service does not provide any snapshot mechanism for stream contents, so there is nothing available to restore from once the retention period has been shortened. Teams that require a durable archival copy must write each record to object storage as it is consumed, which is an architectural decision made long before this particular operation is attempted.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q1-e4",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Incorrect. The partition key determines which shard receives each incoming record, affecting write distribution rather than the lifetime of previously stored data. Reconfiguring the producer application accomplishes nothing for records already residing within the stream that are about to fall outside the newly shortened retention window once the configuration change takes effect.",
-    "keep": [],
-    "ratio_min": 0.3
-   }
-  ]
- },
- {
-  "qid": "q2",
-  "units": [
-   {
-    "id": "q2-p",
-    "kind": "prompt",
-    "ratio_max": 0.75,
-    "text": "An analytics team stores several years of clickstream data as objects in an S3 bucket, partitioned by year, month, day, and hour. A Glue crawler populates the Data Catalog nightly. After the partition count grew past one million, interactive queries scanning a single day began taking minutes to start, although scanned data volume was unchanged. Which change reduces query latency with the least operational effort?",
-    "keep": [
-     "S3",
-     "Glue",
-     "Data Catalog"
-    ],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-a1",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "Enable partition projection so the query engine derives partition locations from a declared path pattern instead of enumerating entries from the Data Catalog.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-a2",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "Attach an IAM policy granting the crawler permission to read every object prefix in the bucket, so scheduled catalog updates complete considerably faster.",
-    "keep": [
-     "IAM"
-    ],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-a3",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "Increase the crawler schedule to run hourly rather than nightly, keeping the Data Catalog substantially closer to the current state of the bucket.",
-    "keep": [
-     "Data Catalog"
-    ],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-a4",
-    "kind": "choice",
-    "ratio_max": 0.75,
-    "text": "Convert stored objects into a columnar format and rewrite the partitioning scheme so each partition holds a full month of clickstream data.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-e1",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Correct. Partition projection lets the query engine compute partition locations from a declared pattern, so it never asks the Data Catalog to enumerate a million separate entries. Query planning time consequently drops sharply while the underlying data layout remains completely untouched, which is precisely why this option requires the least operational effort. Metadata growth stops participating in the query path.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-e2",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Incorrect. The crawler already holds sufficient read access, and the reported delay appears during query planning rather than during the cataloging phase. Granting broader permission does not reduce the number of partitions that the query engine must enumerate, so measured query latency remains unchanged. An actual authorization failure would surface as an explicit error rather than as a slow start.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-e3",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Incorrect. Running the crawler more frequently keeps partition metadata fresher but makes the Data Catalog no smaller, and the cost of enumerating every partition during planning stays exactly the same. This option also increases crawler charges without addressing the reported symptom, which is planning latency rather than stale partition information in the catalog.",
-    "keep": [],
-    "ratio_min": 0.3
-   },
-   {
-    "id": "q2-e4",
-    "kind": "explain",
-    "ratio_max": 0.75,
-    "text": "Incorrect. Coarser partitions would reduce the overall entry count, but rewriting several years of accumulated objects represents a substantial migration effort, and it forces every single-day query to scan an entire month of clickstream data. The stated requirement explicitly asks for the least operational effort, so this option merely exchanges one performance problem for another.",
-    "keep": [],
-    "ratio_min": 0.3
-   }
-  ]
- },
- {
-  "qid": "q3",
-  "units": [
-   {
-    "id": "q3-p",
-    "kind": "prompt",
-    "text": "A retail analytics team runs an Amazon Redshift cluster that joins a large fact table of daily transactions against a customer dimension table every morning. The join has grown steadily slower as the fact table accumulated history, and monitoring shows that a small number of compute nodes handle nearly all of the work while the remaining nodes stay idle. The distribution style has not been changed since the cluster was first provisioned. Which change addresses the cause of the imbalance?",
-    "keep": [
-     "Amazon Redshift"
-    ],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-a1",
-    "kind": "choice",
-    "text": "Set the distribution key of both tables to the customer identifier used in the join, so that matching rows are colocated rather than redistributed.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-a2",
-    "kind": "choice",
-    "text": "Add compute nodes to the cluster so that the additional throughput absorbs the imbalance, leaving the existing distribution style and sort order exactly as they are today.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-a3",
-    "kind": "choice",
-    "text": "Take a manual snapshot of the cluster before each morning run so that the previous state can be restored whenever the join exceeds its expected latency window for the day.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-a4",
-    "kind": "choice",
-    "text": "Move the fact table out to Redshift Spectrum and query it in place from the bucket, keeping the dimension table on local cluster storage exactly as it is arranged now.",
-    "keep": [
-     "Redshift Spectrum"
-    ],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-e1",
-    "kind": "explain",
-    "text": "Correct. The idle nodes are a symptom of skew: rows that must be joined live on different slices, so one node does the matching work while the others wait. Distributing both tables on the join column places matching rows on the same node, which removes the redistribution step at query time and lets every node in the cluster contribute. The redistribution step that the planner previously inserted disappears from the execution plan entirely.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-e2",
-    "kind": "explain",
-    "text": "Incorrect. Adding capacity raises the total throughput of the cluster but does not change which node holds which row. The same few nodes still receive the bulk of the join, and the new nodes stay as idle as the old ones. Cost rises while the morning run finishes at roughly the same time. Provisioning additional capacity is a reasonable response to a genuine shortage, but the measurements here describe a distribution problem instead of a capacity problem.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-e3",
-    "kind": "explain",
-    "text": "Incorrect. A snapshot protects against data loss and supports recovery, but it is not a performance control. Restoring the cluster returns the same layout that produced the skew, so the next run repeats the behaviour. Latency that comes from data placement is not addressed by anything taken after the fact. The operation additionally consumes resources during the period when the morning workload is already competing for them.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q3-e4",
-    "kind": "explain",
-    "text": "Incorrect. Querying the fact table in place shifts where the scan happens, and for a join against a local dimension table the rows must still be brought together. The imbalance follows the join column, not the storage location, so moving the larger table elsewhere leaves the underlying cause untouched. External tables also give the planner less statistical information, which frequently degrades the resulting execution plan rather than improving it.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   }
-  ]
- },
- {
-  "qid": "q4",
-  "units": [
-   {
-    "id": "q4-p",
-    "kind": "prompt",
-    "text": "A media company processes clickstream logs with Apache Spark on an EMR cluster. The job reads compressed objects from a bucket, groups events by country code, and writes daily aggregates. Most tasks finish within a minute, but two tasks run for over an hour and the stage cannot complete until they do. Roughly seventy percent of the events carry the same country code. The distribution has been consistent across every run this month. What explains the long tail?",
-    "keep": [
-     "Apache Spark",
-     "EMR"
-    ],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-a1",
-    "kind": "choice",
-    "text": "The grouping key is heavily skewed, so the partitions holding the dominant country code receive far more rows than the others and take proportionally longer to finish.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-a2",
-    "kind": "choice",
-    "text": "The compressed objects cannot be split, so every task must read the entire bucket before it can filter the rows that belong to its own assigned partition.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-a3",
-    "kind": "choice",
-    "text": "The cluster is undersized for the volume, and the two slow tasks are simply the ones that were scheduled last after every other node had already claimed its share.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-a4",
-    "kind": "choice",
-    "text": "Throttling on the read path is limiting throughput for a subset of the tasks, which stretches those tasks out while the remainder of the stage proceeds normally.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-e1",
-    "kind": "explain",
-    "text": "Correct. Grouping sends every row with the same key to one partition. When one value covers seventy percent of the events, the partition that receives it is seven times larger than an evenly split one, and the task processing it runs correspondingly longer. The stage waits for its slowest task, so the whole job inherits that duration. Increasing parallelism elsewhere cannot help, because the oversized partition is indivisible under the current grouping expression.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-e2",
-    "kind": "explain",
-    "text": "Incorrect. An unsplittable object does limit how finely the read can be divided, but it affects every task that touches such an object rather than two of them. It would show up as uniformly poor read parallelism across the stage, not as a pair of outliers beside hundreds of fast tasks. The description also records that most tasks complete promptly, which contradicts a limitation affecting the read path for every task equally.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-e3",
-    "kind": "explain",
-    "text": "Incorrect. Scheduling order would spread the finishing times out smoothly rather than producing two tasks that take sixty times longer than the rest. An undersized cluster also slows every task, and here most of them complete in under a minute, which rules out a shortage of capacity as the cause. Adding resources to the cluster would leave the two outlying tasks exactly as long as they are today, because neither is waiting for capacity.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q4-e4",
-    "kind": "explain",
-    "text": "Incorrect. Read throttling would slow the tasks that happen to hit the limit, and which tasks those are changes from run to run. The symptom here is stable and tracks the distribution of one column, which points at how the rows were divided rather than at the rate of the reads. Throttling would additionally surface as retries and elevated error counts in the metrics, and no such signal accompanies the reported symptom.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   }
-  ]
- },
- {
-  "qid": "q5",
-  "units": [
-   {
-    "id": "q5-p",
-    "kind": "prompt",
-    "text": "An order service writes to a DynamoDB table whose partition key is the store identifier. One flagship store produces most of the orders during a weekend promotion, and during that window the service receives ProvisionedThroughputExceededException while the table as a whole stays far below its configured capacity. Reads from other stores are unaffected. The rejections stop as soon as the promotion ends. Which design change removes the limit that is being reached?",
-    "keep": [
-     "DynamoDB",
-     "ProvisionedThroughputExceededException"
-    ],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-a1",
-    "kind": "choice",
-    "text": "Add a suffix to the store identifier so that writes for the busiest store spread across several partition keys, and read the parts back together when the orders are needed.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-a2",
-    "kind": "choice",
-    "text": "Raise the provisioned capacity of the table until the peak weekend throughput fits within the quota, then lower it again once the promotion has finished.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-a3",
-    "kind": "choice",
-    "text": "Enable DynamoDB Streams on the table and have a consumer replay the rejected writes from the stream once the promotion window has closed for the day.",
-    "keep": [
-     "DynamoDB Streams"
-    ],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-a4",
-    "kind": "choice",
-    "text": "Create a replica of the table in a second region and route the flagship store's writes there, leaving the partition key of the original table as it is now.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-e1",
-    "kind": "explain",
-    "text": "Correct. Capacity is enforced per partition, and every item sharing one key lands on the same partition. A single hot key therefore reaches its own limit while the table looks idle in aggregate. Spreading that key over several values distributes the writes, at the cost of gathering the parts back together on read. The number of suffix values determines how much write capacity the busiest identifier can reach in total, so that number is a design decision.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-e2",
-    "kind": "explain",
-    "text": "Incorrect. Raising table capacity does not raise the ceiling that one partition can sustain. The provisioned amount is shared out, so the hot key keeps hitting the same per-partition limit while the extra throughput sits unused elsewhere. Cost rises during the promotion and the rejections continue. Cost rises throughout the promotion while the rejections continue at the same rate, because the constraint was never the table-level figure.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-e3",
-    "kind": "explain",
-    "text": "Incorrect. A change stream carries writes that succeeded, so requests rejected before they were accepted never appear in it. Replaying afterwards also leaves the orders missing during the window itself, which is exactly when the promotion depends on them being recorded. A change stream propagates committed state to downstream consumers, which is a different purpose from recovering requests the table declined.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   },
-   {
-    "id": "q5-e4",
-    "kind": "explain",
-    "text": "Incorrect. A second copy in another region adds write latency and a reconciliation problem without changing how the key maps to a partition. The flagship store still concentrates its writes under one value, so whichever table receives them reaches the same per-partition limit. Routing logic in the application also has to know which store is flagship, which makes the design harder to operate than the symptom warrants.",
-    "keep": [],
-    "ratio_min": 0.3,
-    "ratio_max": 0.75
-   }
-  ]
- }
+  {
+    "qid": "q1",
+    "units": [
+      {
+        "id": "q1-p",
+        "kind": "prompt",
+        "ratio_max": 0.75,
+        "text": "A healthcare analytics organization operates a Kinesis Data Streams stream that currently retains records for 168 hours. Following a quarterly infrastructure cost review, the platform engineering team intends to shorten the configured retention period to 72 hours. Several downstream consumer applications read from this stream on an hourly schedule, and one of those applications has been failing intermittently. Before calling DecreaseStreamRetentionPeriod, which condition must be confirmed?",
+        "keep": [
+          "Kinesis Data Streams",
+          "DecreaseStreamRetentionPeriod"
+        ],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-a1",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "Every consumer application has already checkpointed beyond records older than the proposed retention window, leaving no unprocessed record outside the shortened period.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-a2",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "The stream has been resharded beforehand so that the shard count corresponds to expected throughput after the retention period drops to 72 hours.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-a3",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "A snapshot of stream contents has been written to durable object storage, letting affected records be restored whenever a consumer reports missing data.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-a4",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "The producer application has been reconfigured to write records using a partition key that distributes write load evenly across the remaining shards.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-e1",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Correct. Reducing the configured retention period makes records older than the new window inaccessible almost immediately after the operation completes. Any consumer application that has not checkpointed beyond those records loses them permanently, and the intermittently failing application described here is precisely that risk. Confirm checkpoint positions for every registered consumer before proceeding, because the change applies to the entire stream and cannot be reversed afterward.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-e2",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Incorrect. Resharding redistributes available throughput across individual shards, but has no effect whatsoever on how long records remain readable within the stream. The retention period and the shard count are independent configuration settings, so adjusting one provides no protection whatsoever for data that the other governs. Unprocessed records would still become inaccessible immediately.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-e3",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Incorrect. The service does not provide any snapshot mechanism for stream contents, so there is nothing available to restore from once the retention period has been shortened. Teams that require a durable archival copy must write each record to object storage as it is consumed, which is an architectural decision made long before this particular operation is attempted.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q1-e4",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Incorrect. The partition key determines which shard receives each incoming record, affecting write distribution rather than the lifetime of previously stored data. Reconfiguring the producer application accomplishes nothing for records already residing within the stream that are about to fall outside the newly shortened retention window once the configuration change takes effect.",
+        "keep": [],
+        "ratio_min": 0.3
+      }
+    ]
+  },
+  {
+    "qid": "q2",
+    "units": [
+      {
+        "id": "q2-p",
+        "kind": "prompt",
+        "ratio_max": 0.75,
+        "text": "An analytics team stores several years of clickstream data as objects in an S3 bucket, partitioned by year, month, day, and hour. A Glue crawler populates the Data Catalog nightly. After the partition count grew past one million, interactive queries scanning a single day began taking minutes to start, although scanned data volume was unchanged. Which change reduces query latency with the least operational effort?",
+        "keep": [
+          "S3",
+          "Glue",
+          "Data Catalog"
+        ],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-a1",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "Enable partition projection so the query engine derives partition locations from a declared path pattern instead of enumerating entries from the Data Catalog.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-a2",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "Attach an IAM policy granting the crawler permission to read every object prefix in the bucket, so scheduled catalog updates complete considerably faster.",
+        "keep": [
+          "IAM"
+        ],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-a3",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "Increase the crawler schedule to run hourly rather than nightly, keeping the Data Catalog substantially closer to the current state of the bucket.",
+        "keep": [
+          "Data Catalog"
+        ],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-a4",
+        "kind": "choice",
+        "ratio_max": 0.75,
+        "text": "Convert stored objects into a columnar format and rewrite the partitioning scheme so each partition holds a full month of clickstream data.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-e1",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Correct. Partition projection lets the query engine compute partition locations from a declared pattern, so it never asks the Data Catalog to enumerate a million separate entries. Query planning time consequently drops sharply while the underlying data layout remains completely untouched, which is precisely why this option requires the least operational effort. Metadata growth stops participating in the query path.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-e2",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Incorrect. The crawler already holds sufficient read access, and the reported delay appears during query planning rather than during the cataloging phase. Granting broader permission does not reduce the number of partitions that the query engine must enumerate, so measured query latency remains unchanged. An actual authorization failure would surface as an explicit error rather than as a slow start.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-e3",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Incorrect. Running the crawler more frequently keeps partition metadata fresher but makes the Data Catalog no smaller, and the cost of enumerating every partition during planning stays exactly the same. This option also increases crawler charges without addressing the reported symptom, which is planning latency rather than stale partition information in the catalog.",
+        "keep": [],
+        "ratio_min": 0.3
+      },
+      {
+        "id": "q2-e4",
+        "kind": "explain",
+        "ratio_max": 0.75,
+        "text": "Incorrect. Coarser partitions would reduce the overall entry count, but rewriting several years of accumulated objects represents a substantial migration effort, and it forces every single-day query to scan an entire month of clickstream data. The stated requirement explicitly asks for the least operational effort, so this option merely exchanges one performance problem for another.",
+        "keep": [],
+        "ratio_min": 0.3
+      }
+    ]
+  },
+  {
+    "qid": "q3",
+    "units": [
+      {
+        "id": "q3-p",
+        "kind": "prompt",
+        "text": "A retail analytics team runs an Amazon Redshift cluster that joins a large fact table of daily transactions against a customer dimension table every morning. The join has grown steadily slower as the fact table accumulated history, and monitoring shows that a small number of compute nodes handle nearly all of the work while the remaining nodes stay idle. The distribution style has not been changed since the cluster was first provisioned. Which change addresses the cause of the imbalance?",
+        "keep": [
+          "Amazon Redshift"
+        ],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-a1",
+        "kind": "choice",
+        "text": "Set the distribution key of both tables to the customer identifier used in the join, so that matching rows are colocated rather than redistributed.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-a2",
+        "kind": "choice",
+        "text": "Add compute nodes to the cluster so that the additional throughput absorbs the imbalance, leaving the existing distribution style and sort order exactly as they are today.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-a3",
+        "kind": "choice",
+        "text": "Take a manual snapshot of the cluster before each morning run so that the previous state can be restored whenever the join exceeds its expected latency window for the day.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-a4",
+        "kind": "choice",
+        "text": "Move the fact table out to Redshift Spectrum and query it in place from the bucket, keeping the dimension table on local cluster storage exactly as it is arranged now.",
+        "keep": [
+          "Redshift Spectrum"
+        ],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-e1",
+        "kind": "explain",
+        "text": "Correct. The idle nodes are a symptom of skew: rows that must be joined live on different slices, so one node does the matching work while the others wait. Distributing both tables on the join column places matching rows on the same node, which removes the redistribution step at query time and lets every node in the cluster contribute. The redistribution step that the planner previously inserted disappears from the execution plan entirely.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-e2",
+        "kind": "explain",
+        "text": "Incorrect. Adding capacity raises the total throughput of the cluster but does not change which node holds which row. The same few nodes still receive the bulk of the join, and the new nodes stay as idle as the old ones. Cost rises while the morning run finishes at roughly the same time. Provisioning additional capacity is a reasonable response to a genuine shortage, but the measurements here describe a distribution problem instead of a capacity problem.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-e3",
+        "kind": "explain",
+        "text": "Incorrect. A snapshot protects against data loss and supports recovery, but it is not a performance control. Restoring the cluster returns the same layout that produced the skew, so the next run repeats the behaviour. Latency that comes from data placement is not addressed by anything taken after the fact. The operation additionally consumes resources during the period when the morning workload is already competing for them.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q3-e4",
+        "kind": "explain",
+        "text": "Incorrect. Querying the fact table in place shifts where the scan happens, and for a join against a local dimension table the rows must still be brought together. The imbalance follows the join column, not the storage location, so moving the larger table elsewhere leaves the underlying cause untouched. External tables also give the planner less statistical information, which frequently degrades the resulting execution plan rather than improving it.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      }
+    ]
+  },
+  {
+    "qid": "q4",
+    "units": [
+      {
+        "id": "q4-p",
+        "kind": "prompt",
+        "text": "A media company processes clickstream logs with Apache Spark on an EMR cluster. The job reads compressed objects from a bucket, groups events by country code, and writes daily aggregates. Most tasks finish within a minute, but two tasks run for over an hour and the stage cannot complete until they do. Roughly seventy percent of the events carry the same country code. The distribution has been consistent across every run this month. What explains the long tail?",
+        "keep": [
+          "Apache Spark",
+          "EMR"
+        ],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q4-a1",
+        "kind": "choice",
+        "text": "The grouping key is heavily skewed, so the partitions holding the dominant country code receive far more rows than the others and take proportionally longer to finish.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q4-a2",
+        "kind": "choice",
+        "text": "The compressed objects cannot be split, so every task must read the entire bucket before it can filter the rows that belong to its own assigned partition.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q4-a3",
+        "kind": "choice",
+        "text": "The cluster is undersized for the volume, and the two slow tasks are simply the ones that were scheduled last after every other node had already claimed its share.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q4-a4",
+        "kind": "choice",
+        "text": "Throttling on the read path is limiting throughput for a subset of the tasks, which stretches those tasks out while the remainder of the stage proceeds normally.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q4-e1",
+        "kind": "explain",
+        "text": "Correct. Grouping sends every row with the same key to one partition. When one value covers seventy percent of the events, the partition that receives it is seven times larger than an evenly split one, and the task processing it runs correspondingly longer. The stage waits for its slowest task, so the whole job inherits that duration. Increasing parallelism elsewhere cannot help, because the oversized partition is indivisible under the current grouping expression.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q4-e2",
+        "kind": "explain",
+        "text": "Incorrect. An unsplittable object does limit how finely the read can be divided, but it affects every task that touches such an object rather than two of them. It would show up as uniformly poor read parallelism across the stage, not as a pair of outliers beside hundreds of fast tasks. The description also records that most tasks complete promptly, which contradicts a limitation affecting the read path for every task equally.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75,
+        "term_exempt": {
+          "record": "동사다 — 「The description also records that…」 는 「설명이 적는다」 이고, 「레코드」 를 요구하면 고칠 수 없는 위반이 된다(DECISIONS §142)"
+        }
+      },
+      {
+        "id": "q4-e3",
+        "kind": "explain",
+        "text": "Incorrect. Scheduling order would spread the finishing times out smoothly rather than producing two tasks that take sixty times longer than the rest. An undersized cluster also slows every task, and here most of them complete in under a minute, which rules out a shortage of capacity as the cause. Adding resources to the cluster would leave the two outlying tasks exactly as long as they are today, because neither is waiting for capacity.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q4-e4",
+        "kind": "explain",
+        "text": "Incorrect. Read throttling would slow the tasks that happen to hit the limit, and which tasks those are changes from run to run. The symptom here is stable and tracks the distribution of one column, which points at how the rows were divided rather than at the rate of the reads. Throttling would additionally surface as retries and elevated error counts in the metrics, and no such signal accompanies the reported symptom.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      }
+    ]
+  },
+  {
+    "qid": "q5",
+    "units": [
+      {
+        "id": "q5-p",
+        "kind": "prompt",
+        "text": "An order service writes to a DynamoDB table whose partition key is the store identifier. One flagship store produces most of the orders during a weekend promotion, and during that window the service receives ProvisionedThroughputExceededException while the table as a whole stays far below its configured capacity. Reads from other stores are unaffected. The rejections stop as soon as the promotion ends. Which design change removes the limit that is being reached?",
+        "keep": [
+          "DynamoDB",
+          "ProvisionedThroughputExceededException"
+        ],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-a1",
+        "kind": "choice",
+        "text": "Add a suffix to the store identifier so that writes for the busiest store spread across several partition keys, and read the parts back together when the orders are needed.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-a2",
+        "kind": "choice",
+        "text": "Raise the provisioned capacity of the table until the peak weekend throughput fits within the quota, then lower it again once the promotion has finished.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-a3",
+        "kind": "choice",
+        "text": "Enable DynamoDB Streams on the table and have a consumer replay the rejected writes from the stream once the promotion window has closed for the day.",
+        "keep": [
+          "DynamoDB Streams"
+        ],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-a4",
+        "kind": "choice",
+        "text": "Create a replica of the table in a second region and route the flagship store's writes there, leaving the partition key of the original table as it is now.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-e1",
+        "kind": "explain",
+        "text": "Correct. Capacity is enforced per partition, and every item sharing one key lands on the same partition. A single hot key therefore reaches its own limit while the table looks idle in aggregate. Spreading that key over several values distributes the writes, at the cost of gathering the parts back together on read. The number of suffix values determines how much write capacity the busiest identifier can reach in total, so that number is a design decision.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-e2",
+        "kind": "explain",
+        "text": "Incorrect. Raising table capacity does not raise the ceiling that one partition can sustain. The provisioned amount is shared out, so the hot key keeps hitting the same per-partition limit while the extra throughput sits unused elsewhere. Cost rises during the promotion and the rejections continue. Cost rises throughout the promotion while the rejections continue at the same rate, because the constraint was never the table-level figure.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-e3",
+        "kind": "explain",
+        "text": "Incorrect. A change stream carries writes that succeeded, so requests rejected before they were accepted never appear in it. Replaying afterwards also leaves the orders missing during the window itself, which is exactly when the promotion depends on them being recorded. A change stream propagates committed state to downstream consumers, which is a different purpose from recovering requests the table declined.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      },
+      {
+        "id": "q5-e4",
+        "kind": "explain",
+        "text": "Incorrect. A second copy in another region adds write latency and a reconciliation problem without changing how the key maps to a partition. The flagship store still concentrates its writes under one value, so whichever table receives them reaches the same per-partition limit. Routing logic in the application also has to know which store is flagship, which makes the design harder to operate than the symptom warrants.",
+        "keep": [],
+        "ratio_min": 0.3,
+        "ratio_max": 0.75
+      }
+    ]
+  }
 ]

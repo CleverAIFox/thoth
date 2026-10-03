@@ -285,6 +285,33 @@ def env_snapshot() -> dict:
     return snap
 
 
+# ★ **빼는 자리는 세어 둔다.** 하나씩 늘면 검사가 조용히 꺼진다 — 늘어도 줄어도
+#   운다(양방향 래칫). 2026-10-03 실측에서 골든셋 45유닛 중 **한 자리**다.
+TERM_EXEMPT_MAX = 1
+
+
+def exempt_fails(cases: list[dict]) -> list[str]:
+    """케이스의 `term_exempt` 선언이 성립하는가. 족 가드다 — 묻는 것은 「이 예외가
+    옳은가」 가 아니라 **「선언이 사실과 맞나」** 다(DECISIONS §142)."""
+    난것, 센것 = [], 0
+    for q in cases:
+        for u in q.get("units", []):
+            ex = u.get("term_exempt") or {}
+            for en, 까닭 in ex.items():
+                센것 += 1
+                if not 까닭:
+                    난것.append(f"{u['id']}: '{en}' 에 까닭이 없다 — 빼는 자리는 까닭을 적는다")
+                # ★ **원문에 없는 것을 빼지 않는다.** 죽은 선언은 곧 거짓말이 된다.
+                if not re.search(rf"\b{re.escape(en)}(s|es|ing|ed)?\b", u["text"], re.I):
+                    난것.append(f"{u['id']}: '{en}' 이 원문에 없다 — 죽은 선언이다")
+    if 센것 != TERM_EXEMPT_MAX:
+        난것.append(
+            f"빼는 자리가 {센것}곳이다 — 선언은 {TERM_EXEMPT_MAX}곳이다. "
+            f"{'늘었으면 검사가 조용히 꺼지고' if 센것 > TERM_EXEMPT_MAX else '줄었으면 예외가 필요 없어진 것이고'} "
+            f"둘 다 `TERM_EXEMPT_MAX` 를 같이 고치는 일이다")
+    return 난것
+
+
 def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     """불변식 위반 목록. 빈 리스트가 통과다."""
     src, bad = unit["text"], []
@@ -351,6 +378,30 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     # ★ **덜 보는 쪽으로 틀린다.** 과하게 우는 검사는 꺼지고, 덜 보는 검사는 한
     #   자리를 놓칠 뿐이다.
     terms = [t for t in terms if re.search(rf"\b{re.escape(t)}(s|es)?\b", low)]
+
+    # ★ **다섯째 예외 : 케이스가 선언한 자리**(DECISIONS §142).
+    #
+    #   `-ed` · `-ing` 는 굴절로 갈리지만 **`-s` 는 안 갈린다** — `records` 가
+    #   명사 복수인지 3인칭 동사인지는 품사로만 정해진다.
+    #
+    #     "The description also **records** that most tasks complete promptly."
+    #
+    #   「설명이 적는다」 가 맞는 번역인데 검사가 「레코드」 를 요구한다. 영어 품사
+    #   태거를 들이면 갈리지만 **측정 도구에 의존성을 하나 더 다는 값**이고, 규칙으로
+    #   근사하면(「`that` 이 따라오면 동사」) `the records that were deleted` 에서
+    #   바로 깨진다 — **한 데이터 점에 규칙을 맞추는 것**이다.
+    #
+    # ★ **그래서 도출하지 않고 선언한다.** 오늘 같은 물음에 두 번 같은 답을 냈다 —
+    #   `check_skips` 의 선언(§136)과 `restore.json` 의 틀린 꼴(§139). **셋 다
+    #   「도출이 위험하면 선언하고, 선언을 가드가 덮는다」** 이다.
+    #
+    # ★ **§49 와 모순이 아니다.** 거기서 거절한 것은 **케이스의 `terms` 로 검사 대상을
+    #   정하는 것**이다 — 사람이 적은 목록과 프롬프트가 고른 목록이 갈리면 **차이나는
+    #   자리를 조용히 안 본다.** 여기는 반대다. 대상은 그대로 프롬프트가 정하고,
+    #   **한 자리를 빼는 것만 손으로 적으며 그 선언 자체를 가드가 센다.**
+    for en, 까닭 in (unit.get("term_exempt") or {}).items():
+        if en in terms and 까닭:
+            terms.remove(en)
     for en in terms:
         want = book.get(en)
         if not want:
