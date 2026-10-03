@@ -239,6 +239,49 @@ def cache_rm(text: str) -> list[int]:
     return [n for n, line in enumerate(text.split("\n"), 1) if 캐시삭제.search(line)]
 
 
+# ── 로컬 전용 검사의 선언 ──────────────────────────────────────────────────
+#
+# ★ **CI 가 안 보는 검사는 선언돼 있어야 한다**(파이어레인 `tools/gate_parity.py` ·
+#   DECISIONS §127). CI 의 `verify` 작업은 `doctor.sh --repo` 를 돌고, `--repo` 는
+#   기계 설정에 기대는 검사를 건너뛴다. **건너뛰는 것 자체는 옳다** — CI 에는 SSD 도
+#   `.env` 도 `gh` 도 없다. 위험한 것은 **건너뛰는데 아무 말도 안 하는 것**이다.
+#   그러면 「그 기계에서 사람이 doctor 를 돌렸을 때만」 도는 검사가 되고, 안 돌리면
+#   아무도 모른다.
+#
+# ★ **지금은 여섯 자리가 전부 사유를 적고 있다**(2026-10-03 실측) — `.env 존재` ·
+#   `SSD 비밀` · `워커 노출` · `기계 설정 묶음` · `배포 게이트` · `가지 자동 삭제`.
+#   그래서 파이어레인처럼 선언 표를 새로 만들지 않았다. **없는 병에 관문을 세우지 않는다.**
+#
+# ★ **다만 수는 못 박는다.** 다음 사람이 `if [ "$SCOPE" != "--repo" ]` 가지를 하나 더
+#   만들고 `skip` 을 안 적으면 **조용히 CI 밖이 는다.** 이 수가 그것을 잡는다 — 늘어도
+#   줄어도 운다(양방향 래칫). 사유를 적으면서 늘리는 것은 **여기 수를 같이 고치는 일**이다.
+SCOPE_BRANCHES = 6
+
+
+def scope_branches(text: str) -> list[int]:
+    """`$SCOPE` 를 `--repo` 와 견주는 줄. 그 자리가 CI 와 이 기계를 가른다."""
+    return [n for n, line in enumerate(text.split("\n"), 1)
+            if re.search(r'"\$\{?SCOPE\}?"\s*(?:=|!=)\s*"--repo"', line.split("#", 1)[0])]
+
+
+def check_scope_declared() -> list[str]:
+    글 = (ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
+    줄들 = 글.split("\n")
+    자리 = scope_branches(글)
+    fails = []
+    if len(자리) != SCOPE_BRANCHES:
+        fails.append(f"tools/doctor.sh 의 `--repo` 가지가 {len(자리)}개다 — 선언은 "
+                     f"{SCOPE_BRANCHES}개다. **CI 밖이 늘었거나 줄었다.** "
+                     f"사유를 적고 `check_static.py` 의 `SCOPE_BRANCHES` 를 같이 고친다")
+    # 각 가지가 세 줄 안에 사유 딸린 `skip` 을 내는가.
+    for n in 자리:
+        창 = "\n".join(줄들[n - 1:n + 3])
+        if not re.search(r'skip "[^"]*\(', 창):
+            fails.append(f"tools/doctor.sh:{n} `--repo` 가지가 사유 딸린 `skip` 을 안 낸다 — "
+                         f"CI 가 왜 이것을 안 보는지 아무 데도 안 적힌다")
+    return fails
+
+
 # 이 검사와 그 시험의 예시 문자열은 지시가 아니다. **목록으로 못 박는다** —
 # 여기에 파일이 늘면 그만큼 검사 밖이 는다.
 캐시검사밖 = {"tools/check_static.py", "worker/tests/test_check_static.py"}
@@ -337,7 +380,8 @@ def check_python() -> list[str]:
 
 def main() -> int:
     fails = (check_tf() + check_node20() + check_runner() + check_python()
-             + check_pinned() + check_cache_rm() + check_timeouts())
+             + check_pinned() + check_cache_rm() + check_timeouts()
+             + check_scope_declared())
     wf, skip = check_workflows()
     fails += wf
     for f in fails:
@@ -347,6 +391,7 @@ def main() -> int:
     if not fails:
         print("  인용 문자열이 ASCII 다 · Node 20 액션 없음 · 러너 고정 · 파이썬 컴파일 경고 없음"
               " · 액션이 SHA 로 고정됐다 · 작업마다 시간 상한 · 캐시 삭제 지시 없음"
+              " · CI 밖이 전부 선언됐다"
               + ("" if skip else " · 워크플로가 YAML 이다"))
     return 1 if fails else 0
 

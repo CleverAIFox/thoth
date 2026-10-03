@@ -143,7 +143,7 @@ LABEL = {
     #   그래서 배포본이 뒤진 것이다. 절을 더하는 사람이 여기도 더해야 한다.
     "2026-09-28": "셸 오염 검사를 손으로 적고 있었다",
     "2026-10-01": "seshat 의 측정이 문턱을 흔들었다 · 광고 차단 분리",
-    "2026-10-03": "전수 감사 — 토큰 노출 · 액션 고정 · 기획서 자물쇠",
+    "2026-10-03": "전수 감사 · 기획서 자물쇠 · 기획서 3.0",
 }
 START = "2026-07-18"
 rng = decisions_ranges()
@@ -154,19 +154,24 @@ D = dt.date.fromisoformat
 fig, (a0, a1) = plt.subplots(2, 1, figsize=(7.2, 4.6), gridspec_kw={"height_ratios": [1, 2.6]})
 # 위 — 전 기간
 first = min(rng)
+# ★ **오른쪽 끝을 날짜로 박지 않는다.** 2026-09-30 이 박혀 있었고, DECISIONS 가
+#   10-03 까지 자라자 **thoth 막대가 그림 밖으로 나가고 seshat 막대가 잘렸다**
+#   (DECISIONS §129). 기간 그림의 끝은 **마지막 기록에서 센다** — 그러면 기록이
+#   자라도 그림이 따라간다. 꼬리 열흘은 「진행 중」 을 보이려고 둔 여백이다.
+끝 = (D(max(rng)) + dt.timedelta(10)).isoformat()
 spans = [("선행 저장소 — Udemy 전용 · 사전 번역 · 폐기", START, (D(first) - dt.timedelta(1)).isoformat(), GRAY),
          ("thoth — 범용 확장 · CI/CD · 배포 · 닫음", first, max(rng), BLUE),
-         ("seshat — 자 · 후보 · 쌍 · 튜닝 · 서빙 (진행)", max(rng), "2026-09-30", GREEN)]
+         ("seshat — 자 · 후보 · 쌍 · 튜닝 · 서빙 (진행)", max(rng), 끝, GREEN)]
 for i, (n, s, e, col) in enumerate(spans):
     y = len(spans) - i
     a0.barh(y, (D(e) - D(s)).days + 1, left=D(s).toordinal(), color=col, height=0.6, alpha=0.9 if i < 2 else 0.45,
             hatch=None if i < 2 else "///")
     a0.text(D(s).toordinal() + 0.5 if i == 0 else D(s).toordinal() - 1, y, n, ha="left" if i == 0 else "right", va="center",
             fontsize=7.2, color="white" if i == 0 else col, fontweight="bold")
-ticks = [D(START)] + [D(f"2026-{m:02d}-01") for m in (8, 9)] + [D(first), D(max(rng))]
+ticks = [D(START)] + [D(f"2026-{m:02d}-01") for m in (8, 9, 10)] + [D(first)]
 a0.set_xticks([d.toordinal() for d in ticks]); a0.set_xticklabels([d.strftime("%m-%d") for d in ticks], fontsize=7)
 a0.set_yticks([]); a0.spines[["top", "right", "left"]].set_visible(False)
-a0.set_xlim(D(START).toordinal() - 1, D("2026-09-30").toordinal() + 1)
+a0.set_xlim(D(START).toordinal() - 1, D(끝).toordinal() + 1)
 PUSH = "2026-09-19"
 a0.axvline(D(PUSH).toordinal(), color=RED, lw=0.8, ls=":")
 a0.text(D(PUSH).toordinal(), 3.75, "첫 푸시", color=RED, fontsize=6.8, ha="center")
@@ -181,8 +186,13 @@ for i, d in enumerate(days):
     a1.text(D(d).toordinal() + 0.5, y, f"§{a}–§{b}" if a != b else f"§{a}", ha="left", va="center", fontsize=7, color=GRAY)
 a1.set_yticks([len(days) - i for i in range(len(days))]); a1.set_yticklabels([LABEL[d] for d in days], fontsize=7.4, color=BLUE)
 a1.tick_params(axis="y", length=0)
-span = [D(days[0]) + dt.timedelta(k) for k in range((D(days[-1]) - D(days[0])).days + 1)]
-a1.set_xticks([d.toordinal() for d in span]); a1.set_xticklabels([d.strftime("%m-%d") for d in span], fontsize=7)
+# ★ **날마다 눈금을 찍지 않는다.** 하루씩 다 찍던 것이 범위가 열하루에서 스무이틀로
+#   자라자 **글자가 겹쳐 읽히지 않았다**(DECISIONS §129). 기록이 있는 날만 찍는다 —
+#   막대가 선 자리가 그 날들이라 **눈금이 정보를 더 들고 덜 겹친다.**
+#   그리고 **기울인다** — 기록이 잇달아 난 닷새는 눈금만 줄여도 여전히 겹친다.
+a1.set_xticks([D(d).toordinal() for d in days])
+a1.set_xticklabels([D(d).strftime("%m-%d") for d in days], fontsize=7, rotation=45, ha="right",
+                   rotation_mode="anchor")
 a1.set_xlim(D(days[0]).toordinal() - 0.6, D(days[-1]).toordinal() + 1.8)
 a1.spines[["top", "right", "left"]].set_visible(False)
 a1.set_ylim(0.3, len(days) + 0.8)

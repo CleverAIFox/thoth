@@ -60,6 +60,44 @@ resource "aws_s3_bucket" "pairs" {
   bucket = local.pairs_bucket
 }
 
+# ★ **버전 관리를 켠다**(DECISIONS §127). 위의 `force_destroy` 주석은 **테라폼의 실수만**
+#   막는다 — `tf.sh destroy` 가 이 버킷에서 멈춘다. 그런데 **실수로 지우거나 덮어쓴 객체**는
+#   그것으로 안 돌아온다. `aws s3 rm` 한 줄, 같은 키로 덮어쓴 Firehose 한 번이면 끝이고,
+#   여기 쌓이는 것은 주석이 적은 대로 **다시 만들 수 없는 학습 데이터**다.
+#
+# ★ **기본값이 아니다.** 퍼블릭 차단 · SSE-S3 · 소유자 강제는 2023-04 이후 새 버킷의
+#   기본값이라 안 적었는데(위 주석), **버전 관리는 그 목록에 없다.** 「기본값이니 안 적는다」 를
+#   확인 없이 넓히면 안 켜진 것이 켜진 줄 안다.
+#
+# ★ **첫 `apply` 는 손으로 한다.** 배포 역할에 `s3:PutBucketVersioning` 이 아래에서 붙지만,
+#   그것을 붙이는 것이 IAM 변경이라 CI 에서 `AccessDenied` 로 멈춘다 — **그것이 결함이 아니라
+#   경계다**(§89). `deploy.yml` 은 `v*` 태그에서만 도므로 **자동 배포가 깨지지는 않는다.**
+resource "aws_s3_bucket_versioning" "pairs" {
+  bucket = aws_s3_bucket.pairs.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# ★ **옛 판은 90일이면 지운다.** 버전 관리는 켜는 순간 **덮어쓴 것이 전부 쌓인다** —
+#   만료가 없으면 요금이 조용히 는다. 되돌릴 창이 90일이면 실수를 알아차리기에 넉넉하다.
+resource "aws_s3_bucket_lifecycle_configuration" "pairs_versions" {
+  bucket     = aws_s3_bucket.pairs.id
+  depends_on = [aws_s3_bucket_versioning.pairs]
+
+  rule {
+    id     = "old-versions-expire"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = 90
+    }
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "pairs" {
   bucket = aws_s3_bucket.pairs.id
 

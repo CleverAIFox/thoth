@@ -329,6 +329,18 @@ DOCX_OUT="$(python3 tools/docx_check.py 2>&1)"; DOCX_RC=$?
 case "$DOCX_RC" in
   0) ok "기획서가 정본과 맞다" ;;
   1) no "기획서가 정본과 어긋난다"; printf '%s\n' "$DOCX_OUT" | sed 's/^/       /' ;;
+  # ★ **3 = 「지금은 통과, 배포는 막힌다」**(DECISIONS §127). 이 기계에서는 WARN 이다 —
+  #   기획서를 다시 쓰는 중에 커밋을 막을 일이 아니다. **CI 에서는 FAIL 이다** —
+  #   거기는 다시 쓰는 중일 수가 없고, 넘어가면 `기획서 배포` 가 대신 빨개진다.
+  #   린터를 로컬 SKIP · CI 단언으로 가르는 것과 같은 꼴이다(DECISIONS §54 · §63).
+  # ★ 2026-10-03 에 이 가지가 없어서 **`doctor` 초록 → 밀기 → CI 빨강**이 났다.
+  #   그때 상태는 stdout 의 `WARN` 문자열뿐이었고 `0) ok` 가 그것을 통째로 버렸다.
+  3) if [ "${CI:-}" = "true" ]; then
+       no "기획서가 생성기보다 낡았다 — CI 는 넘어가지 않는다"
+     else
+       warn "기획서가 생성기보다 낡았다 — 미는 날 `기획서 배포` 가 멈춘다"
+     fi
+     printf '%s\n' "$DOCX_OUT" | sed 's/^/       /' ;;
   *) no "docx_check.py 가 죽었다 (exit $DOCX_RC)"
      printf '%s\n' "$DOCX_OUT" | tail -5 | sed 's/^/       /' ;;
 esac
@@ -439,6 +451,23 @@ elif command -v gh >/dev/null 2>&1; then
     false) no "합친 PR 의 가지가 남는다 — Settings → General → Automatically delete head branches" ;;
     *)     skip "합친 가지 설정을 재지 못했다" ;;
   esac
+fi
+
+echo "== 잠금 =="
+# ★ **`uv run` 은 잠금이 어긋나면 조용히 다시 풀고 `uv.lock` 을 고쳐 쓴다**(DECISIONS §128).
+#   그러면 「이 커밋이 쓴 판」 이 커밋마다 달라질 수 있고, 그것을 말해 주는 것이 없다.
+#   seshat 은 `verify.sh` 첫 단계가 `uv lock --check` 인데 **이 저장소에는 한 곳도 없었다** —
+#   「같은 규율을 공유한다」 고 적어 두고 이 축만 안 건너왔다(seshat DECISIONS §282 와 같은 꼴).
+# ★ `npm` 쪽은 CI 가 `npm ci` 로 받으므로 잠금을 **이미** 지킨다. 여기서는 `uv` 만 본다.
+if command -v uv >/dev/null 2>&1; then
+  if LOCK_OUT="$( cd worker && uv lock --check 2>&1 )"; then
+    ok "worker/uv.lock 이 pyproject 와 맞다"
+  else
+    no "worker/uv.lock 이 어긋난다 — cd worker && uv lock"
+    printf '%s\n' "$LOCK_OUT" | tail -5 | sed 's/^/       /'
+  fi
+else
+  skip "uv 가 없어 잠금을 보지 못했다 (CI 에서는 돈다)"
 fi
 
 echo "== 파이썬 =="

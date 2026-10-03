@@ -15,6 +15,20 @@
 #
 # ★ DrvFs 위의 파일을 직접 적용하지 않는다. 사본을 /tmp 에 두고 거기서
 #   적용한다 — 줄끝 정리가 원본을 건드리지 않아야 다시 받을 필요가 없다.
+#
+# ★ **패치는 제 바탕을 선언한다**(DECISIONS §129). 2026-10-03 에 기획서 3.0 패치가
+#   「thoth-126 이 붙은 트리」 를 가정하고 만들어졌는데 **실물에는 126 이 안 붙어
+#   있었다.** 결과는 hunk 오류 다섯 줄이었고 **무엇이 틀렸는지는 거기 안 적혀 있다** —
+#   읽는 사람이 다섯 파일을 뒤져 추측해야 했다. 바탕을 적어 두면 **붙이기 전에**
+#   한 줄로 끝난다. 꼴은 이렇다 :
+#
+#     바탕 : 9e57544970eea5f7c278156ec66e4ae8d95361bd
+#
+#   `---` 뒤 · 첫 `diff` 앞에 둔다. 거기는 `git apply` 가 **안 읽는 자리**라
+#   패치의 뜻을 바꾸지 않는다.
+#
+# ★ **선언이 없으면 막지 않는다.** 옛 패치가 다 막히면 이 검사를 꺼 버린다
+#   (DECISIONS §46). 없다고 **말하고** 넘어간다 — 말없이 넘어가는 것과는 다르다.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
@@ -59,20 +73,49 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   fi
 fi
 
+# ★ **이미 붙은 패치인가.** 역적용이 되거나 영수증이 있으면 그렇다. 두 자리에서
+#   같은 물음을 물으므로 함수로 둔다 — 두 벌이면 한쪽만 늙는다.
+already_applied(){
+  git apply --check -R -p1 "$TMP" 2>/dev/null && return 0
+  local R="$ROOT/.cache/applied-patches.tsv"
+  [ -f "$R" ] && grep -q "^$(sha256sum "$TMP" | cut -d' ' -f1)	" "$R"
+}
+
+# ★ **바탕을 먼저 본다 — 아무것도 건드리기 전에**(DECISIONS §129). 바탕이 다르면
+#   hunk 오류는 **증상이고 까닭이 아니다.** 까닭을 뒤에 적으면 증상부터 고치게 된다.
+BASE="$(sed -n 's/^바탕 : \([0-9a-f]\{7,40\}\)$/\1/p' "$TMP" | head -1)"
+if [ -z "$BASE" ]; then
+  echo "       바탕 선언 없음 — 어느 커밋에서 만든 패치인지 모른다"
+elif ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "       git 저장소가 아니라 바탕을 못 본다"
+else
+  HEADSHA="$(git rev-parse HEAD)"
+  case "$HEADSHA" in
+    "$BASE"*) echo "       바탕 맞다 : $(echo "$BASE" | cut -c1-8)" ;;
+    *)
+      # ★ 이미 붙었으면 HEAD 가 바탕보다 앞선 것이 **정상**이다. 그것부터 가른다.
+      if already_applied; then
+        echo "       이미 적용되어 있다. 아무것도 하지 않는다"
+        exit 0
+      fi
+      echo "바탕이 다르다 :" >&2
+      echo "       패치는 $(echo "$BASE" | cut -c1-8) 에서 만들었고" >&2
+      echo "       지금 HEAD 는 $(echo "$HEADSHA" | cut -c1-8) 다" >&2
+      echo "       사이에 무엇이 들어왔거나, 들어왔어야 할 패치가 안 붙어 있다" >&2
+      echo "       git log --oneline -5 를 보내면 그 바탕으로 다시 만든다" >&2
+      exit 1 ;;
+  esac
+fi
+
 if ! git apply --check -p1 "$TMP" 2>/tmp/thoth-patch.err; then
   # ★ 역적용이 되면 이미 붙어 있는 패치다. 이것과 "저장소가 어긋났다" 를
   #   가르지 않으면 같은 오류 메시지를 보고 무엇을 해야 할지 알 수 없다.
   #   둘은 대응이 정반대다 — 전자는 아무것도 하지 않는 것이 맞다.
-  if git apply --check -R -p1 "$TMP" 2>/dev/null; then
-    echo "       이미 적용되어 있다. 아무것도 하지 않는다"
-    exit 0
-  fi
   # ★ **영수증이 있으면 역적용이 안 붙어도 적용된 것이다.** 붙은 뒤에 그
   #   파일을 다음 패치가 또 고치면 정방향도 역방향도 안 붙는다. 그때
   #   "저장소가 어긋났다" 로 적으면 맞는 상태를 사고로 읽는다(§61).
-  RECEIPT="$ROOT/.cache/applied-patches.tsv"
-  if [ -f "$RECEIPT" ] && grep -q "^$(sha256sum "$TMP" | cut -d' ' -f1)	" "$RECEIPT"; then
-    echo "       이미 적용되어 있다 (영수증). 아무것도 하지 않는다" >&2
+  if already_applied; then
+    echo "       이미 적용되어 있다. 아무것도 하지 않는다"
     exit 0
   fi
   echo "붙지 않는다 :" >&2

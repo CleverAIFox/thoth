@@ -26,8 +26,13 @@ PY_COMMON=(--with matplotlib --with pillow)
 # ★ 함수 이름도 ASCII 다. 배시는 받지만 shellcheck 가 못 읽는다(DECISIONS §123 과 같은 자리).
 say(){ printf '\n== %s ==\n' "$1"; }
 
+# ★ **`npm ci` 다 — `npm install` 이 아니다**(DECISIONS §128). `install` 은 잠금을
+#   **고쳐 쓸 수 있고**, 그러면 같은 생성기가 다른 `docx` 판으로 다른 산출물을 낸다.
+#   자물쇠는 **생성기 파일**의 지문만 보므로 그 차이를 못 잡는다 — 잠금은 잠금이 지킨다.
+# ★ `package-lock.json` 이 없으면 `ci` 가 거절한다. 그것이 맞다 — 잠금 없이 구운 docx 는
+#   「무엇으로 구웠는지」 를 아무도 모른다.
 say "npm"
-npm install --silent
+npm ci --silent
 
 say "차트 — 수를 산출물에서 읽는다"
 uv run "${PY_COMMON[@]}" --with numpy python figures/charts.py

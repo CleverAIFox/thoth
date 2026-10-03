@@ -20,7 +20,7 @@ const doc = new Document({
   },
   sections: [{
     properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
-    headers: { default: new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [t("thoth · seshat 기획서 2.0", { size: 16, color: "888888" })] })] }) },
+    headers: { default: new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [t("thoth · seshat 기획서 3.0", { size: 16, color: "888888" })] })] }) },
     footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
     children: [...cover, ...toc, ...s1, ...s2, ...part2, ...part3],
   }],

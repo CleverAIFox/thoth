@@ -217,3 +217,37 @@ def test_작업을_다_센다():
 
 def test_저장소의_모든_작업에_상한이_있다():
     assert cs.check_timeouts() == []
+
+
+# ---------- CI 밖의 선언 (파이어레인 gate_parity.py · DECISIONS §127) ----------
+
+_DOC = '\n'.join([
+    'if [ "$SCOPE" = "--repo" ]; then',
+    '  skip "SSD 비밀 검사 (기계 설정이다)"',
+    'else',
+    '  ok "봤다"',
+    'fi',
+    '[ "${SCOPE}" != "--repo" ] && ok "저쪽"',
+])
+
+
+def test_가지를_센다():
+    assert cs.scope_branches(_DOC) == [1, 6]
+
+
+def test_주석의_SCOPE_는_안_센다():
+    assert cs.scope_branches('# [ "$SCOPE" = "--repo" ] 를 쓰던 자리\n') == []
+
+
+def test_저장소가_지금_선언을_다_한다():
+    """★ **없는 병에 관문을 세우지 않았다.** 2026-10-03 실측 — 여섯 가지가 전부
+    사유 딸린 `skip` 을 낸다. 그래서 파이어레인처럼 선언 표를 새로 만들지 않고
+    **수만 못 박았다.**"""
+    assert cs.check_scope_declared() == []
+
+
+def test_선언_수가_실물과_맞다():
+    """★ **양방향 래칫이다**(파이어레인 `ratchet.py`). 늘어도 줄어도 운다 —
+    **느슨해진 래칫은 초록으로 위장한다.**"""
+    몸 = (cs.ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
+    assert len(cs.scope_branches(몸)) == cs.SCOPE_BRANCHES

@@ -295,6 +295,11 @@ data "aws_iam_policy_document" "deploy" {
       "s3:GetEncryptionConfiguration",
       "s3:GetLifecycleConfiguration",
       "s3:GetReplicationConfiguration",
+      # ★ **버전 관리와 만료는 쓰기도 준다**(DECISIONS §127). 콜드패스의 다른 설정과
+      #   달리 이 둘은 이 저장소가 **세우는** 것이라 refresh 만으로는 안 선다.
+      #   첫 `apply` 는 이 줄이 붙기 전이라 손으로 한다 — 그 뒤로는 CI 가 든다.
+      "s3:PutBucketVersioning",
+      "s3:PutLifecycleConfiguration",
     ]
 
     resources = [aws_s3_bucket.pairs.arn]
