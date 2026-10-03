@@ -1148,7 +1148,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->445건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->452건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1687,8 +1687,20 @@ bash tools/package_lambda.sh
 python3 tools/deploy_drift.py
 ```
 
-Lambda 가 들고 있는 `CodeSha256` 과 방금 만든 zip 의 해시를 비교한다. zip 이
+Lambda 의 **태그** `CodeSha256` 과 방금 만든 zip 의 해시를 비교한다. zip 이
 결정적이라(§11-10) 두 수가 같으면 배포본이 이 커밋의 코드다.
+
+★ **함수가 아니라 태그를 읽는다**(DECISIONS §131). `lambda:GetFunction` 의 응답은
+`Configuration.Environment.Variables` 를 통째로 싣는다 — `WORKER_TOKEN` ·
+`HTTP_TOKEN` 이 평문이다. **쓰는 값은 해시 하나인데 읽히는 것은 비밀 전부**였다.
+`compute.tf` 가 그 해시를 태그로 적고(`source_code_hash` 와 같은 식이라 한
+`apply` 에서 함께 바뀐다) CI 역할은 `lambda:ListTags` 하나만 든다.
+
+★ **`list-tags` 는 이름이 아니라 ARN 을 받는다.** 계정 번호를 공개 저장소에 박지
+않으려고 `sts get-caller-identity` 로 받아 짓는다 — 그것은 **IAM 권한이 필요 없다.**
+
+★ **태그가 없으면 「못 쟀다」(1)다.** 첫 `apply` 전이면 맞는 상태이고, 「다르다」(2)로
+읽으면 배포가 멀쩡한데 빨개진다. **둘은 고치는 일이 다르다.**
 
 ★ **CI 가 이것을 돌린다**(`.github/workflows/drift.yml`). 푸시마다 한 번, 하루에
 한 번. **드리프트는 커밋이 아니라 시간이 만든다.**

@@ -82,11 +82,16 @@ data "aws_iam_policy_document" "ci_assume" {
     #   저장소나 이 역할을 가져간다.
     #
     # ★ **「읽기 전용이니 가지는 안 좁힌다」 가 틀린 전제였다**(DECISIONS §125).
-    #   이 역할의 유일한 액션은 `lambda:GetFunction` 인데 그 응답에
-    #   `Configuration.Environment.Variables` 가 **그대로** 들어 있다 —
+    #   그때 이 역할의 유일한 액션은 `lambda:GetFunction` 이었고 그 응답에
+    #   `Configuration.Environment.Variables` 가 **그대로** 들어 있었다 —
     #   `WORKER_TOKEN` 과 `HTTP_TOKEN` 이 평문으로 산다(`compute.tf`).
-    #   **여기서 「읽기」 는 비밀을 읽는 것이다.** `:*` 이면 이 저장소에 가지를
+    #   **거기서 「읽기」 는 비밀을 읽는 것이었다.** `:*` 이면 이 저장소에 가지를
     #   밀 수 있는 사람이 아무 워크플로나 올려 두 토큰을 찍어 볼 수 있었다.
+    # ★ **2026-10-03 그 액션 자체를 뺐다**(DECISIONS §131). 이제 `lambda:ListTags`
+    #   하나이고 태그에는 비밀이 없다. **그래도 이 가지 조건은 그대로 둔다** —
+    #   좁히는 까닭이 하나 사라졌다고 나머지가 없어지는 것이 아니다. 드리프트는
+    #   `main` 과 배포본을 견주는 검사이고 딴 가지에서 재면 무엇과 견준 것인지가
+    #   흐려진다. **울타리를 둘 세웠으면 하나가 없어져도 다른 하나는 선다.**
     #
     # ★ **「PR 에서도 돌아야 한다」 도 사실이 아니었다.** 이 역할을 쓰는 것은
     #   `drift.yml` 하나이고 그것은 `push: main` · `schedule` ·
@@ -111,19 +116,25 @@ resource "aws_iam_role" "ci" {
   assume_role_policy = data.aws_iam_policy_document.ci_assume.json
 }
 
-# ★ 코드가 실제로 부르는 것만 적는다. `deploy_drift.py` 는 `get-function` 하나다.
+# ★ 코드가 실제로 부르는 것만 적는다. `deploy_drift.py` 는 `list-tags` 하나다.
 #
-# ★ **이 액션은 필요한 것보다 많이 준다.** 쓰는 값은 `Configuration.CodeSha256`
-#   하나인데 같은 응답이 환경변수를 전부 싣는다. `GetFunctionConfiguration` 으로
-#   바꿔도 같다 — **그쪽도 환경변수를 준다.** 권한을 진짜로 좁히려면 배포 때
-#   Lambda **태그**에 코드 해시를 적고 `lambda:ListTags` 로 읽어야 한다
-#   (PLAN #62). 그것은 `compute.tf` · `deploy_drift.py` · 이 정책을 같이 고치는
-#   일이고 `apply` 없이 확인할 수 없어 따로 뗀다. 지금은 위의 가지 조건이
-#   **누가 맡을 수 있는지**를 `main` 에 미는 사람으로 좁혀 둔 상태다.
+# ★ **전에는 `lambda:GetFunction` 이었고 그것이 필요한 것보다 많이 줬다**
+#   (DECISIONS §131). 쓰는 값은 코드 해시 하나인데 같은 응답이
+#   **환경변수를 전부 싣는다** — `GetFunctionConfiguration` 도 같다.
+#   그래서 해시를 `compute.tf` 의 **태그**로 꺼내고 여기는 그 태그만 읽는다.
+#   **태그에는 비밀이 없다.**
+#
+# ★ **`sts:GetCallerIdentity` 를 안 적는다.** `deploy_drift.py` 가 ARN 을 지으려고
+#   계정을 묻는데, 그것은 **IAM 정책과 무관하게 누구나 부른다** — 적으면 「이
+#   권한이 있어야 돈다」 는 거짓을 적는 것이다.
+#
+# ★ **순서가 있다**(DECISIONS §131). 태그는 `apply` 가 붙이므로 이 정책만 먼저
+#   좁히면 드리프트가 「못 쟀다」(1)로 멈춘다. **한 `apply` 에서 같이 간다** —
+#   `compute.tf` 의 태그와 이 정책은 같은 판에 들어야 한다.
 data "aws_iam_policy_document" "ci" {
   statement {
-    sid       = "ReadFunction"
-    actions   = ["lambda:GetFunction"]
+    sid       = "ReadCodeTag"
+    actions   = ["lambda:ListTags"]
     resources = [aws_lambda_function.worker.arn]
   }
 }

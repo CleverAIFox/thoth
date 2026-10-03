@@ -20,6 +20,21 @@ resource "aws_lambda_function" "worker" {
   filename         = "${path.module}/../dist/worker.zip"
   source_code_hash = filebase64sha256("${path.module}/../dist/worker.zip")
 
+  # ★ **드리프트 검사가 읽는 자리다**(DECISIONS §131). 전에는
+  #   `lambda:GetFunction` 으로 `Configuration.CodeSha256` 을 읽었는데, 그 응답이
+  #   **`Configuration.Environment.Variables` 를 통째로 싣는다** — 바로 아래의
+  #   `WORKER_TOKEN` · `HTTP_TOKEN` 이 평문으로 나온다. 쓰는 값은 해시 하나인데
+  #   **읽히는 것은 비밀 전부**였다. 그래서 그 하나를 태그로 꺼내 두고 CI 역할에는
+  #   `lambda:ListTags` 만 준다(`oidc.tf`).
+  # ★ **값이 `source_code_hash` 와 같은 식이다.** 같은 zip 에서 같은 수가 나오므로
+  #   코드가 바뀌면 둘이 **한 `apply` 안에서 함께** 바뀐다 — 태그가 코드보다
+  #   늙을 자리가 없다. 손으로 적는 수가 아니다.
+  # ★ **base64 는 태그 값으로 쓸 수 있다.** AWS 태그 값은 `+ - = . _ : / @` 를
+  #   받고 base64 가 쓰는 글자는 `A-Za-z0-9+/=` 뿐이다.
+  tags = {
+    CodeSha256 = filebase64sha256("${path.module}/../dist/worker.zip")
+  }
+
   # ★ 한 요청에 최대 50문장이 오고 배치로 한 번에 나간다. Bedrock 왕복이 길어질
   #   수 있으므로 넉넉히 둔다 — 타임아웃이 결과가 되면 사용자는 이유를 모른다.
   timeout     = 60
