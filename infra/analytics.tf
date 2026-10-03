@@ -80,12 +80,23 @@ resource "aws_s3_bucket_versioning" "pairs" {
   }
 }
 
-# ★ **옛 판은 90일이면 지운다.** 버전 관리는 켜는 순간 **덮어쓴 것이 전부 쌓인다** —
-#   만료가 없으면 요금이 조용히 는다. 되돌릴 창이 90일이면 실수를 알아차리기에 넉넉하다.
-resource "aws_s3_bucket_lifecycle_configuration" "pairs_versions" {
-  bucket     = aws_s3_bucket.pairs.id
+# ★ **버킷 하나에 lifecycle 설정은 하나다.** 2026-09-28 에 §127 이 옛 판 만료를
+#   `pairs_versions` 라는 **두 번째 설정 자원**으로 더했는데, 그 아래 이미 이 자원이
+#   있었다. `PutBucketLifecycleConfiguration` 은 **규칙 전체를 덮어쓰므로** 둘이
+#   서로를 지웠다 — `apply` 가 수렴하지 않고 **나중에 돈 쪽만 살아남았다.** 닷새 동안
+#   `errors/` · `athena/` · 끊긴 멀티파트가 **만료 없이 쌓였다**(DECISIONS §134).
+#
+# ★ **규칙은 여럿이어도 자원은 하나다.** 새 수명 규칙은 여기 `rule` 블록을 더한다 —
+#   자원을 새로 만들면 지금 있는 규칙이 전부 사라진다.
+resource "aws_s3_bucket_lifecycle_configuration" "pairs" {
+  bucket = aws_s3_bucket.pairs.id
+
+  # 옛 판 만료에 필요하다 — 버전 관리가 먼저 켜져야 한다.
   depends_on = [aws_s3_bucket_versioning.pairs]
 
+  # ★ **옛 판은 90일이면 지운다**(§127). 버전 관리는 켜는 순간 **덮어쓴 것이 전부
+  #   쌓인다** — 만료가 없으면 요금이 조용히 는다. 되돌릴 창이 90일이면 실수를
+  #   알아차리기에 넉넉하다.
   rule {
     id     = "old-versions-expire"
     status = "Enabled"
@@ -96,10 +107,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "pairs_versions" {
       noncurrent_days = 90
     }
   }
-}
-
-resource "aws_s3_bucket_lifecycle_configuration" "pairs" {
-  bucket = aws_s3_bucket.pairs.id
 
   # ★ 오류 객체만 지운다. 변환에 실패한 원본이 여기 오고, 원인을 본 뒤에는
   #   쓸모가 없다. 쌍(`pairs/`)에는 만료를 걸지 않는다.

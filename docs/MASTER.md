@@ -1154,7 +1154,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->461건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->470건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1635,6 +1635,23 @@ worker_url)` 이 안내 줄까지 삼켜 URL 이 오염된 적이 있다. 사람
 ★ **상태는 S3 에 있다**(§11-16). 2026-09-20 까지는 로컬이었고 이 자리에 「상태는
 로컬에 둔다」 가 그대로 남아 있었다 — **같은 사실을 두 절이 들고 한쪽만 고쳐졌다**
 (DECISIONS §133). `*.tfstate` 와 `*.tfvars` 는 그대로 `.gitignore` 가 막는다.
+
+★ **버킷 하나에 수명 설정은 하나다.** `aws_s3_bucket_lifecycle_configuration` 을
+둘 선언하면 `PutBucketLifecycleConfiguration` 이 **규칙 전체를 덮어쓰므로** 둘이 서로를
+지우고 `apply` 가 수렴하지 않는다. 새 수명 규칙은 **`rule` 블록을 더한다** — 자원을 더하지
+않는다. 2026-09-28~10-03 에 실제로 났다(DECISIONS §134). `tools/check_infra.py` 가
+**「같은 부모에 같은 종류가 둘인가」** 를 보고 `doctor` 가 그것을 FAIL 로 낸다 — 파일만
+읽으므로 `--repo` 안이고 **CI 도 본다.** 겹쳐도 되는 자리는 그 자원에
+`# 겹침 허용 : <까닭>` 을 적어 연다.
+
+★ **겹친 설정 자원을 합칠 때는 상태에서 먼저 뗀다.** 선언만 지우고 `apply` 하면 terraform
+이 그것을 **파괴**하는데 그 호출이 `DeleteBucketLifecycle` 이라 **버킷의 수명 설정 전체가
+지워진다** — 방금 쓴 규칙까지 날아간다.
+
+```bash
+bash tools/tf.sh state rm aws_s3_bucket_lifecycle_configuration.pairs_versions
+bash tools/tf.sh apply
+```
 
 ★ **`apply` 가 무엇을 올렸는지 적는다.** `tools/tf.sh apply` 는 성공할 때만
 `.cache/infra-applied` 에 `infra/` 의 지문과 시각을 찍고, `doctor` 가 그것을 지금

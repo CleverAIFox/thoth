@@ -426,6 +426,21 @@ else
   fi
 fi
 
+# ★ **같은 부모에 같은 설정이 둘 선언돼 있으면 apply 가 수렴하지 않는다**(DECISIONS §134).
+#   `fmt` 도 `validate` 도 이것을 모른다 — 둘 다 **문법으로는 맞기** 때문이다. 파일만
+#   읽으므로 `--repo` 안이고 **CI 가 볼 수 있다.**
+if [ ! -d infra ]; then
+  : # 위에서 이미 말했다
+else
+  CI_OUT="$(python3 tools/check_infra.py 2>&1)"; CI_RC=$?
+  if [ "$CI_RC" = 0 ]; then
+    ok "한 부모에 같은 설정이 둘 있지 않다"
+  else
+    no "인프라 선언이 겹친다"
+    printf '%s\n' "$CI_OUT" | head -12
+  fi
+fi
+
 # ★ **코드가 올라갔는지 보는 자가 하나도 없었다**(DECISIONS §133). `fmt` 는 모양을
 #   보고 `validate` 는 뜻을 보지만, 둘 다 **그것이 AWS 에 서 있는지는 묻지 않는다.**
 #   2026-10-03 에 `#126` 의 인프라가 며칠을 안 올라간 채 모든 검사가 초록이었다.
