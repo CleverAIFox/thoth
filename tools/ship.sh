@@ -22,6 +22,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
 . "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
+. "$ROOT/tools/lib/infra.sh"
 
 DRY=0
 [ "${1:-}" = "--dry" ] && { DRY=1; shift; }
@@ -104,6 +105,20 @@ printf '%s\n' "$COMMIT_OUT" | tail -2 | sed 's/^/  /'
 
 # ── 4. 푸시 안내 · 위생 ──────────────────────────────────
 step "4/4  푸시"
+
+# ★ **`doctor` 의 WARN 은 일흔 줄 위로 밀려 올라간다.** 적용 시차는 마지막 화면에
+#   한 번 더 적는다 — 2026-10-03 에 `#126` 의 인프라가 며칠을 안 올라간 채 모든
+#   검사가 초록이었고, **그때도 WARN 이 있었다면 보지 못했을 자리에 있었다.**
+#   말할 것을 정하는 것과 **말하는 자리를 고르는 것**은 다른 일이다(DECISIONS §127 · §133).
+if [ -d infra ]; then
+  INFRA_NOW="$(infra_hash . 2>/dev/null)"
+  INFRA_ST="$(infra_stamp .)"
+  if [ -n "$INFRA_NOW" ] \
+     && { [ ! -f "$INFRA_ST" ] || [ "$INFRA_NOW" != "$(cut -f1 < "$INFRA_ST")" ]; }; then
+    echo "  ※ infra/ 가 올라간 것과 다르다 — 밀고 나서 bash tools/tf.sh plan"
+    echo
+  fi
+fi
 if [ "$DRY" = 1 ]; then
   echo "  --dry 라 밀지 않는다. 나갈 것 :"
   git log --oneline "@{u}..HEAD" 2>/dev/null | sed 's/^/    /' || git log --oneline -1 | sed 's/^/    /'

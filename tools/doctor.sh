@@ -10,6 +10,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
 . ./tools/lib/env.sh; load_env ./.env
+. ./tools/lib/infra.sh
 SCOPE="${1:-all}"
 FAIL=0
 skip(){ printf '  \033[33mSKIP\033[0m %s\n' "$1"; }
@@ -422,6 +423,42 @@ else
     fi
   else
     skip "infra/.terraform 이 없다 — bash tools/tf.sh init 후에 본다"
+  fi
+fi
+
+# ★ **코드가 올라갔는지 보는 자가 하나도 없었다**(DECISIONS §133). `fmt` 는 모양을
+#   보고 `validate` 는 뜻을 보지만, 둘 다 **그것이 AWS 에 서 있는지는 묻지 않는다.**
+#   2026-10-03 에 `#126` 의 인프라가 며칠을 안 올라간 채 모든 검사가 초록이었다.
+#
+# ★ **WARN 이지 FAIL 이 아니다**(§46). 보통 순서가 「고친다 → ship → apply」 라
+#   막으면 커밋 자체가 안 된다. **여기서 재는 것은 틀림이 아니라 시차다.**
+#
+# ★ **CI 는 이것을 못 본다.** 도장은 `.cache/` 에 있고 CI 는 clone 이라 언제나
+#   없다. 올라갔는지를 CI 가 보려면 `terraform plan` 이 필요하고, 그러면 §131 이
+#   방금 거둬들인 읽기 권한을 되돌려 줘야 한다 — **표류를 보려고 비밀을 읽는 길을
+#   다시 여는 것**이라 열지 않았다(PLAN #68).
+if [ "$SCOPE" = "--repo" ]; then
+  skip "인프라 적용 시차 (기계 상태다)"
+elif [ ! -d infra ]; then
+  : # 위에서 이미 말했다
+else
+  INFRA_NOW="$(infra_hash . 2>/dev/null)"
+  INFRA_STAMP="$(infra_stamp .)"
+  if [ -z "$INFRA_NOW" ]; then
+    skip "infra/ 지문을 뜨지 못했다"
+  elif [ ! -f "$INFRA_STAMP" ]; then
+    warn "인프라를 언제 올렸는지 모른다 — 도장이 없다"
+    echo "       bash tools/tf.sh apply   (바뀐 게 없으면 No changes 로 끝나고 도장만 찍힌다)"
+  else
+    INFRA_WAS="$(cut -f1 < "$INFRA_STAMP")"
+    INFRA_WHEN="$(cut -f2 < "$INFRA_STAMP")"
+    if [ "$INFRA_NOW" = "$INFRA_WAS" ]; then
+      ok "올라간 것이 지금 코드다 ($INFRA_WHEN)"
+    else
+      warn "infra/ 가 마지막 apply 뒤로 바뀌었다 — 올라간 것은 $INFRA_WHEN 것이다"
+      echo "       bash tools/tf.sh plan   (비어 있으면 도장만 낡은 것이다)"
+      echo "       올린 지문 ${INFRA_WAS:0:12} · 지금 지문 ${INFRA_NOW:0:12}"
+    fi
   fi
 fi
 

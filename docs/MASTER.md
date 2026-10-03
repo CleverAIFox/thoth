@@ -1154,7 +1154,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->452건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->461건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -1585,6 +1585,25 @@ WORKER_URL=<출력된 url> WORKER_TOKEN=<토큰> bash tools/smoke.sh
 **자격증명을 CLI 로 풀어 환경변수로 넘긴다** — 프로파일이 SSO 든 `aws login` 이든
 정적 키든 terraform 이 그 형식을 몰라도 된다(DECISIONS §74).
 
+★ **이 기계에서 로그인은 `--remote` 다.**
+
+```bash
+aws login --profile fox --remote
+```
+
+WSL2 의 기본 브라우저는 윈도우에서 열린다. `aws login` 의 기본 흐름은 `client_id` 가
+`devtools/same-device` 이고 `redirect_uri` 가 `http://127.0.0.1:<포트>` 인데, 브라우저가
+다른 기계에 있으므로 "same device" 가 거짓이고 **AWS 가 400 Bad Request 로 거절한다.**
+`--no-browser` 는 이 CLI 에 없는 옵션이다(aws-cli 2.36.44).
+
+★ **코드는 지금 실행의 것을 붙인다.** `--remote` 는 `state` 를 실행마다 새로 만들고
+URL 에 박는다. 묵은 탭에서 코드를 가져오면 `State parameter ... does not match expected
+value` 가 난다 — **에러가 코드를 탓하지만 틀린 것은 탭이다.** 열린 AWS 탭을 전부 닫고
+지금 실행이 뜬 URL 로 열어 「Copy verification code」 를 쓴다.
+
+★ **이 셋은 전부 `tools/tf.sh` 가 자격증명 실패 때 찍는다.** 기계 사실을 사람 기억에
+두면 반 년 뒤에 같은 30분을 쓴다(DECISIONS §133).
+
 | 리소스 | 왜 |
 |---|---|
 | Lambda (`python3.13`) | zip 배포. 의존성 없음 |
@@ -1613,9 +1632,27 @@ WORKER_URL=<출력된 url> WORKER_TOKEN=<토큰> bash tools/smoke.sh
 worker_url)` 이 안내 줄까지 삼켜 URL 이 오염된 적이 있다. 사람에게 하는 말과
 도구가 읽는 값은 통로를 나눈다.
 
-★ **상태는 로컬에 둔다.** 리소스가 넷이고 전부 재생성 가능하며 유휴 비용이 0
-이라, 상태를 잃어도 고아 리소스가 돈을 태우지 않는다. `*.tfstate` 와 `*.tfvars`
-는 `.gitignore` 가 막는다.
+★ **상태는 S3 에 있다**(§11-16). 2026-09-20 까지는 로컬이었고 이 자리에 「상태는
+로컬에 둔다」 가 그대로 남아 있었다 — **같은 사실을 두 절이 들고 한쪽만 고쳐졌다**
+(DECISIONS §133). `*.tfstate` 와 `*.tfvars` 는 그대로 `.gitignore` 가 막는다.
+
+★ **`apply` 가 무엇을 올렸는지 적는다.** `tools/tf.sh apply` 는 성공할 때만
+`.cache/infra-applied` 에 `infra/` 의 지문과 시각을 찍고, `doctor` 가 그것을 지금
+지문과 맞춰 WARN 을 낸다. **적용은 사람이 손으로 돌리는 유일한 단계**라 안 돌아도
+아무도 모른다 — 2026-10-03 에 `#126` 의 인프라가 며칠을 안 올라간 채 모든 검사가
+초록이었다(DECISIONS §133).
+
+★ **막지 않고 알린다.** 보통 순서가 「고친다 → `ship` → `apply`」 라 FAIL 로 두면
+커밋 자체가 안 된다. **여기서 재는 것은 틀림이 아니라 시차다**(§46).
+
+★ **지문은 `git` 에 묻지 않는다.** 추적 파일만 보면 `terraform.tfvars` 가 빠지고,
+그러면 `engine` 을 갈아 놓고 `apply` 를 잊어도 초록이다. 디렉터리를 그대로 읽는다 —
+빼는 것은 terraform 이 스스로 쓰는 것(상태 · plan 산출물 · `.terraform/`)뿐이다.
+`tools/lib/infra.sh` 가 셈을 하나만 둔다 — 적는 쪽과 보는 쪽이 따로 세면 갈린다(§132).
+
+★ **CI 는 이 시차를 못 본다.** 도장은 `.cache/` 에 있고 CI 는 clone 이라 언제나
+없다. CI 가 보려면 `terraform plan` 이 필요하고 그것은 §131 이 거둬들인 읽기 권한을
+되돌려 준다 — **표류를 보려고 비밀을 읽는 길을 다시 여는 것**이라 열지 않았다(PLAN #68).
 
 ★ **`doctor` 가 `fmt` 를 항상 보고 `validate` 는 `infra/.terraform` 이 있을 때만
 본다.** `validate` 는 `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다

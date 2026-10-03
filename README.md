@@ -159,7 +159,8 @@ WORKER_URL=<출력> WORKER_TOKEN=<토큰> bash tools/smoke.sh   # 배포본을 �
 ```bash
 bash tools/package_lambda.sh  # 배포 zip — 의존성 0 을 검사로 확인한다
 bash tools/tf.sh plan         # 인프라. .env 의 프로파일을 풀어 넘긴다
-bash tools/tf.sh apply
+bash tools/tf.sh apply        # 성공할 때만 .cache/infra-applied 에 도장을 찍는다
+                              # doctor 가 그것을 지금 infra/ 와 맞춰 시차를 WARN 으로 낸다
 bash tools/preflight.sh       # 엔진 전제만 본다 — 띄우기 전에 죽는 편이 낫다
 bash tools/bedrock_survey.sh  # Bedrock 쪽 실정을 잰다. 아무것도 바꾸지 않는다
 bash tools/apply_patch.sh     # 윈도우 다운로드의 패치를 적용한다
@@ -260,7 +261,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->97건 · 워커 <!--count:worker_tests-->452건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->97건 · 워커 <!--count:worker_tests-->461건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |
