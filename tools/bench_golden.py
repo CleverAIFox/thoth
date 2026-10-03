@@ -326,6 +326,31 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
     terms = list(glossary._hits(book, low))
     terms = [t for t in terms
              if not any(t != o and t in o for o in terms)]
+
+    # ★ **넷째 예외 : `-ed` · `-ing` 로만 나타난 표제어**(DECISIONS §141).
+    #
+    #   `_hits` 가 `recorded` · `cataloging` 을 표제어로 잡는 것은 **프롬프트 쪽에서는
+    #   맞다** — 용어집에 단복수를 따로 넣지 않으려는 설계다. 그런데 **검사가 그것을
+    #   그대로 받아 「출력에 레코드가 있어야 한다」 고 요구하면** 품사가 갈린 자리에서
+    #   반드시 틀린다. 영어에서 명사 표제어의 `-ed` · `-ing` 꼴은 거의 언제나 동사다.
+    #
+    #     "every change is **recorded** and evaluated"   → 「기록되고」 가 맞다
+    #     "the crawler is **cataloging** partitions"      → 「목록화합니다」 가 맞다
+    #
+    #   **고칠 수 없는 위반이고, 그런 위반을 만드는 검사는 곧 꺼진다.**
+    #
+    # ★ **복수는 그대로 본다.** 골든셋의 `record` 열넷 중 열둘이 명사 복수이고
+    #   거기서는 「레코드」 가 맞다 — 전부 빼면 검사가 조용히 약해진다.
+    #
+    # ★ **§49 와 모순이 아니다.** 거기서 적은 「프롬프트가 쓰는 것과 같은 함수를
+    #   쓴다」 는 **묻는 물음이 같을 때**의 말이다. 프롬프트는 「이 배치에 이 용어가
+    #   관련 있나」 를 묻고 넓게 잡는 것이 맞고, 검사는 「등재 표기를 안 써서
+    #   틀렸나」 를 묻는다. **같은 함수에 다른 문턱이고 그 차이를 여기 적는다** —
+    #   조용히 갈리는 것과 적고 갈리는 것은 다르다.
+    #
+    # ★ **덜 보는 쪽으로 틀린다.** 과하게 우는 검사는 꺼지고, 덜 보는 검사는 한
+    #   자리를 놓칠 뿐이다.
+    terms = [t for t in terms if re.search(rf"\b{re.escape(t)}(s|es)?\b", low)]
     for en in terms:
         want = book.get(en)
         if not want:

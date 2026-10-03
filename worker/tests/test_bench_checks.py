@@ -220,19 +220,27 @@ def test_단어_내부에_박힌_용어는_보지_않는다():
                        {"throughput": "처리량"}) == []
 
 
-def test_복수형과_굴절형은_계속_본다():
-    # 단어 경계만 걸면 records 가 record 에 안 걸려 검사가 조용히 약해진다.
-    # 용어집(glossary._hits)과 같은 굴절 패턴을 쓴다.
+def test_복수형은_보고_동사꼴은_안_본다():
+    # ★ **복수는 계속 본다.** 단어 경계만 걸면 `records` 가 `record` 에 안 걸려
+    #   검사가 조용히 약해진다 — 골든셋의 `record` 열넷 중 열둘이 명사 복수다.
     book = {"record": "레코드", "catalog": "카탈로그"}
     u = unit("The stream stores records for the configured window of time here.",
              keep=[])
     assert bench.check(u, "스트림은 설정된 기간 동안 기록을 저장합니다.", book) \
         == ["term:record→레코드"]
 
+    # ★ **`-ing` · `-ed` 는 안 본다**(DECISIONS §141). 이 시험은 2026-10-03 까지
+    #   정반대를 단정하고 있었다 — `cataloging` 은 **동사**이고 「목록화합니다」 가
+    #   맞는 번역인데, 거기에 「카탈로그」 를 요구하면 **고칠 수 없는 위반**이다.
+    #   검사가 틀렸는데 시험이 그 틀림을 지키고 있었다.
     u = unit("The crawler is cataloging every partition of the bucket tonight.",
              keep=[])
-    assert bench.check(u, "크롤러가 오늘 밤 모든 파티션을 목록화합니다.", book) \
-        == ["term:catalog→카탈로그"]
+    assert bench.check(u, "크롤러가 오늘 밤 모든 파티션을 목록화합니다.", book) == []
+
+    # ★ 섞여 있으면 본다 — 명사로도 쓰였으면 등재 표기가 맞다.
+    u = unit("The crawler is cataloging records into the bucket tonight.", keep=[])
+    assert bench.check(u, "크롤러가 오늘 밤 버킷에 기록을 목록화합니다.", book) \
+        == ["term:record→레코드"]
 
 
 def test_프롬프트가_바뀌면_기준선이_stale_이어야_한다():
