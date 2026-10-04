@@ -156,3 +156,60 @@ def test_주석_처리된_skip_은_안_본다():
     글 = ('echo "== 파이썬 =="\n'
           '# skip "ruff 를 부르지 못해 파이썬을 보지 못한다"\n')
     assert cs.갈래가_거짓말인가(글) == []
+
+
+# ── 갈래별 자리 수 (DECISIONS §152) ─────────────────────────────────────────
+#
+# ★ MASTER 0-8 이 「도구 9곳 · 16곳만 본다」 를 **글자로** 박고 있었고 skip 하나를
+#   더하자 **세 수가 한꺼번에 늙었다.** 이제 이 함수가 정본이고 `<!--count:-->` 가
+#   문서를 묶는다 — 그러니 **이 함수가 틀리면 문서도 함께 틀린다.**
+
+_가짜 = '''
+echo "== 가 =="
+command -v uv >/dev/null && skip "ㄱ"
+if [ "$SCOPE" = "--repo" ]; then skip "ㄴ"; fi
+skip "ㄷ"
+skip "ㄹ"
+'''
+# ★ **합성 번호를 글자로 박지 않는다**(DECISIONS §129). 그냥 적으면 `check_docs` 가
+#   이 파일을 읽고 「없는 행을 가리킨다」 로 운다 — 도구 쪽 카나리아와 같은 자리다.
+_빚 = "PLAN " + "#" + "9001"
+_선언 = {"ㄱ": ("도구", "uv"), "ㄴ": ("범위", "x"), "ㄷ": ("조건", "y"), "ㄹ": ("빚", _빚)}
+
+
+def _센다(글=_가짜, 선언=None):
+    원 = cs.선언
+    cs.선언 = 선언 if 선언 is not None else _선언
+    try:
+        return cs.세기(글)
+    finally:
+        cs.선언 = 원
+
+
+def test_갈래별로_센다():
+    assert _센다() == {"skip_tool": 1, "skip_scope": 1, "skip_cond": 1,
+                      "skip_debt": 1, "skip_all": 4, "skip_seen": 2}
+
+
+def test_보는_것은_도구와_범위뿐이다():
+    # ★ **「다 본다」 로 읽히면 안 본 자리를 본 것으로 믿는다.** 조건·빚은 안 본다.
+    셈 = _센다()
+    assert 셈["skip_seen"] < 셈["skip_all"], "본 수와 전체가 같아졌다 — 둘을 가르는 뜻이 사라진다"
+    assert 셈["skip_seen"] == 셈["skip_tool"] + 셈["skip_scope"]
+
+
+def test_선언_안_된_자리도_전체에는_든다():
+    # ★ 안 선언된 것을 전체에서 빼면 **빠뜨린 것이 수에서도 사라진다.**
+    셈 = _센다(선언={"ㄱ": ("도구", "uv")})
+    assert 셈["skip_all"] == 4 and 셈["skip_tool"] == 1
+    assert 셈["skip_seen"] == 1
+
+
+def test_지금_저장소의_수가_문서와_묶여_있다():
+    # ★ 수를 내는 것으로 끝나면 아무도 안 본다. `check_counts` 가 아는 이름이어야 한다.
+    import importlib.util
+    s = importlib.util.spec_from_file_location("cc", cs.ROOT / "tools/check_counts.py")
+    cc = importlib.util.module_from_spec(s)
+    s.loader.exec_module(cc)
+    for 이름 in cs.세기(cs.DOCTOR.read_text(encoding="utf-8")):
+        assert 이름 in cc.KNOWN, f"{이름} 을 check_counts 가 모른다 — 문서에 쓸 수 없다"

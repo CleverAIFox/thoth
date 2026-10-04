@@ -63,6 +63,7 @@ _호출 = re.compile(r'(?<!\w)skip\s+"((?:[^"\\]|\\.)*)"')
     "node 가 없어 JS 문법을 보지 못한다": ("도구", "node"),
     "node 가 없어 확장 테스트를 돌리지 못한다": ("도구", "node · jsdom"),
     "uv 가 없어 테스트를 돌리지 못한다": ("도구", "uv"),
+    "uv 가 없어 돌연변이를 돌리지 못한다": ("도구", "uv"),
 
     # ── 조건 : 잴 대상이나 조건이 없다 ──────────────────────────────────
     "SSD 에 닿지 못해 재지 못했다": ("조건", "SSD 미연결"),
@@ -221,8 +222,32 @@ def fails(글: str, 산행: set[int]) -> list[str]:
     return 난것
 
 
+_이름 = {"도구": "skip_tool", "범위": "skip_scope", "조건": "skip_cond", "빚": "skip_debt"}
+
+
+def 세기(글: str) -> dict[str, int]:
+    """갈래별 자리 수. **문서가 적은 수의 정본은 이 함수다**(§57 · §152).
+
+    ★ MASTER 0-8 이 「도구 9곳 · 16곳만 본다」 를 글자로 박고 있었는데 **하루 만에
+      틀렸다** — skip 하나를 더했을 뿐인데 세 수가 동시에 늙었다. §151 과 같은 병이다.
+      이제 `<!--count:-->` 로 묶어 **틀리면 doctor 가 운다.**
+    """
+    셈: dict[str, int] = {}
+    for arg in 호출들(글):
+        갈래 = 선언.get(arg, ("안 선언됨", ""))[0]
+        셈[갈래] = 셈.get(갈래, 0) + 1
+    out = {v: 셈.get(k, 0) for k, v in _이름.items()}
+    out["skip_all"] = sum(셈.values())
+    # ★ **보는 것만 센다.** 「33곳을 다 본다」 로 읽히면 16곳짜리 검사를 33곳짜리로 믿는다.
+    out["skip_seen"] = out["skip_tool"] + out["skip_scope"]
+    return out
+
+
 def main() -> int:
     글 = DOCTOR.read_text(encoding="utf-8")
+    if "--세기" in sys.argv:
+        print(" ".join(f"{k}={v}" for k, v in sorted(세기(글).items())))
+        return 0
     난것 = fails(글, _plan_rows())
     본것 = 호출들(글)
     셈: dict[str, int] = {}

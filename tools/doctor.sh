@@ -423,6 +423,8 @@ echo "== 검사의 검사 (MASTER §0-8) =="
 #   **왜 건너뛰는지를 적어야** 하고, 적는 순간 범위인지 도구인지 빚인지 갈린다.
 #   묻는 것은 「이 skip 이 옳은가」 가 아니라 **「선언 안 된 skip 이 있나」** 다(족 가드).
 SKP_OUT="$(python3 tools/check_skips.py 2>&1)"; SKP_RC=$?
+# ★ 갈래별 자리 수는 MASTER 0-8 이 글자로 적고 있다 — 재서 묶는다(DECISIONS §152).
+SKIP_TALLY="$(python3 tools/check_skips.py --세기 2>/dev/null)"
 if [ "$SKP_RC" = 0 ]; then
   ok "건너뛰는 자리가 전부 선언됐다"
   printf '%s\n' "$SKP_OUT" | head -1 | sed 's/^    /       /'
@@ -782,6 +784,31 @@ else
   skip "uv 가 없어 테스트를 돌리지 못한다"
 fi
 
+echo "== 돌연변이 =="
+# ★ **「검사를 더했다」 와 「검사가 문다」 는 다른 말이다**(DECISIONS §152).
+#   2026-10-04 하루에 가드 일곱을 세우면서 **세 번은 첫 판이 안 물었다**
+#   (§145 · §147 · §150) — 저장소가 깨끗하면 **검사를 꺼도 초록**이기 때문이다.
+#
+# ★ **사슬 안에 둔다.** 하토르는 같은 도구를 가지고도 `make check` 밖에 두어
+#   사람이 기억해야 돌게 만들었다. **가진 것과 도는 것은 다르다** — 그래서
+#   `--repo` 에서도 돌린다. CI 가 보는 범위가 `--repo` 다.
+#
+# ★ **싸지 않다.** 47건에 18초고, `--repo` 가 10초였으니 **세 배가 된다.**
+#   그래도 넣는다 — 오늘 이 관문이 첫 판에 네 건을 잡았고, 그중 둘은 **같은 날
+#   세운 가드가 안 무는 것**이었다. 더 길어지면 CI 로 옮기되 **사슬 밖으로는
+#   내보내지 않는다.** 밖에 둔 도구는 사람이 기억해야 돌고, 사람은 안 돌린다.
+if command -v uv >/dev/null 2>&1; then
+  if MUT_OUT="$( python3 tools/mutate_gate.py 2>&1 )"; then
+    ok "$(printf '%s' "$MUT_OUT" | grep -oE '돌연변이 [0-9]+건 · 살아남음 0건')"
+    printf '%s\n' "$MUT_OUT" | grep '※' | sed 's/^/       /'
+  else
+    no "가드를 망가뜨려도 시험이 안 운다"
+    printf '%s\n' "$MUT_OUT" | grep -E 'LIVE|바닥' | sed 's/^/       /'
+  fi
+else
+  skip "uv 가 없어 돌연변이를 돌리지 못한다"
+fi
+
 echo "== 문서 건수 =="
 # ★ **문서에 적은 수의 정본은 실행이다.** 같은 숫자가 두 곳에 살면 한쪽만
 #   늙는다(DECISIONS §57). 위에서 이미 잰 값을 넘겨 대조한다 — 재는 곳과
@@ -792,8 +819,9 @@ echo "== 문서 건수 =="
 #
 # ★ 재지 못한 이름은 통과가 아니라 SKIP 이다. node 나 uv 가 없는 기계에서
 #   조용히 초록불이 되면 안 된다(DECISIONS §59).
+# shellcheck disable=SC2086
 CNT_OUT="$(python3 tools/check_counts.py \
-             "ext_tests=${EXT_N:-}" "worker_tests=${PY_N:-}" 2>&1)"; CNT_RC=$?
+             "ext_tests=${EXT_N:-}" "worker_tests=${PY_N:-}" ${SKIP_TALLY} 2>&1)"; CNT_RC=$?
 case "$CNT_RC" in
   0) ok "문서가 적은 건수가 실측과 같다" ;;
   1) no "문서 건수가 실측과 다르다"; printf '%s\n' "$CNT_OUT" | sed 's/^/    /' ;;

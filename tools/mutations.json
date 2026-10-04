@@ -1,0 +1,346 @@
+{
+  "_왜": "2026-10-04 하루에 손으로 돌려 **실제로 물린** 돌연변이다. 지어낸 것은 없다 — DECISIONS §152.",
+  "_규약": "전/후는 파일에 **한 번만** 나와야 한다. 겨냥이 흐리면 가드가 아니라 아무 줄이나 바꾸게 된다. **단언을 뒤집는 것은 돌연변이가 아니다** — 시험은 언제나 지울 수 있고 그것을 막는 것은 다른 시험이 아니라 바닥 수(MIN_돌연변이)다. **물 수 없는 자리도 선언하지 않는다** — 중복이라 안 무는 줄(독립성)을 넣으면 「살아남음 0」 이 거짓이 된다.",
+  "particle": {
+    "파일": "worker/app/particle.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_particle.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "파열음 받침을 늘 열린다고 본다",
+        "전": "        if 앞 in _모음 and 앞앞 not in _모음:\n            return _파열받침[끝]",
+        "후": "        if False:\n            return _파열받침[끝]"
+      },
+      {
+        "이름": "묵음 e 의 장모음 신호를 무시한다",
+        "전": "        if 묵음e:\n            return 0",
+        "후": "        if False:\n            return 0"
+      },
+      {
+        "이름": "ㄹ 받침의 으로→로 예외를 뺀다",
+        "전": "    if 받침꼴.startswith(\"으\") and 받침 == _ㄹ:\n        return 열린꼴",
+        "후": "    if False:\n        return 열린꼴"
+      },
+      {
+        "이름": "숫자 끝에서 손 떼지 않고 추정한다",
+        "전": "    if 꼬리[-1].isdigit():\n        return None",
+        "후": "    if False:\n        return None"
+      },
+      {
+        "이름": "선언을 꼬리로 안 찾는다",
+        "전": "    if 꼬리 in 선언:\n        return _값[선언[꼬리]]",
+        "후": "    if False:\n        return _값[선언[꼬리]]"
+      },
+      {
+        "이름": "죽은 선언을 안 본다",
+        "전": "        if 규칙 is not None and 규칙 == _값[값]:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "모르는 자리를 글뭉치에서 안 찾는다",
+        "전": "            if 영어받침(m.group(1)) is None:",
+        "후": "            if False:"
+      },
+      {
+        "이름": "모르는 자리를 세지 않는다",
+        "전": "            UNSURE[말] = UNSURE.get(말, 0) + 1",
+        "후": "            pass"
+      },
+      {
+        "이름": "끝 r 을 받침으로 본다",
+        "전": "_끝받침 = {\"n\": _ㄴ, \"m\": _ㅁ, \"l\": _ㄹ}",
+        "후": "_끝받침 = {\"n\": _ㄴ, \"m\": _ㅁ, \"l\": _ㄹ, \"r\": _ㄹ}"
+      }
+    ]
+  },
+  "pkg": {
+    "파일": "tools/lib/pkg.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_package.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "옛 위치 무늬로 되돌린다",
+        "전": "    for f in sorted(app.rglob(\"*.json\")):\n        out.append((f, f\"app/{f.relative_to(app).as_posix()}\"))",
+        "후": "    for f in sorted((app / \"glossary\").rglob(\"*.json\")):\n        out.append((f, f\"app/glossary/{f.name}\"))"
+      },
+      {
+        "이름": "폴더 참조를 안 본다",
+        "전": "        실물 = sorted(ref.rglob(\"*\")) if ref.is_dir() else [ref]",
+        "후": "        실물 = [] if ref.is_dir() else [ref]"
+      },
+      {
+        "이름": "없는 참조를 안 본다",
+        "전": "        if not ref.exists():",
+        "후": "        if False:"
+      },
+      {
+        "이름": "resolve() 꼴을 못 읽는다",
+        "전": "_옆 = re.compile(r'Path\\(__file__\\)(?:\\.resolve\\(\\))?\\.parent\\s*/\\s*\"([^\"]+)\"')",
+        "후": "_옆 = re.compile(r'Path\\(__file__\\)\\.parent\\s*/\\s*\"([^\"]+)\"')"
+      },
+      {
+        "이름": "안 담긴 것을 안 센다",
+        "전": "            if name not in 담긴것:",
+        "후": "            if False:"
+      },
+      {
+        "이름": "EXCLUDE 를 무시한다",
+        "전": "        if f.name in EXCLUDE:",
+        "후": "        if False:"
+      }
+    ]
+  },
+  "conftest": {
+    "파일": "worker/tests/conftest.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_hermetic.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "아예 안 비운다",
+        "전": "비운것 = 환경을_비운다()",
+        "후": "비운것 = []"
+      },
+      {
+        "이름": "세기만 하고 안 지운다",
+        "전": "    for k in 지운것:\n        del env[k]",
+        "후": "    pass"
+      },
+      {
+        "이름": "손으로 적은 목록을 쓴다",
+        "전": "    지운것 = [k for k in 선언된_키(path) if k in env]",
+        "후": "    지운것 = [k for k in [\"ENGINE\"] if k in env]"
+      },
+      {
+        "이름": "키를 못 읽는다",
+        "전": "    return sorted(set(_키.findall(path.read_text(encoding=\"utf-8\"))))",
+        "후": "    return []"
+      },
+      {
+        "이름": "없는 파일에서 터진다",
+        "전": "    if not path.exists():\n        return []",
+        "후": "    if False:\n        return []"
+      },
+      {
+        "이름": "주석 속 낱말도 키로 센다",
+        "전": "_키 = re.compile(r\"^([A-Z_][A-Z0-9_]*)=\", re.M)",
+        "후": "_키 = re.compile(r\"([A-Z_][A-Z0-9_]*)\", re.M)"
+      }
+    ]
+  },
+  "skips": {
+    "파일": "tools/check_skips.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_check_skips.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "fails 가 갈래 검사를 안 부른다",
+        "전": "    난것 += 갈래가_거짓말인가(글)",
+        "후": "    pass"
+      },
+      {
+        "이름": "도구 갈래를 안 본다",
+        "전": "if f\"command -v {도구}\" not in 그칸:",
+        "후": "if False:"
+      },
+      {
+        "이름": "도구는 다 거짓말이라고 운다",
+        "전": "if f\"command -v {도구}\" not in 그칸:",
+        "후": "if True:"
+      },
+      {
+        "이름": "범위 갈래를 안 본다",
+        "전": "if \"SCOPE\" not in 그칸 and \"--repo\" not in 그칸:",
+        "후": "if False:"
+      },
+      {
+        "이름": "범위 갈래를 통째로 건너뛴다",
+        "전": "            elif 갈래 == \"범위\":",
+        "후": "            elif False:"
+      },
+      {
+        "이름": "칸 경계를 안 찾는다",
+        "전": "        if 줄들[j].lstrip().startswith('echo \"== '):",
+        "후": "        if False:"
+      },
+      {
+        "이름": "주석 속 skip 도 센다",
+        "전": "        if 줄.lstrip().startswith(\"#\"):\n            continue\n        for arg in _호출.findall(줄):",
+        "후": "        if False:\n            continue\n        for arg in _호출.findall(줄):"
+      },
+      {
+        "이름": "도구 이름을 안 읽는다",
+        "전": "    도구 = (_도구이름.match(근거) or [None, \"\"])[1]",
+        "후": "    도구 = \"\""
+      },
+      {
+        "이름": "보는 것을 전부로 센다",
+        "전": "out[\"skip_seen\"] = out[\"skip_tool\"] + out[\"skip_scope\"]",
+        "후": "out[\"skip_seen\"] = out[\"skip_all\"]"
+      },
+      {
+        "이름": "전체에서 안 선언된 것을 뺀다",
+        "전": "out[\"skip_all\"] = sum(셈.values())",
+        "후": "out[\"skip_all\"] = sum(v for k, v in 셈.items() if k in _이름)"
+      },
+      {
+        "이름": "갈래를 안 보고 센다",
+        "전": "갈래 = 선언.get(arg, (\"안 선언됨\", \"\"))[0]\n        셈[갈래] = 셈.get(갈래, 0) + 1\n    out =",
+        "후": "갈래 = \"도구\"\n        셈[갈래] = 셈.get(갈래, 0) + 1\n    out ="
+      }
+    ]
+  },
+  "endings": {
+    "파일": "worker/app/engine.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_fix_endings.py tests/test_endings_corpus.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "옛 결함으로 되돌린다 (명령→평서)",
+        "전": "(\"십니까\" if \"?\" in m.group(2) else \"십시오\")",
+        "후": "\"십니다\""
+      },
+      {
+        "이름": "물음표를 안 본다",
+        "전": "(\"십니까\" if \"?\" in m.group(2) else \"십시오\")",
+        "후": "\"십시오\""
+      },
+      {
+        "이름": "거꾸로 고른다",
+        "전": "(\"십니까\" if \"?\" in m.group(2) else \"십시오\")",
+        "후": "(\"십시오\" if \"?\" in m.group(2) else \"십니까\")"
+      },
+      {
+        "이름": "아무 규칙도 안 건다",
+        "전": "        for pat, rep in _ENDINGS:",
+        "후": "        for pat, rep in []:"
+      },
+      {
+        "이름": "고친 결과를 안 쓴다",
+        "전": "            if new != lines[i]:\n                lines[i] = new\n                break",
+        "후": "            if new != lines[i]:\n                break"
+      }
+    ]
+  },
+  "구성톱니": {
+    "파일": "worker/tests/test_endings_corpus.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_endings_corpus.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "구성 선언을 옛 수로 돌린다",
+        "전": "WRONG_SHAPE = {\"어간복원\": 50}",
+        "후": "WRONG_SHAPE = {\"어간복원\": 214}"
+      },
+      {
+        "이름": "무엇이든 어간복원으로 센다",
+        "전": "    if r[\"src\"].rstrip(\"?. \").endswith(\"까요\"):\n        return \"어간복원\"",
+        "후": "    if True:\n        return \"어간복원\""
+      },
+      {
+        "이름": "어간복원을 아예 안 가른다",
+        "전": "    if r[\"src\"].rstrip(\"?. \").endswith(\"까요\"):\n        return \"어간복원\"",
+        "후": "    if False:\n        return \"어간복원\""
+      }
+    ]
+  },
+  "restore": {
+    "파일": "worker/app/glossary.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_restore.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "원문에 없어도 되돌린다",
+        "전": "        if 정규 not in src:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "되돌린 것을 안 센다",
+        "전": "                고친것.append(정규)",
+        "후": "                pass"
+      },
+      {
+        "이름": "틀린 꼴을 안 바꾼다",
+        "전": "                ko = ko.replace(틀린꼴, 정규)",
+        "후": "                pass"
+      }
+    ]
+  },
+  "관문자신": {
+    "_왜": "관문이 제 선언 안에 있다 — 하토르는 같은 도구를 가지고도 사슬 밖에 두었다. 검사하는 자를 검사하지 않으면 **거르기를 꺼도 조용하다**(§152).",
+    "파일": "tools/mutate_gate.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_mutate_gate.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "파일을 안 되돌린다",
+        "전": "    finally:\n        파일.write_text(원, encoding=\"utf-8\")",
+        "후": "    finally:\n        pass"
+      },
+      {
+        "이름": "겨냥이 둘이어도 돌린다",
+        "전": "if 원.count(전) > 1:",
+        "후": "if 원.count(전) > 99:"
+      },
+      {
+        "이름": "없는 자리를 조용히 넘긴다",
+        "전": "if 전 not in 원:",
+        "후": "if False and 전 not in 원:"
+      },
+      {
+        "이름": "무조건 물었다고 한다",
+        "전": "return r.returncode != 0,",
+        "후": "return True,"
+      },
+      {
+        "이름": "바닥을 느슨하게 둔다",
+        "전": "MIN_돌연변이 = 50",
+        "후": "MIN_돌연변이 = 1"
+      },
+      {
+        "이름": "주석 열쇠를 안 거른다",
+        "전": "if not k.startswith(\"_\")}",
+        "후": "if True}"
+      },
+      {
+        "이름": "가드를 셀 때 미선언도 센다",
+        "전": "if k != \"미선언\"}",
+        "후": "if True}"
+      }
+    ]
+  },
+  "미선언": [
+    "tools/check_infra.py",
+    "tools/bench_golden.py",
+    "tools/mask_probe.py",
+    "extension/src/cssaudit.js",
+    "tools/lib/infra.sh",
+    "tools/cascade_check.py"
+  ],
+  "_안무는자리": {
+    "glossary.restore 의 is_keep 거르개": "restore.json 에 항등 용어만 열쇠가 있어 **빼도 아무 일이 안 난다**. 관문이 아니라 독립성이다 — 없으면 restore 가 표의 내용에 말없이 기대게 된다. 선언하지 않는다(§152)."
+  }
+}

@@ -32,6 +32,14 @@ ROOT = Path(__file__).resolve().parent.parent
 KNOWN = {
     "ext_tests": "확장 테스트 건수 — node --test 의 '# tests'",
     "worker_tests": "워커 테스트 건수 — pytest 통과 수",
+    # ★ MASTER 0-8 의 표가 글자로 박은 수다. skip 하나를 더하면 세 수가 한꺼번에
+    #   늙는다 — 하루 만에 그렇게 됐다(DECISIONS §152). 정본은 `check_skips.세기`.
+    "skip_all": "doctor 의 skip 자리 전부 — check_skips.py --세기",
+    "skip_seen": "그중 갈래가 참말인지까지 보는 것 (도구 + 범위)",
+    "skip_tool": "갈래 '도구' 자리 수",
+    "skip_scope": "갈래 '범위' 자리 수",
+    "skip_cond": "갈래 '조건' 자리 수",
+    "skip_debt": "갈래 '빚' 자리 수",
 }
 
 MARK = re.compile(r"<!--count:(\w+)-->\s*([0-9]+)")
