@@ -442,6 +442,20 @@ echo "== 검사의 검사 (MASTER §0-8) =="
 #   영원히 안 보이면서 화면에는 「이상 없음」 이 뜬다. 건너뛸 수는 있다 — 다만
 #   **왜 건너뛰는지를 적어야** 하고, 적는 순간 범위인지 도구인지 빚인지 갈린다.
 #   묻는 것은 「이 skip 이 옳은가」 가 아니라 **「선언 안 된 skip 이 있나」** 다(족 가드).
+# ★ **관문이 제 밖과 생사를 선언하나**(DECISIONS §157). 검사가 못 보는 것을 안 적으면
+#   다음 사람이 **이름이 약속하는 만큼** 본다고 믿는다 — §152 가 「16곳인데 33곳으로
+#   읽힌다」 로 겪은 자리다. 그리고 **0 이 목표인 검사는 깨끗해서 0 인지 죽어서 0 인지**
+#   못 가르므로 생사를 묻는 자리도 요구한다.
+SCP_OUT="$(python3 tools/check_scope.py 2>&1)"; SCP_RC=$?
+case "$SCP_RC" in
+  0) ok "$(printf '%s' "$SCP_OUT" | grep -oE '관문 [0-9]+ · 흠 [0-9]+ / 장부 [0-9]+')"
+     printf '%s\n' "$SCP_OUT" | grep '※' | sed 's/^/       /' ;;
+  1) no "관문이 제 밖이나 생사를 안 적는다"
+     printf '%s\n' "$SCP_OUT" | sed 's/^/       /' ;;
+  *) no "check_scope.py 가 죽었다 (exit $SCP_RC)"
+     printf '%s\n' "$SCP_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
+
 SKP_OUT="$(python3 tools/check_skips.py 2>&1)"; SKP_RC=$?
 # ★ 갈래별 자리 수는 MASTER 0-8 이 글자로 적고 있다 — 재서 묶는다(DECISIONS §152).
 SKIP_TALLY="$(python3 tools/check_skips.py --세기 2>/dev/null)"

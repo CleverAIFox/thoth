@@ -244,7 +244,22 @@ def 세기(글: str) -> dict[str, int]:
     return out
 
 
+def _canary() -> None:
+    """★ **판별식이 사나.** `skip` 호출을 못 읽으면 **본 자리가 0 건**이 되고, 그러면
+    「선언 안 된 skip 이 있나」 가 **언제나 없다**로 답한다 — 꺼진 채 초록이다."""
+    import sys
+    본 = 호출들('skip "ㄱ"\n  skip "ㄴ"\n')
+    if 본 != ["ㄱ", "ㄴ"]:
+        print(f"    ★ 카나리아가 죽었다 — skip 호출을 못 읽는다 : {본}"); sys.exit(2)
+    if 호출들('# skip "ㄷ" 는 글이다\n') == ["ㄷ"]:
+        print("    ★ 카나리아가 죽었다 — 주석 속 글자를 호출로 센다"); sys.exit(2)
+
+
 def main() -> int:
+    _canary()
+    if "--selftest" in sys.argv[1:]:
+        print("  프로브 살아 있다 — skip 호출 읽기 · 주석 거르기")
+        return 0
     글 = DOCTOR.read_text(encoding="utf-8")
     if "--세기" in sys.argv:
         print(" ".join(f"{k}={v}" for k, v in sorted(세기(글).items())))

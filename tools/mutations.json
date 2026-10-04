@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 83",
+        "전": "MIN_돌연변이 = 95",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -354,6 +354,26 @@
         "이름": "이름 때문에 죽는다",
         "전": "    except ValueError:\n        return str(p)",
         "후": "    except ZeroDivisionError:\n        return str(p)"
+      },
+      {
+        "이름": "되돌린 뒤 바이트코드를 안 버린다",
+        "전": "        _바이트코드를_버린다(파일)\n        _뚫린것.pop(파일, None)",
+        "후": "        _뚫린것.pop(파일, None)"
+      },
+      {
+        "이름": "뚫린 동안 바이트코드를 만든다",
+        "전": "env={**os.environ, \"PYTHONDONTWRITEBYTECODE\": \"1\"}",
+        "후": "env={**os.environ}"
+      },
+      {
+        "이름": "신호로 죽을 때 캐시를 남긴다",
+        "전": "            p.write_text(원, encoding=\"utf-8\")\n            _바이트코드를_버린다(p)",
+        "후": "            p.write_text(원, encoding=\"utf-8\")"
+      },
+      {
+        "이름": "캐시를 못 찾는 무늬로 지운다",
+        "전": "f\"__pycache__/{파일.stem}.*.pyc\"",
+        "후": "f\"__pycache__/{파일.name}.*.pyc\""
       }
     ]
   },
@@ -534,6 +554,57 @@
         "이름": "못 잼도 막는다",
         "전": "  3) printf '%s\\n' \"$PS_OUT\" | sed 's/^/  /' ;;   # 수신함을 못 본다 — 막지는 않는다",
         "후": "  3) die \"수신함을 못 본다\" ;;"
+      }
+    ]
+  },
+  "관문선언": {
+    "_왜": "관문이 제 밖과 생사를 선언하나(§157). 안 적으면 **이름이 약속하는 만큼** 본다고 믿는다.",
+    "파일": "tools/check_scope.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_check_scope.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "밖을 안 본다",
+        "전": "        if not any(w in 글 for w in 밖말):\n            out.append(f\"{n}:밖\")",
+        "후": "        if False:\n            out.append(f\"{n}:밖\")"
+      },
+      {
+        "이름": "생사를 안 본다",
+        "전": "        if not any(w in 글 for w in 생사말):\n            out.append(f\"{n}:생사\")",
+        "후": "        if False:\n            out.append(f\"{n}:생사\")"
+      },
+      {
+        "이름": "밖말을 넓힌다",
+        "전": "밖말 = (\"안 본다\", \"못 본다\"",
+        "후": "밖말 = (\"본다\", \"못 본다\""
+      },
+      {
+        "이름": "없는 파일도 관문으로 센다",
+        "전": "return sorted({n for n in _부름.findall(글) if (root / \"tools\" / n).exists()})",
+        "후": "return sorted(set(_부름.findall(글)))"
+      },
+      {
+        "이름": "doctor 가 아니라 전부를 본다",
+        "전": "글 = (root / \"tools/doctor.sh\").read_text(encoding=\"utf-8\")\n    return sorted",
+        "후": "글 = \"\\n\".join(f\"tools/{p.name}\" for p in (root / \"tools\").glob(\"*.py\"))\n    return sorted"
+      },
+      {
+        "이름": "갚은 것을 안 찾는다",
+        "전": "    return [x for x in 지금 if x not in 적힌], [x for x in sorted(적힌) if x not in set(지금)]",
+        "후": "    return [x for x in 지금 if x not in 적힌], []"
+      },
+      {
+        "이름": "새것을 안 찾는다",
+        "전": "    return [x for x in 지금 if x not in 적힌], [x for x in sorted(적힌) if x not in set(지금)]",
+        "후": "    return [], [x for x in sorted(적힌) if x not in set(지금)]"
+      },
+      {
+        "이름": "주석 열쇠도 장부로 센다",
+        "전": "return {x for k, v in raw.items() if not k.startswith(\"_\") for x in v}",
+        "후": "return {x for k, v in raw.items() if isinstance(v, list) for x in v}"
       }
     ]
   },

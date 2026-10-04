@@ -17,6 +17,10 @@
 ★ **모르는 이름은 실패다.** 표시를 오타내면 아무도 보지 않는 주장이 되어
   조용히 늙는다. 검사가 아무것도 하지 않는 것이 가장 위험하다(DECISIONS §21).
 
+★ **밖 — 표시 없는 수는 안 본다.** `<!--count:이름-->` 뒤의 정수만 주장으로 세므로,
+  문서가 **표시 없이** 적은 수가 틀려도 **안 잡는다.** 그것은 `docgen` 류의 일이다.
+★ **밖 — 「그 수를 세는 법이 맞나」 는 안 묻는다.** 넘어온 실측이 옳다고 보고 대조만 한다.
+
   0  표시된 주장을 전부 대조했고 같다
   1  다르다 · 모르는 이름이 있다
   2  도구가 죽었다
@@ -95,7 +99,21 @@ def parse_args(argv: list[str]) -> dict[str, int]:
     return out
 
 
+
+def _canary() -> None:
+    """★ **판별식이 사나.** 표시를 못 읽으면 **주장이 0 건**이 되고, 그러면 **아무것도 대조
+    안 하고 초록**이 된다 — 0 이 목표인 검사의 가장 흔한 죽음이다."""
+    import sys
+    if MARK.findall("<!--count:x-->12 와 <!--count:y-->3") != [("x", "12"), ("y", "3")]:
+        print("    ★ 카나리아가 죽었다 — 표시를 못 읽는다"); sys.exit(2)
+    if MARK.findall("count:x 12"):
+        print("    ★ 카나리아가 죽었다 — 표시 없는 수를 주장으로 센다"); sys.exit(2)
+
 def main(argv: list[str] | None = None) -> int:
+    _canary()
+    if "--selftest" in (sys.argv[1:] if argv is None else argv):
+        print("  프로브 살아 있다 — 표시를 읽고, 표시 없는 수는 안 센다")
+        return 0
     measured = parse_args(sys.argv[1:] if argv is None else argv)
     code, lines = compare(claims(ROOT), measured)
     for line in lines:

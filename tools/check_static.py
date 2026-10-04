@@ -383,7 +383,31 @@ def check_python() -> list[str]:
     return fails
 
 
+def _canary() -> None:
+    """★ **판별식이 사나.** 정규식을 쓰는 검사는 **합성 문자열에서 기대한 것을 못 찾으면**
+    2 로 끝낸다 — 0건이 목표인 검사는 **깨끗해서 0 인지 죽어서 0 인지** 못 가른다(MASTER §0-8).
+    """
+    # ★ `resource` 블록 **안**만 본다 — 합성 입력도 그 꼴이어야 한다. 첫 판은 한 줄만
+    #   줬고 카나리아가 울었다. **자가 아니라 내 입력이 틀렸다.**
+    안 = 'resource "aws_x" "y" {\n  description = "한글이 섞였다"\n}\n'
+    밖 = 'variable "z" {\n  description = "한글이 섞였다"\n}\n'
+    if not tf_bad_strings(안):
+        print("    ★ 카나리아가 죽었다 — resource 안의 비ASCII 를 못 찾는다"); sys.exit(2)
+    if tf_bad_strings(밖):
+        print("    ★ 카나리아가 죽었다 — resource 밖까지 잡는다"); sys.exit(2)
+    if tf_bad_strings('resource "aws_x" "y" {\n  description = "ascii only"\n}\n'):
+        print("    ★ 카나리아가 죽었다 — ASCII 를 위반으로 잡는다"); sys.exit(2)
+    if not node20_uses("    uses: actions/checkout@v3\n"):
+        print("    ★ 카나리아가 죽었다 — Node 20 액션을 못 찾는다"); sys.exit(2)
+    if not unpinned_uses("    uses: actions/checkout@v4\n"):
+        print("    ★ 카나리아가 죽었다 — SHA 로 안 고정된 액션을 못 찾는다"); sys.exit(2)
+
+
 def main() -> int:
+    _canary()
+    if "--selftest" in sys.argv[1:]:
+        print("  프로브 살아 있다 — 비ASCII · Node 20 · SHA 미고정을 전부 합성 입력으로 묻는다")
+        return 0
     fails = (check_tf() + check_node20() + check_runner() + check_python()
              + check_pinned() + check_cache_rm() + check_timeouts()
              + check_scope_declared())

@@ -174,3 +174,36 @@ def test_신호를_main_머리에서_받는다():
     머리 = 몸.split("def main()")[1].split("ap = argparse")[0]
     assert "signal.signal(_sig, _되돌리고_죽는다)" in 머리, (
         "`main` 머리에서 안 받으면 **잊을 자리**가 생긴다")
+
+
+# ── 바이트코드 — 길이가 같은 돌연변이의 덫 (DECISIONS §157) ────────────────
+
+def test_되돌린_뒤_바이트코드를_버린다(tmp_path):
+    """★ **`return 3` → `return 0` 은 글자 수가 같다.** 파이썬은 소스의 크기와 mtime 으로
+    캐시를 쓰므로 둘 다 같으면 **복원한 뒤에도 뚫린 바이트코드를 다시 쓴다.** 해시로
+    소스를 확인해도 안 잡힌다 — 소스는 멀쩡하기 때문이다.
+
+    2026-10-05 에 실제로 났다. 시험 하나가 **설명 없이** 틀렸고 원인을 엉뚱한 데서 찾았다.
+    """
+    f = tmp_path / "a.py"
+    f.write_text("def main():\n    return 3\n", encoding="utf-8")
+    캐시 = tmp_path / "__pycache__"
+    캐시.mkdir()
+    썩은 = 캐시 / "a.cpython-313.pyc"
+    썩은.write_bytes(b"stale bytecode")
+    mg.한건(f, "return 3", "return 0", ["false"])
+    assert not 썩은.exists(), "복원했는데 옛 바이트코드가 남았다"
+    assert f.read_text(encoding="utf-8") == "def main():\n    return 3\n"
+
+
+def test_뚫린_동안_바이트코드를_안_만든다():
+    몸 = (mg.ROOT / "tools/mutate_gate.py").read_text(encoding="utf-8")
+    assert 'PYTHONDONTWRITEBYTECODE' in 몸, "뚫린 동안 캐시가 쌓인다 — 막는 것이 치우는 것보다 싸다"
+    블록 = 몸[몸.index("def 한건("):몸.index("def main(")]
+    assert "_바이트코드를_버린다(파일)" in 블록, "되돌린 뒤 캐시를 안 버린다"
+
+
+def test_신호로_죽을_때도_바이트코드를_버린다():
+    몸 = (mg.ROOT / "tools/mutate_gate.py").read_text(encoding="utf-8")
+    블록 = 몸[몸.index("def _되돌리고_죽는다("):몸.index("def 읽기(")]
+    assert "_바이트코드를_버린다(p)" in 블록, "끊겨 죽을 때 캐시가 남는다"

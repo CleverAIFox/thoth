@@ -31,6 +31,9 @@
   같은 도구를 `timeout` 으로 끊었다가 **검사기 한 파일이 주석 269줄을 잃은 채 남았고**, 그
   망가진 도구가 **조용히 틀린 일을 했다.** 되돌린 뒤 **해시로 확인**한다.
 
+★ **밖 — 선언한 것만 돌린다.** 겨냥은 사람이 하므로 **선언 안 된 자리는 안 본다** — 그 수는
+  `미선언` 이 든다. 그리고 **단언을 뒤집는 것은 돌연변이가 아니므로 시험 자체는 안 잰다.**
+
 ★ **덮는 가드를 선언한다.** 「선언 안 된 가드가 있나」 를 묻는다(족 가드). 아직 안
   덮은 것은 `미선언` 에 적어 두고 **그 수가 늘면 운다** — 못 보는 자리를 좁히고
   그 자리를 적는다(§73).
@@ -38,6 +41,7 @@
 import argparse
 import hashlib
 import json
+import os
 import pathlib
 import signal
 import subprocess
@@ -47,8 +51,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 선언파일 = ROOT / "tools" / "mutations.json"
 
 # ★ **덮은 가드가 줄면 운다.** 돌연변이를 지워서 초록을 만드는 길을 막는다.
-MIN_돌연변이 = 83
-MIN_가드 = 15
+MIN_돌연변이 = 95
+MIN_가드 = 16
 
 
 # pytest 의 종료코드 — **1만 「시험이 울었다」 다**
@@ -56,6 +60,20 @@ MIN_가드 = 15
 _울었다 = 1
 # ★ 지금 뚫어 놓은 파일과 그 원본. 신호를 받으면 이것을 되돌리고 죽는다.
 _뚫린것: dict[pathlib.Path, str] = {}
+
+
+def _바이트코드를_버린다(파일: pathlib.Path) -> None:
+    """★ **길이가 같은 돌연변이는 `__pycache__` 를 중독시킨다**(DECISIONS §157).
+
+    2026-10-05 에 `return 3` 을 `return 0` 으로 바꿨다. **글자 수가 같다.** 파이썬은 소스의
+    크기와 mtime 으로 캐시를 쓰는데 둘 다 같으면 **복원한 뒤에도 뚫린 바이트코드를 다시
+    쓴다.** 해시로 소스를 확인해도 안 잡힌다 — 소스는 멀쩡하기 때문이다.
+
+    그 뒤의 모든 판정이 거짓이 된다. 실제로 시험 하나가 **설명 없이** 틀렸고 원인을
+    엉뚱한 데서 찾았다.
+    """
+    for q in 파일.parent.glob(f"__pycache__/{파일.stem}.*.pyc"):
+        q.unlink(missing_ok=True)
 
 
 def _이름(p: pathlib.Path) -> str:
@@ -76,6 +94,7 @@ def _되돌리고_죽는다(signum: int, _frame: object) -> None:
     for p, 원 in list(_뚫린것.items()):
         try:
             p.write_text(원, encoding="utf-8")
+            _바이트코드를_버린다(p)
             print(f"\n  신호 {signum} — {_이름(p)} 을 되돌렸다", file=sys.stderr)
         except Exception as e:
             print(f"\n  ★ 신호 {signum} — **{_이름(p)} 을 못 되돌렸다**({e}) : "
@@ -105,9 +124,12 @@ def 한건(파일: pathlib.Path, 전: str, 후: str, 시험: list[str]) -> tuple
     _뚫린것[파일] = 원
     파일.write_text(원.replace(전, 후, 1), encoding="utf-8")
     try:
-        r = subprocess.run(시험, cwd=ROOT, capture_output=True, text=True, timeout=300)
+        # ★ **뚫린 동안 바이트코드를 남기지 않는다**(§157). 막는 것이 치우는 것보다 싸다.
+        r = subprocess.run(시험, cwd=ROOT, capture_output=True, text=True, timeout=300,
+                           env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
     finally:
         파일.write_text(원, encoding="utf-8")
+        _바이트코드를_버린다(파일)
         _뚫린것.pop(파일, None)
     # ★ **되돌린 것을 확인한다.** 쓰기가 실패해도 `finally` 는 조용하다 — 그러면 뚫린
     #   소스가 남고 **그 뒤의 모든 판정이 거짓**이 된다.
@@ -125,13 +147,32 @@ def 한건(파일: pathlib.Path, 전: str, 후: str, 시험: list[str]) -> tuple
     return r.returncode == _울었다, "" if r.returncode else "시험이 통과했다 — 가드를 안 붙들고 있다"
 
 
+def _canary() -> None:
+    """★ **판별식이 사나.** 0 이 목표인 검사는 **깨끗해서 0 인지 죽어서 0 인지** 못 가른다."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        f = pathlib.Path(d) / "a.py"
+        f.write_text("x = 1\n", encoding="utf-8")
+        물었나, _ = 한건(f, "x = 1", "x = 2", ["false"])
+        if not 물었나 or f.read_text(encoding="utf-8") != "x = 1\n":
+            print("    ★ 카나리아가 죽었다 — 뚫거나 되돌리지 못한다"); sys.exit(2)
+        if 한건(f, "없는 줄", "y", ["false"])[0]:
+            print("    ★ 카나리아가 죽었다 — 못 찾은 것을 물었다고 센다"); sys.exit(2)
+
+
 def main() -> int:
+    _canary()
     for _sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(_sig, _되돌리고_죽는다)
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", help="가드 이름 하나만")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--selftest", action="store_true", help="판별식이 살아 있나")
     a = ap.parse_args()
+
+    if a.selftest:
+        print("  프로브 살아 있다 — 뚫기 · 되돌리기 · 못 찾은 것 가르기")
+        return 0
 
     선언 = 읽기()
     가드 = 가드들(선언)
