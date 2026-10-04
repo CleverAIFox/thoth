@@ -73,3 +73,86 @@ def test_근거_없는_빚을_문다(monkeypatch):
     monkeypatch.setitem(cs.선언, "합성 빚", ("빚", "그냥 나중에 한다"))
     난것 = cs.fails('skip "합성 빚"\n', 산행)
     assert any("빚인데 근거가 없다" in x for x in 난것)
+
+
+# ── 갈래가 참말인가 (DECISIONS §150) ─────────────────────────────────────
+#
+# ★ **§136 은 「선언이 있나」 만 봤다.** `도구` 라고 적고 아무 조건 없이 늘 건너뛰어도
+#   통과한다 — 그러면 검사는 영원히 꺼진 채로 **「이 기계에 도구가 없을 뿐」** 이라고
+#   말한다. 검사를 끄는 가장 싼 길이 한 칸 더 안쪽으로 옮겨 간 것뿐이다.
+#
+# ★ **`조건`(15곳)은 안 본다.** 자리 모양이 여섯 가지라 하나를 고르면 **맞는 코드를
+#   검사 만족시키려고 비틀게** 된다. 못 보는 자리를 좁히고 그 자리를 적는다(§73).
+
+_도구글 = '''echo "== 파이썬 =="
+if command -v ruff >/dev/null 2>&1; then
+  RUFF=(ruff)
+fi
+if [ "${#RUFF[@]}" = 0 ]; then
+  skip "ruff 를 부르지 못해 파이썬을 보지 못한다"
+fi
+'''
+
+
+def test_도구인데_그_칸에_도구를_안_묻으면_문다():
+    글 = _도구글.replace("command -v ruff >/dev/null 2>&1", "false")
+    난것 = cs.갈래가_거짓말인가(글)
+    assert any("command -v ruff" in x for x in 난것), 난것
+
+
+def test_도구를_묻는_칸이면_안_문다():
+    # ★ 음성 대조 — 모든 `도구` 에 우는 자는 아무것도 안 재는 것이다.
+    assert cs.갈래가_거짓말인가(_도구글) == []
+
+
+def test_한_다리_건너_물어도_받는다():
+    # ★ **모양으로 안 본다.** `ruff` 는 `command -v` 가 변수를 세우고 skip 은 그
+    #   변수로 갈린다 — 「감싸는 if 의 조건문」 으로 보면 이 정직한 자리가 걸린다.
+    assert "command -v ruff" in _도구글 and "RUFF" in _도구글
+    assert cs.갈래가_거짓말인가(_도구글) == []
+
+
+def test_다른_칸의_도구_검사는_안_쳐준다():
+    # ★ **칸 경계를 안 찾으면 파일 전체가 둘레가 되어 아무거나 걸린다.**
+    글 = ('echo "== 다른 칸 =="\n'
+          'if command -v ruff >/dev/null 2>&1; then :; fi\n'
+          'echo "== 파이썬 =="\n'
+          'skip "ruff 를 부르지 못해 파이썬을 보지 못한다"\n')
+    난것 = cs.갈래가_거짓말인가(글)
+    assert any("command -v ruff" in x for x in 난것), f"남의 칸 검사를 쳐줬다 {난것}"
+
+
+def test_범위인데_SCOPE_로_안_갈리면_문다():
+    글 = 'echo "== 비밀값 =="\ntrue && skip ".env 존재 (기계 설정이다)"\n'
+    assert any("SCOPE" in x for x in cs.갈래가_거짓말인가(글))
+
+
+def test_범위가_SCOPE_로_갈리면_안_문다():
+    글 = ('echo "== 비밀값 =="\n'
+          '[ "$SCOPE" = "--repo" ] && skip ".env 존재 (기계 설정이다)"\n')
+    assert cs.갈래가_거짓말인가(글) == []
+
+
+def test_조건과_빚은_모양을_안_본다():
+    # ★ **안 보는 것이 설계다.** 모양이 하나로 안 모이므로 관문을 세우지 않는다.
+    글 = ('echo "== 아무 칸 =="\n'
+          'skip "ollama 에 묻지 못해 미채택 모델을 재지 못했다"\n'
+          'skip "기준선이 stale 이다 (local) — 재측정 후 값을 채우고 플래그를 지운다"\n')
+    assert cs.갈래가_거짓말인가(글) == []
+
+
+def test_fails_가_갈래_검사를_부른다():
+    # ★ 함수가 있어도 `fails` 가 안 부르면 `doctor` 는 아무것도 못 본다.
+    글 = _도구글.replace("command -v ruff >/dev/null 2>&1", "false")
+    assert any("command -v ruff" in x for x in cs.fails(글, 산행))
+
+
+def test_지금_저장소는_갈래도_참말이다():
+    assert cs.갈래가_거짓말인가(cs.DOCTOR.read_text(encoding="utf-8")) == []
+
+
+def test_주석_처리된_skip_은_안_본다():
+    # ★ 주석 속 `skip` 을 세면 **없는 자리에 대고 운다.** `호출들` 과 같은 규칙이다.
+    글 = ('echo "== 파이썬 =="\n'
+          '# skip "ruff 를 부르지 못해 파이썬을 보지 못한다"\n')
+    assert cs.갈래가_거짓말인가(글) == []
