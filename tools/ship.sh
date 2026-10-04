@@ -45,6 +45,21 @@ die(){ printf '\033[31m멈춘다 — %s\033[0m\n' "$1" >&2; exit 1; }
 #   doctor 를 다 돌리고 3 단계에서야 "nothing to commit" 으로 멈춘다. 4분을
 #   쓰고 아무것도 하지 않는다 — 실패는 그것이 일어난 자리에서 알린다
 #   (DECISIONS §37 · §52).
+# ★ **받았는데 안 붙은 패치가 있으면 멈춘다**(DECISIONS §156). 2026-10-04 에
+#   `apply_patch` 가 바탕 불일치로 **막았는데** 뒤 명령들이 그 거절을 안 읽고 그대로 돌아,
+#   **기획서 재빌드만 든 커밋에 `thoth-155: …` 제목이 붙어 밀렸다.** 저장소는 멀쩡했으므로
+#   `doctor` 는 초록이었다 — **「저장소가 맞나」 와 「하려던 일이 됐나」 는 다른 물음이다.**
+# ★ **0 단계에 둔다.** 4분을 쓰고 알리면 늦다 — 실패는 그것이 일어난 자리에서 알린다(§37 · §52).
+PS_OUT="$(python3 tools/patch_state.py 2>&1)"; PS_RC=$?
+case "$PS_RC" in
+  0) ;;
+  3) printf '%s\n' "$PS_OUT" | sed 's/^/  /' ;;   # 수신함을 못 본다 — 막지는 않는다
+  1) printf '%s\n' "$PS_OUT" | sed 's/^/  /'
+     die "받았는데 안 붙은 패치가 있다 — 제목만 맞고 내용이 빈 커밋이 나온다" ;;
+  *) printf '%s\n' "$PS_OUT" | tail -5 | sed 's/^/  /'
+     die "patch_state.py 가 죽었다 (exit $PS_RC)" ;;
+esac
+
 if [ -z "$(git status --porcelain)" ]; then
   echo "바꿀 것이 없다 — 작업 트리가 깨끗하다"
   echo "  패치를 받았는가 : bash tools/apply_patch.sh"

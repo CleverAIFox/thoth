@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 73",
+        "전": "MIN_돌연변이 = 83",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -462,6 +462,78 @@
         "이름": "배열이 아닌 것을 안 본다",
         "전": "    if (!Array.isArray(v)) 난것.push",
         "후": "    if (false) 난것.push"
+      }
+    ]
+  },
+  "패치상태": {
+    "_왜": "받았는데 안 붙은 패치가 있나(§156). **「저장소가 맞나」 와 「하려던 일이 됐나」 는 다른 물음이다.**",
+    "파일": "tools/patch_state.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_patch_state.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "영수증을 안 본다",
+        "전": "        if 씻은_해시(p) in 적힌 or 있나(p):",
+        "후": "        if 있나(p):"
+      },
+      {
+        "이름": "나무를 안 본다",
+        "전": "        if 씻은_해시(p) in 적힌 or 있나(p):",
+        "후": "        if 씻은_해시(p) in 적힌:"
+      },
+      {
+        "이름": "아무 파일이나 센다",
+        "전": "        if not 무늬.match(p.name):\n            continue",
+        "후": "        if False:\n            continue"
+      },
+      {
+        "이름": "줄끝을 안 벗긴다",
+        "전": "p.read_bytes().replace(b\"\\r\\n\", b\"\\n\")",
+        "후": "p.read_bytes()"
+      },
+      {
+        "이름": "수신함이 없어도 훑는다",
+        "전": "    if not 수신함.is_dir():\n        return []",
+        "후": "    if False:\n        return []"
+      },
+      {
+        "이름": "영수증의 열을 안 가른다",
+        "전": "return {x.split(\"\\t\")[0] for x in p.read_text(encoding=\"utf-8\").splitlines() if x.strip()}",
+        "후": "return {x for x in p.read_text(encoding=\"utf-8\").splitlines() if x.strip()}"
+      },
+      {
+        "이름": "못 잼을 통과로 센다",
+        "전": "        print(\"    .env 에 WIN_DOWNLOADS 가 없다 — 수신함을 못 본다\")\n        return 3",
+        "후": "        print(\"    .env 에 WIN_DOWNLOADS 가 없다 — 수신함을 못 본다\")\n        return 0"
+      }
+    ]
+  },
+  "패치상태부름": {
+    "_왜": "자를 고쳐도 **부르는 쪽이 안 멈추면** 거짓 제목이 또 밀린다(§156).",
+    "파일": "tools/ship.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_patch_state.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "미적용을 찾고도 안 멈춘다",
+        "전": "     die \"받았는데 안 붙은 패치가 있다 — 제목만 맞고 내용이 빈 커밋이 나온다\" ;;",
+        "후": "     true ;;"
+      },
+      {
+        "이름": "doctor 뒤에 묻는다",
+        "전": "PS_OUT=\"$(python3 tools/patch_state.py 2>&1)\"; PS_RC=$?",
+        "후": "PS_RC=0; PS_OUT=\"\""
+      },
+      {
+        "이름": "못 잼도 막는다",
+        "전": "  3) printf '%s\\n' \"$PS_OUT\" | sed 's/^/  /' ;;   # 수신함을 못 본다 — 막지는 않는다",
+        "후": "  3) die \"수신함을 못 본다\" ;;"
       }
     ]
   },
