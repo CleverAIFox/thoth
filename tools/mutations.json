@@ -312,12 +312,12 @@
       },
       {
         "이름": "무조건 물었다고 한다",
-        "전": "return r.returncode != 0,",
-        "후": "return True,"
+        "전": "return r.returncode == _울었다, ",
+        "후": "return True, "
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 50",
+        "전": "MIN_돌연변이 = 55",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -329,6 +329,31 @@
         "이름": "가드를 셀 때 미선언도 센다",
         "전": "if k != \"미선언\"}",
         "후": "if True}"
+      },
+      {
+        "이름": "도구 고장을 안 가른다",
+        "전": "if r.returncode not in (0, _울었다):",
+        "후": "if False:"
+      },
+      {
+        "이름": "되돌린 것을 안 확인한다",
+        "전": "if hashlib.sha256(파일.read_text(encoding=\"utf-8\").encode()).hexdigest() != 앞해시:",
+        "후": "if False:"
+      },
+      {
+        "이름": "신호를 안 받는다",
+        "전": "    for _sig in (signal.SIGINT, signal.SIGTERM):\n        signal.signal(_sig, _되돌리고_죽는다)\n",
+        "후": ""
+      },
+      {
+        "이름": "되돌리다 죽으면 멈춘다",
+        "전": "        except Exception as e:",
+        "후": "        except ValueError as e:"
+      },
+      {
+        "이름": "이름 때문에 죽는다",
+        "전": "    except ValueError:\n        return str(p)",
+        "후": "    except ZeroDivisionError:\n        return str(p)"
       }
     ]
   },

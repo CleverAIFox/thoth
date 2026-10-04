@@ -23,13 +23,23 @@
 ★ **양방향 톱니다.** 살아남은 것이 **0 이 아니면** 울고, 선언이 **줄어도** 운다 —
   안 그러면 안 무는 돌연변이를 지워서 초록을 만들 수 있다.
 
+★ **종료코드를 가른다**(DECISIONS §153). 종전에는 `!= 0` 을 「물었다」 로 셌다. pytest 는
+  **1만 「시험이 울었다」** 고 2·3·4·5 는 **도구가 깨진 것**이다 — 선언한 시험 이름이 하나
+  틀리면 4 로 죽고, 그러면 **가드를 완전히 망가뜨려도 「물었다」 로 찍힌다.** 실물로 확인했다.
+
+★ **신호를 받아 되돌린다**(§153). `try/finally` 는 `SIGINT`/`SIGTERM` 에 안 돈다 — seshat 이
+  같은 도구를 `timeout` 으로 끊었다가 **검사기 한 파일이 주석 269줄을 잃은 채 남았고**, 그
+  망가진 도구가 **조용히 틀린 일을 했다.** 되돌린 뒤 **해시로 확인**한다.
+
 ★ **덮는 가드를 선언한다.** 「선언 안 된 가드가 있나」 를 묻는다(족 가드). 아직 안
   덮은 것은 `미선언` 에 적어 두고 **그 수가 늘면 운다** — 못 보는 자리를 좁히고
   그 자리를 적는다(§73).
 """
 import argparse
+import hashlib
 import json
 import pathlib
+import signal
 import subprocess
 import sys
 
@@ -37,8 +47,40 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 선언파일 = ROOT / "tools" / "mutations.json"
 
 # ★ **덮은 가드가 줄면 운다.** 돌연변이를 지워서 초록을 만드는 길을 막는다.
-MIN_돌연변이 = 50
+MIN_돌연변이 = 55
 MIN_가드 = 8
+
+
+# pytest 의 종료코드 — **1만 「시험이 울었다」 다**
+#   0 전부 통과 · 1 실패 · 2 끊김 · 3 내부 오류 · 4 쓰는 법 틀림 · 5 모은 시험이 0
+_울었다 = 1
+# ★ 지금 뚫어 놓은 파일과 그 원본. 신호를 받으면 이것을 되돌리고 죽는다.
+_뚫린것: dict[pathlib.Path, str] = {}
+
+
+def _이름(p: pathlib.Path) -> str:
+    """보기 좋은 이름. ★ **되돌리는 길에서 이름 때문에 죽지 않는다** — `relative_to` 는
+    ROOT 밖 경로에 `ValueError` 를 던지고, 그러면 **남은 파일을 못 되돌린다.**"""
+    try:
+        return p.relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(p)
+
+
+def _되돌리고_죽는다(signum: int, _frame: object) -> None:
+    """★ **끊겨도 소스를 남기지 않는다.** `finally` 는 신호에 안 돈다(DECISIONS §153).
+
+    ★ **한 파일이 실패해도 나머지를 끝까지 되돌린다.** 되돌리는 길에서 예외가 새면
+      그 뒤의 파일이 뚫린 채로 남는다 — 이 함수가 막으려던 바로 그 상태다.
+    """
+    for p, 원 in list(_뚫린것.items()):
+        try:
+            p.write_text(원, encoding="utf-8")
+            print(f"\n  신호 {signum} — {_이름(p)} 을 되돌렸다", file=sys.stderr)
+        except Exception as e:
+            print(f"\n  ★ 신호 {signum} — **{_이름(p)} 을 못 되돌렸다**({e}) : "
+                  f"git checkout -- {_이름(p)}", file=sys.stderr)
+    sys.exit(130)
 
 
 def 읽기() -> dict:
@@ -59,15 +101,33 @@ def 한건(파일: pathlib.Path, 전: str, 후: str, 시험: list[str]) -> tuple
         return False, "바꿀 자리를 못 찾았다 — 코드가 바뀌었으면 선언도 고친다"
     if 원.count(전) > 1:
         return False, f"바꿀 자리가 {원.count(전)}곳이다 — 겨냥이 흐리다"
+    앞해시 = hashlib.sha256(원.encode()).hexdigest()
+    _뚫린것[파일] = 원
     파일.write_text(원.replace(전, 후, 1), encoding="utf-8")
     try:
         r = subprocess.run(시험, cwd=ROOT, capture_output=True, text=True, timeout=300)
     finally:
         파일.write_text(원, encoding="utf-8")
-    return r.returncode != 0, "" if r.returncode else "시험이 통과했다 — 가드를 안 붙들고 있다"
+        _뚫린것.pop(파일, None)
+    # ★ **되돌린 것을 확인한다.** 쓰기가 실패해도 `finally` 는 조용하다 — 그러면 뚫린
+    #   소스가 남고 **그 뒤의 모든 판정이 거짓**이 된다.
+    if hashlib.sha256(파일.read_text(encoding="utf-8").encode()).hexdigest() != 앞해시:
+        print(f"  ★ **{_이름(파일)} 을 못 되돌렸다** : git checkout -- {_이름(파일)}",
+              file=sys.stderr)
+        raise SystemExit(2)
+    # ★ **도구 고장을 「물었다」 로 세지 않는다**(§153). 선언한 시험 이름이 하나 틀리면
+    #   pytest 는 4 로 죽고, `!= 0` 은 그것도 「물었다」 로 센다 — **가드를 완전히
+    #   망가뜨려도 초록이다.** 실물로 확인했다.
+    if r.returncode not in (0, _울었다):
+        print(f"  ★ **pytest 가 {r.returncode} 로 끝났다 — 시험이 운 것이 아니라 도구가 "
+              f"깨졌다.**\n     {' '.join(시험)}\n{r.stdout[-500:]}", file=sys.stderr)
+        raise SystemExit(2)
+    return r.returncode == _울었다, "" if r.returncode else "시험이 통과했다 — 가드를 안 붙들고 있다"
 
 
 def main() -> int:
+    for _sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(_sig, _되돌리고_죽는다)
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", help="가드 이름 하나만")
     ap.add_argument("--list", action="store_true")
