@@ -9,6 +9,13 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
+# ★ **부른 쉘이 무엇을 들고 왔는지 `load_env` 보다 먼저 찍는다**(DECISIONS §147).
+#   `load_env` 뒤에는 `.env` 에서 온 것과 쉘에서 온 것이 구별이 안 된다.
+#   **값이 빈 것은 안 센다** — `WORKER_TOKEN=` 는 「인증 없음」 이라 해롭지 않다.
+AMBIENT="$(
+  sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example 2>/dev/null \
+  | while read -r k; do [ -n "${!k:-}" ] && printf '%s ' "$k"; done
+)"
 . ./tools/lib/env.sh; load_env ./.env
 . ./tools/lib/infra.sh
 SCOPE="${1:-all}"
@@ -139,6 +146,18 @@ else
   POL="$(grep -cE "^[[:space:]]*export[[:space:]]+($ENV_KEYS)=" ~/.bashrc 2>/dev/null || true)"
   [ "$POL" = "0" ] && ok "~/.bashrc 에 프로젝트 변수 없음 (.env.example 의 키 $(printf '%s\n' "$ENV_KEYS" | tr '|' '\n' | grep -c .)개를 본다)" \
                    || no "~/.bashrc 에 프로젝트 변수 ${POL}건"
+fi
+# ★ **같은 병에 문이 둘이었다**(DECISIONS §147). 위는 **파일**을 보는데, 2026-10-04 에
+#   병은 **살아 있는 환경**으로 들어왔다 — 배포 뒤 `smoke.sh` 를 돌리려고 저장소가
+#   시킨 대로 `export WORKER_TOKEN=...` 한 쉘에서 doctor 를 돌리자 **시험 41개가
+#   코드와 무관하게 깨졌다.**
+# ★ **FAIL 이 아니라 WARN 이다.** 그렇게 export 하는 것은 정당한 작업이고, 시험은
+#   `worker/tests/conftest.py` 가 비워서 이미 면역이다. 다만 **손으로 pytest 를 돌리거나
+#   새 도구가 환경을 읽으면 다를 수 있으므로 화면이 그 사실을 말해야 한다.**
+if [ -n "${AMBIENT// /}" ]; then
+  warn "부른 쉘에 프로젝트 변수가 떠 있다 : ${AMBIENT%% } (시험은 conftest 가 비운다)"
+else
+  ok "부른 쉘에 프로젝트 변수 없음"
 fi
 
 echo "== 훅 =="
