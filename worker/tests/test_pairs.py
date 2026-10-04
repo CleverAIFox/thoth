@@ -80,7 +80,9 @@ def test_모델_출력과_후처리_결과를_둘_다_싣는다(monkeypatch):
     call(["Check the settings now."])
     (rec,) = lines(buf)
     assert rec["raw"] == "확인하세요"
-    assert rec["ko"] == "확인합니다"
+    # ★ 명령은 명령으로 남는다(DECISIONS §151). 전에는 「확인합니다」 를 요구했고
+    #   그것이 **명령을 평서로 뒤집는 결함**이었다.
+    assert rec["ko"] == "확인하십시오"
     assert rec["h"] == cache.key("Check the settings now.")
 
 

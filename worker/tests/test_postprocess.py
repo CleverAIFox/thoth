@@ -18,9 +18,16 @@ def test_원문이_묻지_않으면_자르지_않는다():
     assert postprocess(src, ko) == ko
 
 
-def test_하십시오체를_합니다체로():
+def test_합쇼_명령은_명령으로_남는다():
+    """★ **이 시험은 「확인합니다」 를 요구하고 있었다**(DECISIONS §151).
+
+    원문이 명령인데 평서로 바꾸면 **번역의 뜻이 바뀐다.** 「합니다체」 는 문체의
+    이름이고 그 명령형이 `하십시오` 다 — **이름을 「`합니다` 로 끝난다」 로 읽은
+    것**이 결함의 뿌리였다. 코퍼스는 이미 `하십시오` 를 정답으로 적고 있었다
+    (`hand.jsonl` h036 의 메모 : 「옛 규칙은 합니다로 바꿨다」).
+    """
     src = "Confirm the checkpoint position."
-    assert postprocess(src, "체크포인트 위치를 확인하십시오.").endswith("확인합니다.")
+    assert postprocess(src, "체크포인트 위치를 확인하십시오.").endswith("확인하십시오.")
 
 
 def test_인가요를_입니까로():
@@ -40,7 +47,7 @@ def test_여러_문단이면_마지막만_본다():
     ko = "첫 문단입니다.\n\n두 번째 문단을 확인하십시오."
     out = postprocess(src, ko)
     assert out.startswith("첫 문단입니다.")
-    assert out.endswith("확인합니다.")
+    assert out.endswith("확인하십시오.")
 
 
 def test_잘라낸_뒤에_종결어미를_본다():

@@ -108,23 +108,27 @@ def row(path, head):
             return line, [int(v.replace(",", "")) for v in cells[1:4]]
     raise SystemExit(f"{path} 에 '{head}' 줄이 없다")
 old_line, old = row("docs/DECISIONS.md", "| 106 이전 |")
-new_line, new = row("docs/MASTER.md", "| 106 (배포본")
-fig, ax = plt.subplots(figsize=(7.0, 1.9))
-rows = [("규칙 106 이전\n(생성기 1판)", *old), ("규칙 106\n(배포본 · 생성기 2판)", *new)]
+mid_line, mid = row("docs/MASTER.md", "| 106 (배포본")
+# ★ 2026-10-04 — 214 중 164 가 규칙 셋의 결함이었다(DECISIONS §151). 막대를 셋으로 둔다.
+new_line, new = row("docs/MASTER.md", "| 151 (명령을")
+fig, ax = plt.subplots(figsize=(7.0, 2.5))
+rows = [("규칙 106 이전\n(생성기 1판)", *old), ("규칙 106\n(배포본 · 생성기 2판)", *mid),
+        ("규칙 151\n(명령을 명령으로)", *new)]
 for i, (n, ok, same, bad) in enumerate(rows):
-    y = 1 - i
+    y = len(rows) - 1 - i
     ax.barh(y, ok, color=GREEN, height=0.55)
     ax.barh(y, same, left=ok, color=LGRAY, edgecolor=GRAY, height=0.55)
     ax.barh(y, bad, left=ok + same, color=RED, height=0.55)
     ax.text(ok / 2, y, f"맞음 {ok:,}", ha="center", va="center", color="white", fontsize=8)
     ax.text(ok + same / 2, y, f"그대로 {same:,}", ha="center", va="center", fontsize=8)
     ax.text(ok + same + bad + 25, y, f"틀림 {bad}", ha="left", va="center", color=RED, fontsize=8.5, fontweight="bold")
-ax.set_yticks([1, 0]); ax.set_yticklabels([r[0] for r in rows], fontsize=8)
+ax.set_yticks(list(range(len(rows) - 1, -1, -1))); ax.set_yticklabels([r[0] for r in rows], fontsize=8)
 ax.set_xlim(0, 3000); ax.set_xlabel("줄 (코퍼스 + 손 43줄)")
 ax.set_title(f"후처리 어미 변환 — 틀림만 게이트다. 톱니가 {new[2]} 이하로 막는다", fontsize=8.5)
 ax.spines[["top", "right"]].set_visible(False)
 fig.tight_layout()
-save(fig, "f_endings", [f"file:docs/DECISIONS.md~{old_line}", f"file:docs/MASTER.md~{new_line}",
+save(fig, "f_endings", [f"file:docs/DECISIONS.md~{old_line}", f"file:docs/MASTER.md~{mid_line}",
+                        f"file:docs/MASTER.md~{new_line}",
                         f"file:worker/tests/test_endings_corpus.py~WRONG_CEILING = {new[2]}"])
 
 # ── 추진 일정 ───────────────────────────────────────────
