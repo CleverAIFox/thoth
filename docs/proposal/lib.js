@@ -145,4 +145,22 @@ const secs = (...days) => {
   return a === b ? `§${a}` : `§${a}–§${b}`;
 };
 
-module.exports = { ROOT, RNG, secs, D, t, runs, P, GAP, BR, PART, H1, H2, H3, B, NOTE, CODE, TBL, KV, FIGURE, W, NAVY, RED, GRAY, FONT };
+// ★ **표지와 목차도 블록이다**(DECISIONS §155). 종전에는 `part1.js` 가 `docx` 를 직접 만졌다 —
+//   열 곳. 그러면 **본문이 렌더러를 침범하고**, 「렌더러가 아는 블록만 굽는다」 가 성립하지 않는다.
+//   여기로 올리면 `part*.js` 는 **데이터만** 넘기고, 그 사실을 관문이 걸 수 있다.
+const 가운데 = (글, o) => new Paragraph({ alignment: AlignmentType.CENTER,
+  spacing: { after: o.after ?? 60 }, children: [t(글, o)] });
+
+/** 표지. `줄` 은 `[글, 모양]` 들이고 모양은 `t()` 가 아는 것 + `after`. */
+const COVER = (줄) => [new Paragraph({ children: [], spacing: { before: 1500 } }),
+                       ...줄.map(([글, o]) => 가운데(글, o || {}))];
+
+/** 목차. `항목` 은 `[글, 깊이]` — 깊이 0 은 부, 1 은 장.
+ *  ★ **필드 목차를 쓰지 않는다.** 웹 뷰어는 필드를 갱신하지 못해 빈 쪽이 된다. */
+const TOC = (항목) => [BR(),
+  new Paragraph({ children: [t("목차", { size: 28, bold: true, color: NAVY })], spacing: { after: 200 } }),
+  ...항목.map(([x, l]) => new Paragraph({
+    children: [t(x, { size: l ? 21 : 23, bold: !l, color: l ? "000000" : NAVY })],
+    spacing: { before: l ? 0 : 160, after: 80 }, indent: { left: l ? 500 : 100 } }))];
+
+module.exports = { ROOT, RNG, secs, D, t, runs, P, GAP, BR, PART, H1, H2, H3, B, NOTE, CODE, TBL, KV, FIGURE, COVER, TOC, W, NAVY, RED, GRAY, FONT };

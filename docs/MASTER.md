@@ -161,7 +161,25 @@ bash tools/build_proposal.sh     # 잠금 · 그림 셋 · docx · 자물쇠 · 
 ★ **남는 틈** — 그림에 그렸으나 선언하지 않은 숫자는 여전히 밖이다. 차트는 수를 산출물에서 읽어
 그리고 같은 수를 선언하므로 이 틈이 없고, 도식은 손으로 선언한다.
 
-강제자 — `tools/docx_check.py::check` · `tools/docx_check.py::check_figures` · `worker/tests/test_docx_check.py`
+★ **본문이 제 자리를 지킨다**(DECISIONS §155). `docx_check` 는 **구운 것**을 보고
+`check_proposal` 은 **본문**을 본다 — 「틀린 걸 잡는다」 가 아니라 **「틀린 모양이 존재할 수
+없다」** 쪽이다. 셋을 본다.
+
+| | 묻는 것 |
+|---|---|
+| **문** | `part*.js` 는 `./lib` 만 부르고 **블록만** 가져간다. `D` · `t` · `W` 는 렌더러의 것이다 |
+| **블록** | 가짜 `lib` 으로 **실행해서** 본다 — 선언 밖 블록 · `docx` 직접 접촉 · 배열 아닌 내보내기 |
+| **수** | 산문에 든 **단위를 가진 수**가 `numbers.json` 장부에 있는가. 늘면 막는다 |
+
+★ **본문은 데이터다.** 내보내는 것은 전부 배열이고 함수가 아니다 — 함수면 **부르는 쪽마다
+  다른 글**이 나올 수 있고, 그러면 검사한 것과 구운 것이 갈린다.
+★ **글자로는 못 본다.** 첫 판은 정규식 `\bD\b\.` 를 썼고 **표 칸의 `"D. 호스팅 LLM"` 이
+  걸렸다.** `require` 와 구조분해만이 「무엇을 가져왔나」 를 말한다.
+★ **표와 그림의 수는 안 본다** — 표는 데이터고 그림은 `FIGURES` 가 사실 선언으로 본다.
+
+강제자 — `tools/docx_check.py::check` · `tools/docx_check.py::check_figures` ·
+`tools/check_proposal.py` · `docs/proposal/extract.js` · `worker/tests/test_docx_check.py` ·
+`worker/tests/test_proposal_shape.py`
 
 ### 0-8. 검사의 검사
 
@@ -189,13 +207,13 @@ bash tools/build_proposal.sh     # 잠금 · 그림 셋 · docx · 자물쇠 · 
 
 | 갈래 | 자리 | 보나 |
 |---|---|---|
-| 도구 <!--count:skip_tool-->10곳 | 그 칸에서 `command -v <도구>` 를 묻는다 | **본다** |
+| 도구 <!--count:skip_tool-->11곳 | 그 칸에서 `command -v <도구>` 를 묻는다 | **본다** |
 | 범위 <!--count:skip_scope-->7곳 | `$SCOPE` 로 갈린다 | **본다** |
 | 조건 <!--count:skip_cond-->15곳 | 모양이 여섯 가지 | **안 본다** — 하나를 고르면 맞는 코드를 비틀게 된다 |
 | 빚 <!--count:skip_debt-->2곳 | 감싼 것이 없다(무조건이 맞다) | PLAN·DECISIONS 인용을 이미 본다 |
 
-★ **<!--count:skip_seen-->17곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
-「<!--count:skip_all-->34곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
+★ **<!--count:skip_seen-->18곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
+「<!--count:skip_all-->35곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
 자리를 좁히고 그 자리를 적는다).
 
 ★ **이 수들은 글자가 아니라 주장이다**(DECISIONS §152). 2026-10-04 에 skip 하나를
@@ -1404,7 +1422,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->663건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->682건을 함께 돌린다.
 
 **등급이 셋이다.**
 

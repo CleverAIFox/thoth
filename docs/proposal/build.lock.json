@@ -1,10 +1,10 @@
 {
   "적는이": "docs/proposal/build.js",
-  "만든때": "2026-10-04T14:18:43.173Z",
+  "만든때": "2026-10-04T14:58:09.614Z",
   "생성기": {
     "build.js": "cd109825555b63dd",
-    "lib.js": "bfd690811cfdc199",
-    "part1.js": "d4a9aee007d3b7b8",
+    "lib.js": "a4e57177604f2d24",
+    "part1.js": "be13c59dca191ff6",
     "part2.js": "580485a6df5354cd",
     "part3.js": "f068573253092831",
     "figures/figlib.py": "2034ee4eca40671e",

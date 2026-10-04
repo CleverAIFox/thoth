@@ -47,8 +47,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 선언파일 = ROOT / "tools" / "mutations.json"
 
 # ★ **덮은 가드가 줄면 운다.** 돌연변이를 지워서 초록을 만드는 길을 막는다.
-MIN_돌연변이 = 61
-MIN_가드 = 11
+MIN_돌연변이 = 73
+MIN_가드 = 13
 
 
 # pytest 의 종료코드 — **1만 「시험이 울었다」 다**

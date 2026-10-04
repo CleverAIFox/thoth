@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 61",
+        "전": "MIN_돌연변이 = 73",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -380,6 +380,88 @@
         "이름": "실패를 돌려준다",
         "전": "  return 0\n}",
         "후": "}"
+      }
+    ]
+  },
+  "기획서모양": {
+    "_왜": "기획서 본문이 제 자리를 지키나 — **틀린 모양이 존재할 수 없게** 한다(§155).",
+    "파일": "tools/check_proposal.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_proposal_shape.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "다른 것을 불러도 조용하다",
+        "전": "            if 자리 != \"./lib\":\n                난것.append(f\"{f} 가 `{자리}` 를 부른다",
+        "후": "            if False:\n                난것.append(f\"{f} 가 `{자리}` 를 부른다"
+      },
+      {
+        "이름": "렌더러의 것을 가져가도 조용하다",
+        "전": "                if n and n not in 허용:",
+        "후": "                if False:"
+      },
+      {
+        "이름": "docx 직접을 안 본다",
+        "전": "        if b[\"종류\"] == \"DOCX직접\":",
+        "후": "        if False:"
+      },
+      {
+        "이름": "선언 밖 블록을 안 본다",
+        "전": "        elif b[\"종류\"] not in 안다:",
+        "후": "        elif False:"
+      },
+      {
+        "이름": "표·그림의 수도 센다",
+        "전": "        if b[\"종류\"] not in 산문갈래:\n            continue",
+        "후": "        if False:\n            continue"
+      },
+      {
+        "이름": "소수점 뒤 공백도 받는다",
+        "전": "\\d[\\d,]*(?:\\.\\d+)?\\s?\" + 단위",
+        "후": "\\d[\\d,]*\\.?\\d*\\s*\" + 단위"
+      },
+      {
+        "이름": "안 쓰는 수를 안 찾는다",
+        "전": "    return [x for x in 지금 if x not in 적힌], [x for x in sorted(적힌) if x not in set(지금)]",
+        "후": "    return [x for x in 지금 if x not in 적힌], []"
+      },
+      {
+        "이름": "새 수를 안 찾는다",
+        "전": "    return [x for x in 지금 if x not in 적힌], [x for x in sorted(적힌) if x not in set(지금)]",
+        "후": "    return [], [x for x in sorted(적힌) if x not in set(지금)]"
+      },
+      {
+        "이름": "주석 열쇠도 장부로 센다",
+        "전": "return {x for k, v in raw.items() if not k.startswith(\"_\") for x in v}",
+        "후": "return {x for k, v in raw.items() if isinstance(v, list) for x in v}"
+      },
+      {
+        "이름": "난것을 안 센다",
+        "전": "    난것 = [f\"본문이 끝까지 안 돈다 — {x}\" for x in t[\"난것\"]]",
+        "후": "    난것 = []"
+      }
+    ]
+  },
+  "기획서추출": {
+    "_왜": "`extract.js` 가 **실행으로** 가른다 — 프록시가 docx 접촉을 기록하고, 본문이 데이터인지 본다(§155).",
+    "파일": "docs/proposal/extract.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_proposal_shape.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "docx 를 만져도 기록 안 한다",
+        "전": "블록.push({ n: ++번, 종류: \"DOCX직접\", 글: [] }); return function () { return {}; };",
+        "후": "return function () { return {}; };"
+      },
+      {
+        "이름": "배열이 아닌 것을 안 본다",
+        "전": "    if (!Array.isArray(v)) 난것.push",
+        "후": "    if (false) 난것.push"
       }
     ]
   },

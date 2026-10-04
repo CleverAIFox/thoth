@@ -351,6 +351,22 @@ case "$FSCK_RC" in
      printf '%s\n' "$FSCK_OUT" | tail -5 | sed 's/^/       /' ;;
 esac
 
+# ★ **본문이 제 자리를 지키나**(DECISIONS §155). `docx_check` 는 **구운 것**을 보고 이쪽은
+#   **본문**을 본다 — 「틀린 걸 잡는다」 가 아니라 **「틀린 모양이 존재할 수 없다」** 쪽이다.
+#   본문이 `docx` 를 직접 만질 수 있으면 렌더러를 하나 더 붙일 수 없다.
+if command -v node >/dev/null 2>&1; then
+  PRO_OUT="$(python3 tools/check_proposal.py 2>&1)"; PRO_RC=$?
+  case "$PRO_RC" in
+    0) ok "$(printf '%s' "$PRO_OUT" | grep -oE '블록 [0-9]+ · 산문 속 수 [0-9]+ · 장부 [0-9]+')" ;;
+    1) no "기획서 본문이 제 자리를 벗어났다"
+       printf '%s\n' "$PRO_OUT" | sed 's/^/       /' ;;
+    *) no "check_proposal.py 가 죽었다 (exit $PRO_RC)"
+       printf '%s\n' "$PRO_OUT" | tail -5 | sed 's/^/       /' ;;
+  esac
+else
+  skip "node 가 없어 기획서 본문을 보지 못한다"
+fi
+
 # ★ **기획서는 밖이 읽는다.** 시제 규칙 밖이라 강제자가 없기 쉽다(DECISIONS §112).
 DOCX_OUT="$(python3 tools/docx_check.py 2>&1)"; DOCX_RC=$?
 case "$DOCX_RC" in

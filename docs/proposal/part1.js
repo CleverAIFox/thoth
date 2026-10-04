@@ -1,14 +1,14 @@
-const { t, P, GAP, BR, PART, H1, H2, H3, B, NOTE, TBL, KV, FIGURE, NAVY, RED, GRAY, D, secs } = require("./lib");
-const { Paragraph, AlignmentType } = D;
+const { P, GAP, BR, PART, H1, H2, H3, B, NOTE, TBL, KV, FIGURE, COVER, TOC, RED, GRAY, secs } = require("./lib");
 
 const cover = [
-  new Paragraph({ children: [], spacing: { before: 1500 } }),
-  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [t("프로젝트 기획서", { size: 44, bold: true })] }),
-  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [t("thoth · seshat", { size: 56, bold: true, color: RED })] }),
-  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [t("영어 자격증 문제 화면 번역 확장과 자체 영한 번역 모델", { size: 26, bold: true })] }),
-  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 360 }, children: [t("화면에 이미 떠 있는 문제만 읽어, 시험에 나올 서비스명은 영어로 남긴 채 합쇼체 한국어로 겹쳐 보여주고 — 그 번역 엔진을 사전학습 모델을 좁혀 직접 만든다", { size: 19, color: GRAY })] }),
-  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 700 }, children: [t("프로젝트 시작 2026. 07. 18. · 최종 수정 2026. 10. 03. · 판 3.0", { size: 20 })] }),
-  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 500 }, children: [t("인공지능사관학교 7기 3반 AI 보안반 | 개인 프로젝트 | 오창준 (CleverAIFox)", { size: 20 })] }),
+  ...COVER([
+    ["프로젝트 기획서", { size: 44, bold: true }],
+    ["thoth · seshat", { size: 56, bold: true, color: RED }],
+    ["영어 자격증 문제 화면 번역 확장과 자체 영한 번역 모델", { size: 26, bold: true, after: 120 }],
+    ["화면에 이미 떠 있는 문제만 읽어, 시험에 나올 서비스명은 영어로 남긴 채 합쇼체 한국어로 겹쳐 보여주고 — 그 번역 엔진을 사전학습 모델을 좁혀 직접 만든다", { size: 19, color: GRAY, after: 360 }],
+    ["프로젝트 시작 2026. 07. 18. · 최종 수정 2026. 10. 03. · 판 3.0", { size: 20, after: 700 }],
+    ["인공지능사관학교 7기 3반 AI 보안반 | 개인 프로젝트 | 오창준 (CleverAIFox)", { size: 20, after: 500 }],
+  ]),
   NOTE("※ 범위 전제: 이 문서는 두 저장소를 한 제품으로 기술한다. **thoth**(공개, github.com/CleverAIFox/thoth)는 크롬 확장 · 번역 워커 · 배포 · 쌍 로그를 맡고 **껍데기로서 닫혔다** — 배포본이 AWS Lambda(서울)에서 돌고 엔진은 Amazon Bedrock Nova Lite 다. **seshat**(비공개)은 thoth 에 끼울 영한 번역 모델을 만든다. **자체 가중치는 아직 없다** — 지금 선 팔은 **남의 모델에 이 저장소의 처치를 두른 것**이고, 학습 코드는 한 줄도 없다. Part III 8장이 그 자리를 수로 적는다."),
   NOTE("※ **3.0 에서 바뀐 것**: 2.0 의 seshat 장은 2026-09-22 의 **설계**였고 실측이 없었다. 그 뒤 아흐레 동안 **저장소 밖 판정자 넷**으로 품질을 재기 시작했고 결론 넷이 바뀌었다 — ① 뜻에서 **지금 팔이 배포본(Nova Lite)에 −0.1833 으로 진다** ② **규칙 지표 여덟이 줄 단위에서 사람 판정과 상관이 없다** ③ 신경망 QE 보다 **ollama 로 도는 LLM 판정이 낫다**(ρ 0.5692 대 0.3086) ④ 그래서 `torch` · `transformers` 를 통째로 뺐다. **본문을 반만 고치면 반만 낡은 문서가 된다** — 한 판에 다시 썼다(thoth DECISIONS §124 · §129). 바뀐 자리는 Part III 8장 · 11장과 15장의 갱신 이력이 든다."),
   NOTE("※ 사용자 전제: **페르소나는 작성자 본인이다.** AWS Certified Data Engineer – Associate(DEA-C01)를 영어 원문 모의고사로 준비하면서 쓰려고 만들었고, 제품의 결정은 전부 그 실사용에서 나왔다 — 무엇이 불편했고 무엇을 하지 않기로 했는지가 결정 기록(thoth DECISIONS · seshat DECISIONS)과 Part III 10장의 표에 날짜와 함께 있다. 지어낸 사용자를 두지 않는다."),
@@ -17,19 +17,15 @@ const cover = [
   NOTE("※ 이름: 토트(Thoth)는 이집트의 문자 · 언어 · 중재의 신이고, 세샤트(Seshat)는 기록의 여신이자 토트의 짝이다. 번역하는 껍데기와 기록해서 배우는 모델이 한 쌍이라는 뜻으로 붙였다."),
 ];
 
-const toc = [
-  BR(),
-  new Paragraph({ children: [t("목차", { size: 28, bold: true, color: NAVY })], spacing: { after: 200 } }),
-  // ★ 필드 목차를 쓰지 않는다. 웹 뷰어(docx-preview)는 필드를 갱신하지 못해 빈 쪽이 된다.
-  ...[
+const toc = TOC([
+
     ["Part I. 프로젝트 제안서", 0], ["1. 프로젝트 개요", 1], ["2. 아이디어 도출 과정", 1], ["3. 시장현황 및 유사 서비스 분석", 1],
     ["Part II. 요구사항 분석서", 0], ["1. 유스케이스", 1], ["2. 요구사항 체계", 1], ["3. 세부 기능 요구사항 정의서", 1], ["4. 비기능 요구사항", 1], ["5. 제약사항 및 전제 · 변경 이력", 1],
     ["Part III. 상세 설계서", 0], ["1. 시스템 아키텍처", 1], ["2. 데이터 설계", 1], ["3. 수집 · 표시 상세 설계 (확장)", 1], ["4. 워커 상세 설계", 1],
     ["5. 번역 엔진 상세 설계", 1], ["6. 콜드패스 상세 설계", 1], ["7. 자체 모델 슬롯 상세 설계", 1], ["8. seshat 모델 상세 설계", 1],
     ["9. API 명세", 1], ["10. 화면 설계", 1], ["11. 평가 설계", 1], ["12. 개발 환경 및 배포 설계", 1], ["13. 문서 체계와 강제자", 1],
     ["14. 산출물 목록", 1], ["15. 갱신 이력", 1],
-  ].map(([x, l]) => new Paragraph({ children: [t(x, { size: l ? 21 : 23, bold: !l, color: l ? "000000" : NAVY })], spacing: { before: l ? 0 : 160, after: 80 }, indent: { left: l ? 500 : 100 } })),
-];
+]);
 
 // ─── Part I ────────────────────────────────────────────────
 const s1 = [
