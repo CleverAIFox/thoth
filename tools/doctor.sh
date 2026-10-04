@@ -12,11 +12,15 @@ cd "$ROOT" || exit 1
 # ★ **부른 쉘이 무엇을 들고 왔는지 `load_env` 보다 먼저 찍는다**(DECISIONS §147).
 #   `load_env` 뒤에는 `.env` 에서 온 것과 쉘에서 온 것이 구별이 안 된다.
 #   **값이 빈 것은 안 센다** — `WORKER_TOKEN=` 는 「인증 없음」 이라 해롭지 않다.
-AMBIENT="$(
-  sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example 2>/dev/null \
-  | while read -r k; do [ -n "${!k:-}" ] && printf '%s ' "$k"; done
-)"
-. ./tools/lib/env.sh; load_env ./.env
+. ./tools/lib/env.sh
+# ★ **부른 쪽이 이미 쟀으면 그 값을 쓴다**(DECISIONS §154). `ship.sh` 는 `load_env` 를
+#   먼저 하고 이 스크립트를 부른다 — 그 뒤에 재면 `.env` 에서 온 값이 전부 「쉘 오염」 으로
+#   찍힌다. 같은 초에 `doctor` 를 따로 돌리면 OK 가 뜨고 `ship` 안에서는 WARN 이 떴다.
+# ★ **`-` 이지 `:-` 가 아니다.** 「재 봤는데 없었다」(빈 문자열)와 「안 쟀다」(미설정)는
+#   다른 말이다. `:-` 로 쓰면 깨끗한 쉘에서 다시 재게 되고, 그 다시 재는 자리가 바로
+#   틀린 자리다 — **측정은 한 번만 한다**(DECISIONS §62).
+AMBIENT="${THOTH_AMBIENT-$(ambient_keys .env.example)}"
+load_env ./.env
 . ./tools/lib/infra.sh
 SCOPE="${1:-all}"
 FAIL=0
@@ -93,7 +97,7 @@ fi
 echo "== .env 키 정합 =="
 if [ ! -f .env ]; then skip ".env 가 없어 비교하지 않는다"; else
 # 키 목록의 정본은 .env.example 이다. 한쪽만 늘면 조용히 어긋난다.
-keys(){ grep -oE '^[A-Z_][A-Z0-9_]*=' "$1" 2>/dev/null | tr -d '=' | sort -u; }
+keys(){ env_keys "$1"; }   # ★ 정본은 tools/lib/env.sh 하나다(DECISIONS §154)
 MISS="$(comm -23 <(keys .env.example) <(keys .env))"
 EXTRA="$(comm -13 <(keys .env.example) <(keys .env))"
 [ -z "$MISS" ]  && ok ".env 에 빠진 키 없음"         || no ".env 에 없는 키: $(echo $MISS)"
@@ -138,7 +142,7 @@ echo "== 셸 오염 (D-0066) =="
 #   옛 목록은 접두사 다섯(`OLLAMA_` · `CACHE` · …)이라 `.env` 가 갖지도 않는 `OLLAMA_MODELS`(ollama
 #   **서버**의 설정이다)를 막으면서, 정작 `WORKER_TOKEN` · `EXT_TOKEN` · `BEDROCK_*` 는 안 막았다.
 #   **지킬 것은 `.env` 가 소유한 키**이므로 그 파일에서 뽑는다. 키에 `=` 를 붙여 접두사 우연을 없앤다.
-ENV_KEYS="$(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example 2>/dev/null | paste -sd'|' -)"
+ENV_KEYS="$(env_keys .env.example | paste -sd'|' -)"
 # shellcheck disable=SC2088  # 경로가 아니라 사람이 읽는 문구다. 확장할 이유가 없다
 if [ -z "$ENV_KEYS" ]; then
   no ".env.example 에서 키를 못 읽었다 — 셸 오염을 못 잰다(0건이 아니다)"

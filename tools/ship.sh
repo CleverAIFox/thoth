@@ -21,7 +21,14 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
-. "$ROOT/tools/lib/env.sh"; load_env "$ROOT/.env"
+. "$ROOT/tools/lib/env.sh"
+# ★ **`doctor` 를 부르기 전에, `load_env` 보다 먼저 잰다**(DECISIONS §154). 안 그러면
+#   `doctor` 가 `.env` 에서 온 값을 「쉘 오염」 으로 찍는다 — 재는 곳과 판정하는 곳을
+#   나누되 **측정은 한 번만 한다**(§62).
+# ★ 대입과 export 를 나눈다 — `export X="$(…)"` 는 명령의 종료 상태를 가린다(SC2155)
+THOTH_AMBIENT="$(ambient_keys "$ROOT/.env.example")"
+export THOTH_AMBIENT
+load_env "$ROOT/.env"
 . "$ROOT/tools/lib/infra.sh"
 
 DRY=0

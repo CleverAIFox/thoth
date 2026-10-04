@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 55",
+        "전": "MIN_돌연변이 = 61",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -357,6 +357,32 @@
       }
     ]
   },
+  "쉘측정": {
+    "_왜": "부른 쉘이 들고 온 것을 **한 번만** 잰다(§154). `ship.sh` 가 `load_env` 를 먼저 하고 `doctor` 를 부르면 `.env` 값이 전부 「쉘 오염」 으로 찍혔다 — **늘 울리는 경보는 아무도 안 읽는다.**",
+    "파일": "tools/lib/env.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_ambient.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "빈 값도 센다",
+        "전": "[ -n \"${!k:-}\" ] && printf",
+        "후": "[ -n \"${!k+x}\" ] && printf"
+      },
+      {
+        "이름": "선언 밖 키도 센다",
+        "전": "env_keys \"$f\" \\",
+        "후": "compgen -v \\"
+      },
+      {
+        "이름": "실패를 돌려준다",
+        "전": "  return 0\n}",
+        "후": "}"
+      }
+    ]
+  },
   "미선언": [
     "tools/check_infra.py",
     "tools/bench_golden.py",
@@ -367,5 +393,42 @@
   ],
   "_안무는자리": {
     "glossary.restore 의 is_keep 거르개": "restore.json 에 항등 용어만 열쇠가 있어 **빼도 아무 일이 안 난다**. 관문이 아니라 독립성이다 — 없으면 restore 가 표의 내용에 말없이 기대게 된다. 선언하지 않는다(§152)."
+  },
+  "쉘측정부름": {
+    "_왜": "재는 함수를 고쳐도 **부르는 쪽이 틀리면 안 문다**. 순서와 기본값이 전부다(§154).",
+    "파일": "tools/doctor.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_ambient.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "물려받은 측정을 다시 잰다",
+        "전": "AMBIENT=\"${THOTH_AMBIENT-$(ambient_keys .env.example)}\"",
+        "후": "AMBIENT=\"${THOTH_AMBIENT:-$(ambient_keys .env.example)}\""
+      },
+      {
+        "이름": "물려받은 것을 안 쓴다",
+        "전": "AMBIENT=\"${THOTH_AMBIENT-$(ambient_keys .env.example)}\"",
+        "후": "AMBIENT=\"$(ambient_keys .env.example)\""
+      }
+    ]
+  },
+  "쉘측정순서": {
+    "_왜": "`load_env` 뒤에 재면 `.env` 에서 온 것과 쉘에서 온 것이 구별되지 않는다 — 고치기 전과 같다.",
+    "파일": "tools/ship.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_ambient.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "load_env 뒤에 잰다",
+        "전": "THOTH_AMBIENT=\"$(ambient_keys \"$ROOT/.env.example\")\"\nexport THOTH_AMBIENT\nload_env \"$ROOT/.env\"",
+        "후": "load_env \"$ROOT/.env\"\nTHOTH_AMBIENT=\"$(ambient_keys \"$ROOT/.env.example\")\"\nexport THOTH_AMBIENT"
+      }
+    ]
   }
 }
