@@ -60,6 +60,12 @@ jobs:
         with: { node-version: "22", cache: npm, cache-dependency-path: extension/package-lock.json }
       - run: npm ci
         working-directory: extension
+      # ★ **건너뛴 시험은 안 문다**(DECISIONS §158). 기획서 생성기의 의존성이 없으면
+      #   `test_proposal_shape` 의 넷이 `skip` 되고, 그러면 ① 그 가드를 겨눈 돌연변이가
+      #   **살아 돌아오고** ② `doctor` 가 세는 `passed` 가 줄어 **문서 건수가 어긋난다.**
+      #   2026-10-05 에 CI 가 그 둘로 한꺼번에 빨개졌다 — 원인은 하나다.
+      - run: npm ci
+        working-directory: docs/proposal
       # ★ **doctor 는 린터가 없으면 SKIP 한다.** 로컬에서는 맞지만 CI 는
       #   넘어갈 수 없는 자리다. 없으면 여기서 멈춘다 — 건너뛰면 초록불인 채로
       #   셸과 파이썬을 아무도 보지 않는다(DECISIONS §54 · §63).

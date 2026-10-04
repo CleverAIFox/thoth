@@ -218,3 +218,39 @@ def test_사본은_원본의_참조를_들어도_된다(tmp_path):
     cd.check_refs(root, f)
     assert [x for x in f if "copy.py" in x] == []
     assert any("mine.py" in x for x in f)
+
+
+# ── 강제자 바닥 — 내려가기만 한다 (DECISIONS §158) ────────────────────────
+
+def test_강제자_바닥이_실제와_맞다():
+    """★ **이 수는 손으로 못 올린다.** 실제로 **연속해서** 강제자를 든 가장 낮은 번호와
+    맞댄다 — 묶음을 채우면 **내려가야 하고**, 올리면 운다.
+
+    ★ 「강제자 — X」 는 **「지금 이 결정을 지키는 자가 누구인가」** 다. 그때의 판단이 아니라
+      지금의 사실이므로 **표기**이고 소급해야 한다(하토르 D-0081 — 「표기는 전수 강제하고
+      내용만 신규에 건다」). `강제자 없음 — 까닭` 이라는 꼴이 따로 있는 것이 그 증거다.
+
+    ★ **한 번에 다 하지 않는다.** 107절을 하룻밤에 배정하면 그중 몇은 틀리고, **틀린
+      강제자는 없는 것보다 나쁘다.** 한 판에 묶음씩 읽고 바닥을 내린다.
+    """
+    import importlib.util
+    import re
+    s = importlib.util.spec_from_file_location("cd2", ROOT / "tools/check_docs.py")
+    CD2 = importlib.util.module_from_spec(s)
+    s.loader.exec_module(CD2)
+    글 = (ROOT / "docs/DECISIONS.md").read_text(encoding="utf-8")
+    절 = [(int(m.group(1)), m.start()) for m in re.finditer(r"^## §(\d+)\. ", 글, re.M)]
+    번호 = [n for n, _ in 절]
+    든다 = set()
+    for i, (n, st) in enumerate(절):
+        끝 = 절[i + 1][1] if i + 1 < len(절) else len(글)
+        if CD2.ENFORCER.search(글[st:끝]):
+            든다.add(n)
+    바닥 = max(번호) + 1
+    for n in sorted(번호, reverse=True):
+        if n not in 든다:
+            break
+        바닥 = n
+    assert CD2.ENFORCER_FROM == 바닥, (
+        f"`ENFORCER_FROM` 이 {CD2.ENFORCER_FROM} 인데 실제로 연속해서 든 가장 낮은 번호는 "
+        f"{바닥} 이다 — 채웠으면 내리고, 올렸으면 되돌린다")

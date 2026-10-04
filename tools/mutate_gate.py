@@ -51,7 +51,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 선언파일 = ROOT / "tools" / "mutations.json"
 
 # ★ **덮은 가드가 줄면 운다.** 돌연변이를 지워서 초록을 만드는 길을 막는다.
-MIN_돌연변이 = 95
+MIN_돌연변이 = 97
 MIN_가드 = 16
 
 
@@ -144,6 +144,11 @@ def 한건(파일: pathlib.Path, 전: str, 후: str, 시험: list[str]) -> tuple
         print(f"  ★ **pytest 가 {r.returncode} 로 끝났다 — 시험이 운 것이 아니라 도구가 "
               f"깨졌다.**\n     {' '.join(시험)}\n{r.stdout[-500:]}", file=sys.stderr)
         raise SystemExit(2)
+    # ★ **건너뛴 시험은 안 문다**(DECISIONS §158). 의존성이 없는 기계에서 `skip` 된
+    #   시험은 통과로 끝나므로 **「약해서 안 물었다」 와 구별이 안 된다** — 2026-10-05 에
+    #   CI 가 그렇게 빨개졌고 진단에 시간을 썼다. 까닭을 가른다.
+    if r.returncode == 0 and "skipped" in r.stdout and " passed" not in r.stdout:
+        return False, "시험이 **전부 건너뛰어졌다** — 건너뛴 시험은 안 문다. 의존성을 깐다"
     return r.returncode == _울었다, "" if r.returncode else "시험이 통과했다 — 가드를 안 붙들고 있다"
 
 

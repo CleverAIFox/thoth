@@ -13,6 +13,7 @@ r"""**기획서 본문이 제 자리를 지키나** — 틀린 모양이 **존�
 | **문** | `part*.js` 가 `./lib` 말고 다른 것을 부르는가 · 렌더러의 것(`D` · `t` · `W` …)을 가져가는가 |
 | **블록** | 가짜 `lib` 으로 끝까지 도는가 · 선언 밖 블록을 쓰는가 · `docx` 를 만지는가 |
 | **수** | 산문에 든 **단위를 가진 수**가 장부에 있는가 — **늘면 막는다** |
+| **날짜** | `DECISIONS` 의 날짜마다 `charts.py` 의 이름표가 있는가 |
 
 ★ **「문」 은 글자가 아니라 `require` 와 구조분해로 본다.** 첫 판은 정규식으로 `\bD\b\.` 를
   찾았는데 **표 칸의 `"D. 호스팅 LLM …"` 이 걸렸다** — 글자로는 뜻이 안 갈린다.
@@ -24,6 +25,12 @@ r"""**기획서 본문이 제 자리를 지키나** — 틀린 모양이 **존�
 ★ **「수」 는 장부다.** 지금 든 수를 이름으로 적고 **늘면 막는다.** 갈래(치환 · 밖 · 면제)로
   가르는 것은 **분류기를 만드는 일**이고 그것은 PLAN 이다 — 분류기를 합성 입력에 안 물리고
   세우면 그 비율이 자의 잡음이다(thoth §152 가 네 번 당한 자리).
+
+★ **날짜 이름표는 사람이 기억하는 자리였다**(DECISIONS §158). `charts.py` 는 이름표 없는
+  날짜를 만나면 `SystemExit` 으로 죽는데 — **맞는 설계인데 그 죽음이 `build_proposal` 안에서
+  난다.** 즉 절을 더한 사람은 **기획서를 다시 구울 때까지 모른다.** 2026-10-05 에 실제로
+  그렇게 막혔고, `charts.py` 주석이 「절을 더하는 사람이 여기도 더해야 한다」 고 적어 둔
+  자리였다 — **적어 두는 것으로는 안 된다**(§152).
 
 ★ **밖 — 뜻은 안 본다.** 산문이 맞는 말인지, 표가 옳은지는 **사람이 읽는다.** 이 자는
   **모양**만 본다.
@@ -47,6 +54,10 @@ PROP = ROOT / "docs/proposal"
 _구조분해 = re.compile(r"const\s*\{([^}]*)\}\s*=\s*require\(\"([^\"]+)\"\)")
 _require = re.compile(r"require\(\"([^\"]+)\"\)")
 산문갈래 = {"P", "NOTE", "B", "H1", "H2", "H3", "PART", "COVER"}
+DEC = ROOT / "docs/DECISIONS.md"
+CHARTS = ROOT / "docs/proposal/figures/charts.py"
+_날짜 = re.compile(r"^\*\*(20\d\d-\d\d-\d\d)\*\*", re.M)
+_이름표 = re.compile(r'^\s*"(20\d\d-\d\d-\d\d)":', re.M)
 단위 = r"(?:유닛|초|자|항목|개|건|%|MB|ms|배|쪽|줄|점|회|종|구간|시간|분|문항)"
 # ★ **소수점 뒤에 공백이 오면 수가 아니다.** 첫 판은 `\d+\.?\d*\s*단위` 로 적었고 목차의
 #   「12. 개발 환경」 이 **`12. 개`** 로 잡혔다 — 자를 먼저 의심한다.
@@ -70,6 +81,13 @@ def 문(root: Path | None = None) -> list[str]:
                     난것.append(f"{f} 가 `{n}` 을 가져간다 — 렌더러의 것이다. "
                                 f"블록이 모자라면 `lib.js` 에 블록을 연다")
     return 난것
+
+
+def 날짜흠(dec: str, charts: str) -> list[str]:
+    """DECISIONS 의 날짜 중 `charts.py` 이름표가 없는 것. **순수 함수다** — 저장소가
+    깨끗해도 가짜 글로 물어 볼 수 있다."""
+    적힌 = set(_이름표.findall(charts))
+    return [d for d in sorted(set(_날짜.findall(dec))) if d not in 적힌]
 
 
 def 나무(root: Path | None = None) -> dict:
@@ -129,6 +147,10 @@ def _canary() -> None:
         print(f"    ★ 카나리아가 죽었다 — 수를 못 읽는다 : {수들(t2)}"); sys.exit(2)
     if 견준다(["a"], {"b"}) != (["a"], ["b"]):
         print("    ★ 카나리아가 죽었다 — 장부를 못 견준다"); sys.exit(2)
+    if 날짜흠("**2026-01-02**\n", '    "2026-01-03": "ㄱ",\n') != ["2026-01-02"]:
+        print("    ★ 카나리아가 죽었다 — 빠진 날짜를 못 찾는다"); sys.exit(2)
+    if 날짜흠("**2026-01-02**\n", '    "2026-01-02": "ㄱ",\n'):
+        print("    ★ 카나리아가 죽었다 — 있는 이름표를 없다고 한다"); sys.exit(2)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -144,10 +166,13 @@ def main(argv: list[str] | None = None) -> int:
         c = collections.Counter(b["종류"] for b in t["블록"])
         print(f"  블록 {len(t['블록'])} — " + " · ".join(f"{k} {v}" for k, v in sorted(c.items())))
         print(f"  산문 속 단위를 든 수 {len(지금)}")
+        print(f"  이름표 없는 날짜 {len(날짜흠(DEC.read_text(encoding='utf-8'), CHARTS.read_text(encoding='utf-8')))}")
         for x in 지금:
             print(f"    {x}")
         return 0
     난것 = 문() + 블록(t)
+    빠진 = 날짜흠(DEC.read_text(encoding="utf-8"), CHARTS.read_text(encoding="utf-8"))
+    난것 += [f"DECISIONS 의 {d} 에 `charts.py` 이름표가 없다 — `LABEL` 에 더한다" for d in 빠진]
     새것, 안쓰는것 = 견준다(지금, 장부())
     난것 += [f"장부에 없는 수 `{x}` — `docs/proposal/numbers.json` 에 적는다" for x in 새것]
     if 안쓰는것:

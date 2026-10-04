@@ -207,3 +207,26 @@ def test_신호로_죽을_때도_바이트코드를_버린다():
     몸 = (mg.ROOT / "tools/mutate_gate.py").read_text(encoding="utf-8")
     블록 = 몸[몸.index("def _되돌리고_죽는다("):몸.index("def 읽기(")]
     assert "_바이트코드를_버린다(p)" in 블록, "끊겨 죽을 때 캐시가 남는다"
+
+
+def test_전부_건너뛰면_까닭을_가른다(tmp_path, monkeypatch):
+    """★ **건너뛴 시험은 안 문다**(DECISIONS §158). 의존성 없는 기계에서 `skip` 된 시험은
+    **통과로 끝나므로** 「약해서 안 물었다」 와 구별이 안 된다 — 2026-10-05 에 CI 가 그렇게
+    빨개졌고 진단에 시간을 썼다."""
+    import subprocess
+    f = tmp_path / "a.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(mg.subprocess, "run",
+                        lambda *a, **k: subprocess.CompletedProcess([], 0, "4 skipped in 0.1s", ""))
+    물었나, 까닭 = mg.한건(f, "x = 1", "x = 2", ["x"])
+    assert not 물었나 and "건너뛰어졌다" in 까닭, 까닭
+
+
+def test_통과와_건너뜀을_안_섞는다(tmp_path, monkeypatch):
+    import subprocess
+    f = tmp_path / "a.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(mg.subprocess, "run",
+                        lambda *a, **k: subprocess.CompletedProcess([], 0, "3 passed, 1 skipped", ""))
+    물었나, 까닭 = mg.한건(f, "x = 1", "x = 2", ["x"])
+    assert not 물었나 and "안 붙들고" in 까닭, "하나라도 돌았으면 건너뜀이 아니다"
