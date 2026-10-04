@@ -31,20 +31,26 @@ import sys
 import zipfile
 
 root, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
-app = root / "worker" / "app"
-EXCLUDE = {"main.py", "preflight.py"}
+# ★ **담을 것을 한 곳이 센다**(DECISIONS §145). 패키저가 목록을 들고 검사가 따로 들면
+#   둘 다 초록이면서 갈린다 — §132 · §133 과 같은 자리다.
+sys.path.insert(0, str(root / "tools" / "lib"))
+import pkg                                    # noqa: E402
 
 # ★ **결정적으로 만든다.** 타임스탬프가 들어가면 내용이 같아도 해시가 매번
 #   달라지고, terraform 이 `source_code_hash` 로 그것을 보므로 **고친 것이
 #   없어도 배포가 돈다.** 시각을 고정하고 순서를 정렬한다(DECISIONS §72).
 FIXED = (1980, 1, 1, 0, 0, 0)      # zipfile 이 담을 수 있는 가장 이른 시각
 
-files = []
-for f in sorted(app.glob("*.py")):
-    if f.name not in EXCLUDE:
-        files.append((f, f"app/{f.name}"))
-for f in sorted((app / "glossary").rglob("*.json")):
-    files.append((f, f"app/glossary/{f.name}"))
+# ★ **코드가 읽겠다고 적은 것이 전부 담기는지 먼저 본다**(DECISIONS §145). 담고 나서
+#   보면 늦다 — 틀린 zip 이 이미 만들어져 있고 그것이 배포된다.
+빠진것 = pkg.missing(root)
+if 빠진것:
+    print("코드가 읽는데 zip 에 안 담기는 것이 있다 :", file=sys.stderr)
+    for x in 빠진것:
+        print(f"  {x}", file=sys.stderr)
+    raise SystemExit(2)
+
+files = pkg.files(root)
 
 out.unlink(missing_ok=True)
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -56,7 +62,7 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
 
 print(f"zip : {out}")
 print(f"      {out.stat().st_size // 1024}KB · 파일 {len(files)}개")
-print(f"      뺀 것 : {' '.join(sorted(EXCLUDE))}")
+print(f"      뺀 것 : {' '.join(sorted(pkg.EXCLUDE))}")
 EOF
 
 echo

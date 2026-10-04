@@ -460,6 +460,22 @@ else
   printf '%s\n' "$PTC_OUT" | head -6 | sed 's/^/       /'
 fi
 
+# ★ **배포 꾸러미가 코드가 읽는 것을 전부 담나**(DECISIONS §145). 패키저가 **위치
+#   무늬**로 담고 코드는 **제 옆**에서 읽어, `restore.json`(§139)과 `particle.json`(§143)이
+#   저장소에는 있고 zip 에는 없었다. 묻는 것은 「이 파일이 담겼나」 가 아니라
+#   **「코드가 읽는데 안 담긴 것이 있나」** 다(족 가드). 파일만 읽으므로 CI 가 본다.
+PKG_OUT="$(python3 -c 'import sys
+sys.path.insert(0, "tools/lib")
+import pathlib, pkg
+f = pkg.missing(pathlib.Path("."))
+print("\n".join(f)); sys.exit(1 if f else 0)' 2>&1)"; PKG_RC=$?
+if [ "$PKG_RC" = 0 ]; then
+  ok "배포 꾸러미가 코드가 읽는 것을 전부 담는다"
+else
+  no "코드가 읽는데 배포 꾸러미에 없는 파일이 있다"
+  printf '%s\n' "$PKG_OUT" | head -6 | sed 's/^/       /'
+fi
+
 echo "== 인프라 =="
 # ★ **형식은 늘 보고 의미는 초기화됐을 때만 본다.** `terraform validate` 는
 #   `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다 받게 하면 검사가
