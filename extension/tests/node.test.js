@@ -146,6 +146,41 @@ test("이미 한국어면 박스를 아예 만들지 않는다", need, async () 
   assert.equal(f.calls.length, 0, "번역 요청이 나갔다 — 돈이 나간다");
 });
 
+// ★ **메일 주소가 분모에 들어 한국어 줄이 번역으로 나갔다**(DECISIONS §160). 2026-10-05
+//   지메일에서 `농업정책보험금융원 noreply@apfs.recruiter.co.kr` 가 **0.273** 이라 임계
+//   0.3 아래로 떨어졌다. URL 은 부르는 쪽이 이미 떼는데 **주소는 안 뗐다.**
+//   실물 문자열을 그대로 쓴다. **한글을 더 섞으면 고침 없이도 건너뛰어** 시험이 안 문다 —
+//   처음에 그렇게 써서 돌연변이가 살아 돌아왔다.
+const 주소줄 = [
+  ["보낸사람 줄 0.273", "농업정책보험금융원 noreply@apfs.recruiter.co.kr"],
+  ["지메일 머리 0.103", "longsupport@mail.example.co.kr 나에게"],
+  ["본문 안 주소 0.250", "문의 support@example.co.kr 로 보낸다"],
+];
+
+for (const [이름, 글] of 주소줄) {
+  test(`메일 주소는 한글 비율의 분모에 안 든다 — ${이름}`, need, async () => {
+    const { doc, f } = await 한바퀴(`<p>${글}</p>`);
+    assert.equal(박스들(doc).length, 0, `${이름} 에 박스가 섰다`);
+    assert.equal(f.calls.length, 0, "한국어인데 번역 요청이 나갔다");
+  });
+}
+
+test("글자가 없으면 박스를 안 만든다", need, async () => {
+  // ★ 숫자·기호뿐인 토막은 **번역할 것이 없다.** 분모가 0 이라 비율을 낼 수도 없다 —
+  //   그 자리를 「안 건너뜀」 으로 두면 전화번호 · 금액 줄마다 상자가 선다.
+  const { doc, f } = await 한바퀴("<p>1234567890 (02) 3456-7890 / 1,234,567 ++ --</p>");
+  assert.equal(박스들(doc).length, 0, "숫자뿐인데 박스가 섰다");
+  assert.equal(f.calls.length, 0, "숫자뿐인데 번역 요청이 나갔다");
+});
+
+test("주소를 빼도 영문 본문은 그대로 번역한다", need, async () => {
+  // ★ **제외를 넓히면 번역이 줄어든다.** 음성도 같이 본다 — 안 그러면 전부 건너뛰는
+  //   자도 통과한다(DECISIONS §21).
+  const { doc } = await 한바퀴(
+    "<p>Please contact support@example.com before December 31 to update your mechanism.</p>");
+  assert.equal(박스들(doc).length, 1, "영문이 건너뛰어졌다");
+});
+
 // ---------- 배선 ----------
 
 test("검사가 확장과 같은 파일을 싣는다", need, async () => {

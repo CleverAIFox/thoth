@@ -176,3 +176,70 @@ test("udemy 가 udemy.com 으로 끝나는 남의 도메인에 붙지 않는다"
   assert.ok(!봤다("https://freeudemy.com/course/x/"), "앞에 이어 붙인 도메인은 남이다");
   assert.ok(!봤다("https://udemy.com.evil.net/x"), "뒤에 이어 붙인 도메인은 남이다");
 });
+
+// ── 메일 본문의 모양(DECISIONS §160) ────────────────────────────────────────
+//
+// ★ **109 시험이 전부 초록인 채로 다섯 꼴이 사각이었다.** 2026-10-05 지메일에서 본문이
+//   통째로 안 번역됐고, 재 보니 `div` 가 후보 목록에 없었다. **통과는 검사가 작동한다는
+//   증거가 아니다**(DECISIONS §21) — 그 109 중 어느 것도 메일 꼴을 물지 않았다.
+// ★ **꼴을 표로 둔다.** 하나씩 적으면 다음 꼴이 늘 때 빠뜨린다.
+
+const 긴글 = "Effective December 31, 2026, AWS CloudTrail will no longer emit ListRegions events.";
+
+const 메일꼴 = [
+  ["td > p            표 메일 · 문단", `<table><tr><td><p>${긴글}</p></td></tr></table>`],
+  ["td > div > 글     표 메일 · div 포장", `<table><tr><td><div>${긴글}</div></td></tr></table>`],
+  ["td > div > p      표 메일 · 두 겹", `<table><tr><td><div><p>${긴글}</p></div></td></tr></table>`],
+  ["div > 글          지메일 본문", `<div>${긴글}</div>`],
+  ["div > div > 글    지메일 두 겹", `<div><div>${긴글}</div></div>`],
+  ["td > 글           표 메일 · 맨 td", `<table><tr><td>${긴글}</td></tr></table>`],
+  ["td > div > span   버튼 포장", `<table><tr><td><div><span>${긴글}</span></div></td></tr></table>`],
+  ["li > p            목록", `<ul><li><p>${긴글}</p></li></ul>`],
+];
+
+for (const [이름, html] of 메일꼴) {
+  test(`메일 꼴을 꼭 한 번 모은다 — ${이름}`, need, async () => {
+    const { loadAdapters, makeDoc } = harness;
+    const ST = await loadAdapters(["generic"]);
+    const 것 = ST.genericCollect(makeDoc(html).body);
+    assert.equal(것.length, 1, `${이름} 에서 ${것.length}건 — 0 이면 사각, 2 이상이면 중복이다`);
+  });
+}
+
+test("표 안의 표에서 같은 글을 두 번 모으지 않는다", need, async () => {
+  // ★ **이것이 2026-10-05 의 중복이다.** HTML 메일은 표 안의 표로 짠다. `td` 가 `BLOCK` 에
+  //   없으면 바깥 `td` 도 말단으로 세어져 **같은 글이 두 번** 모이고, 앵커가 둘 다 `td` 라
+  //   셀 안에 상자가 겹쳐 꽂힌다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const html = `<table><tr><td><table><tr><td>${긴글}</td></tr></table></td></tr></table>`;
+  const 것 = ST.genericCollect(makeDoc(html).body);
+  assert.equal(것.length, 1, `중첩 td 에서 ${것.length}건 — 안쪽 하나만 모아야 한다`);
+  assert.equal(것[0].anchor.closest("table").parentElement.tagName, "TD", "안쪽 표의 칸이다");
+});
+
+test("껍데기의 짧은 div 는 안 딸려 온다", need, async () => {
+  // ★ `div` 를 후보에 넣으면 지메일 UI 가 통째로 올까 봐 **재 봤다.** 길이 문턱이 거른다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const html = `<div><div>받은편지함</div><div>보낸편지함</div><div>답장</div>
+                <div><p>${긴글}</p></div></div>`;
+  const 것 = ST.genericCollect(makeDoc(html).body);
+  assert.equal(것.length, 1, `껍데기까지 ${것.length}건 모았다`);
+});
+
+test("메일 한 통에서 본문 세 토막을 다 모은다", need, async () => {
+  // ★ 꼴 하나씩 보는 것과 **한 통을 통째로** 보는 것은 다르다. 2026-10-05 실물에서는
+  //   셋 중 하나(`td > div > 글`)만 빠졌고, 그 하나가 본문의 절반이었다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const 둘째 = "If you have mechanisms that depend on these events, please update them by then.";
+  const html = `<div class="app"><div class="nav"><div>받은편지함</div></div>
+    <div class="msg"><table><tr><td><table>
+      <tr><td><div><p>${긴글}</p></div></td></tr>
+      <tr><td><div>${둘째}</div></td></tr>
+      <tr><td><a href="#">View details in the service console now</a></td></tr>
+    </table></td></tr></table></div></div>`;
+  const 것 = ST.genericCollect(makeDoc(html).body);
+  assert.equal(것.length, 3, `본문 셋 중 ${것.length}건만 모았다`);
+});

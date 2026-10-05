@@ -43,6 +43,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import signal
 import subprocess
 import sys
@@ -51,8 +52,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 선언파일 = ROOT / "tools" / "mutations.json"
 
 # ★ **덮은 가드가 줄면 운다.** 돌연변이를 지워서 초록을 만드는 길을 막는다.
-MIN_돌연변이 = 108
-MIN_가드 = 18
+MIN_돌연변이 = 115
+MIN_가드 = 20
 
 
 # pytest 의 종료코드 — **1만 「시험이 울었다」 다**
@@ -141,15 +142,36 @@ def 한건(파일: pathlib.Path, 전: str, 후: str, 시험: list[str]) -> tuple
     #   pytest 는 4 로 죽고, `!= 0` 은 그것도 「물었다」 로 센다 — **가드를 완전히
     #   망가뜨려도 초록이다.** 실물로 확인했다.
     if r.returncode not in (0, _울었다):
-        print(f"  ★ **pytest 가 {r.returncode} 로 끝났다 — 시험이 운 것이 아니라 도구가 "
+        print(f"  ★ **러너가 {r.returncode} 로 끝났다 — 시험이 운 것이 아니라 도구가 "
               f"깨졌다.**\n     {' '.join(시험)}\n{r.stdout[-500:]}", file=sys.stderr)
         raise SystemExit(2)
     # ★ **건너뛴 시험은 안 문다**(DECISIONS §158). 의존성이 없는 기계에서 `skip` 된
     #   시험은 통과로 끝나므로 **「약해서 안 물었다」 와 구별이 안 된다** — 2026-10-05 에
     #   CI 가 그렇게 빨개졌고 진단에 시간을 썼다. 까닭을 가른다.
-    if r.returncode == 0 and "skipped" in r.stdout and " passed" not in r.stdout:
+    if r.returncode == 0 and 전부_건너뛰었나(r.stdout):
         return False, "시험이 **전부 건너뛰어졌다** — 건너뛴 시험은 안 문다. 의존성을 깐다"
     return r.returncode == _울었다, "" if r.returncode else "시험이 통과했다 — 가드를 안 붙들고 있다"
+
+
+def 전부_건너뛰었나(out: str) -> bool:
+    """통과가 **하나도 없이** 건너뛰기만 했나.
+
+    ★ **러너마다 말이 다르다**(DECISIONS §160). 종전 판은 `"skipped" in out and " passed"
+      not in out` 하나였는데 그것은 **pytest 의 말투**다. `node --test` 는 언제나
+      `# skipped N` 과 `# pass N` 을 찍으므로, 멀쩡히 통과한 node 판이 **「전부
+      건너뛰어졌다」 로 읽힌다** — 살아남은 돌연변이가 **딴 까닭으로 보고된다.**
+    ★ **셀 수 있으면 센다.** 두 러너 다 수를 찍으므로 글자가 있나가 아니라 **수가 0 인가**를
+      본다. 수를 못 읽으면 종전 어림으로 돌아간다 — 모르는 러너를 못 잼으로 두지 않는다.
+    """
+    노드건너 = re.search(r"^# skipped (\d+)$", out, re.M)
+    노드통과 = re.search(r"^# pass (\d+)$", out, re.M)
+    if 노드건너 and 노드통과:
+        return int(노드건너.group(1)) > 0 and int(노드통과.group(1)) == 0
+    파이건너 = re.search(r"(\d+) skipped", out)
+    파이통과 = re.search(r"(\d+) passed", out)
+    if 파이건너:
+        return int(파이건너.group(1)) > 0 and not (파이통과 and int(파이통과.group(1)) > 0)
+    return False
 
 
 def _canary() -> None:

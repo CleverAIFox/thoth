@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 108",
+        "전": "MIN_돌연변이 = 115",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -377,13 +377,23 @@
       },
       {
         "이름": "건너뜀을 안 가른다",
-        "전": "    if r.returncode == 0 and \"skipped\" in r.stdout and \" passed\" not in r.stdout:\n        return False, \"시험이 **전부 건너뛰어졌다** — 건너뛴 시험은 안 문다. 의존성을 깐다\"\n",
+        "전": "    if r.returncode == 0 and 전부_건너뛰었나(r.stdout):\n        return False, \"시험이 **전부 건너뛰어졌다** — 건너뛴 시험은 안 문다. 의존성을 깐다\"\n",
         "후": ""
       },
       {
-        "이름": "통과가 섞여도 건너뜀으로 센다",
-        "전": "and \" passed\" not in r.stdout:",
-        "후": "and True:"
+        "이름": "통과가 섞여도 건너뜀으로 센다(pytest)",
+        "전": "        return int(파이건너.group(1)) > 0 and not (파이통과 and int(파이통과.group(1)) > 0)",
+        "후": "        return int(파이건너.group(1)) > 0"
+      },
+      {
+        "이름": "node 말투를 안 읽는다",
+        "전": "    노드건너 = re.search(r\"^# skipped (\\d+)$\", out, re.M)",
+        "후": "    노드건너 = None"
+      },
+      {
+        "이름": "node 에서 통과가 섞여도 건너뜀으로 센다",
+        "전": "        return int(노드건너.group(1)) > 0 and int(노드통과.group(1)) == 0",
+        "후": "        return int(노드건너.group(1)) > 0"
       }
     ]
   },
@@ -740,6 +750,54 @@
         "이름": "빈 입력을 통과로 센다",
         "전": "        if not 옛.strip():\n            print(\"    HEAD 에 DECISIONS 가 없어 대조하지 않았다\")\n            return 3",
         "후": "        if not 옛.strip():\n            return 0"
+      }
+    ]
+  },
+  "메일본문": {
+    "_왜": "지메일·HTML 메일의 본문이 수집에 들어오나. 2026-10-05 에 아홉 꼴 중 다섯이 0건이었다(§160).",
+    "파일": "extension/src/adapters/generic.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/adapters.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "div 를 후보에서 뺀다",
+        "전": "const TAGS = [\"p\", \"li\", \"td\", \"dd\", \"div\", \"h1\", \"h2\", \"h3\", \"h4\", \"blockquote\"];",
+        "후": "const TAGS = [\"p\", \"li\", \"td\", \"dd\", \"h1\", \"h2\", \"h3\", \"h4\", \"blockquote\"];"
+      },
+      {
+        "이름": "표를 말단 가름에서 뺀다",
+        "전": "const BLOCK = \"p,li,div,section,article,table,td,th\";",
+        "후": "const BLOCK = \"p,li,div,section,article\";"
+      }
+    ],
+    "_밖": "길이 문턱은 **한 줄 돌연변이가 닿을 수 없다**(§160). `textContent` 쪽이 리플로를 피하는 **싼 선거름**이고 `innerText` 쪽이 판정인데, **둘이 독립으로 거르므로** 한쪽만 뚫으면 다른 쪽이 막는다. 가드가 약한 것이 아니라 겨냥이 닿지 않는 자리다 — 둘을 하나로 합치면 선거름이 사라져 순회마다 페이지 전체에 `innerText` 를 묻게 된다(실측 125ms)."
+  },
+  "한글비율": {
+    "_왜": "번역 대상이 아닌 토막이 분모에 들면 한국어 줄이 번역으로 나간다. 실물에서 0.273 이었다(§160).",
+    "파일": "extension/src/broker.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test --test-name-pattern '메일 주소는|주소를 빼도|글자가 없으면' tests/node.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "메일 주소를 분모에 다시 넣는다",
+        "전": "const 셀것 = text.replace(MAIL_RE, \" \");",
+        "후": "const 셀것 = text;"
+      },
+      {
+        "이름": "전부 건너뛴다",
+        "전": "return (셀것.match(HANGUL) || []).length / letters >= KO_RATIO;",
+        "후": "return true;"
+      },
+      {
+        "이름": "아무것도 안 건너뛴다",
+        "전": "    if (!letters) return true;              // 숫자·기호뿐이면 번역할 것이 없다",
+        "후": "    if (!letters) return false;             // 숫자·기호뿐이면 번역할 것이 없다"
       }
     ]
   }

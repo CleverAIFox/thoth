@@ -38,13 +38,25 @@ globalThis.ST.textBlocks = function (root) {
 globalThis.ST.genericCollect = function (root, opts) {
   const skipRoots = (opts && opts.skip) || [];
   const SKIP = "script,style,noscript,nav,header,footer,pre,code,textarea,input,select,button";
-  const BLOCK = "p,li,div,section,article";
+  // ★ **말단을 가르는 목록에 표가 있어야 한다**(DECISIONS §160). 2026-10-05 지메일에서
+  //   같은 문구가 **두 번** 떴다 — HTML 메일은 **표 안의 표**로 짜는 것이 표준인데
+  //   `td` 와 `table` 이 이 목록에 없어 **바깥 `td` 도 말단으로 세어졌다.** 그래서 같은
+  //   글이 두 번 모이고, 앵커가 둘 다 `td` 라 **셀 안에 상자가 겹쳐 꽂혔다.**
+  const BLOCK = "p,li,div,section,article,table,td,th";
   const out = [];
 
   // ★ 이미 처리한 요소를 셀렉터 단계에서 뺀다. 매 순회마다 페이지 전체를
   //   다시 훑으면 innerText 호출이 누적돼 강제 리플로가 난다(실측 125ms).
   //   :not() 은 CSS 엔진이 처리하므로 JS 순회에 들어오지도 않는다.
-  const TAGS = ["p", "li", "td", "dd", "h1", "h2", "h3", "h4", "blockquote"];
+  //
+  // ★ **`div` 가 여기 없어서 본문이 통째로 사각이었다**(DECISIONS §160). 지메일은 메일
+  //   본문을 `div` 로 그리고, HTML 메일은 `td > div > 글` 로 싼다. 재 보니 아홉 꼴 중
+  //   **다섯이 0건**이었다 — `div > 글` · `div > div > 글` · `td > div > 글` ·
+  //   `td > div > span` 이 전부 안 잡혔다. 바깥 `td` 는 `BLOCK` 에 걸려 빠지고 안쪽
+  //   `div` 는 **후보가 아니어서**, 그 사이에 든 글이 아무에게도 안 보였다.
+  // ★ **딸려 오는 것이 없다.** 지메일 껍데기의 `div`(받은편지함 · 답장 …)는 20자 미만이라
+  //   길이 문턱이 거른다 — 실물 꼴로 재서 확인했다.
+  const TAGS = ["p", "li", "td", "dd", "div", "h1", "h2", "h3", "h4", "blockquote"];
   const SEL = TAGS.map((t) => `${t}:not([data-st-done]):not([data-st-fail])`).join(",");
 
   for (const el of root.querySelectorAll(SEL)) {

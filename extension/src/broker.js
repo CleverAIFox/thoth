@@ -124,10 +124,20 @@
   const LETTER = /[\p{L}]/gu;
   const KO_RATIO = 0.3;        // 이 이상이 한글이면 번역하지 않는다
 
+  // ★ **번역 대상이 아닌 토막은 분모에서 뺀다**(DECISIONS §160). URL 은 부르는 쪽이 이미
+  //   떼고 넘기는데 **메일 주소는 안 뗐다.** 그래서 한국어 줄이 임계 아래로 떨어진다 —
+  //   `농업정책보험금융원 noreply@apfs.recruiter.co.kr` 가 **0.273** 이라 번역으로 나갔고,
+  //   지메일 보낸사람 줄 `health@aws.com 나에게` 는 **0.2** 였다. 주소를 빼면 둘 다 1.0 이다.
+  // ★ **밖 — 고유명사 비율은 안 본다.** `AWS Health Event 이벤트`(0.176)는 그대로 나간다.
+  //   그것을 거르려면 「이 영문이 고유명사인가」 를 **판정**해야 하는데, 이 자는 판정을
+  //   하지 않고 **제외만** 한다(§8 · §66). 늘리면 짧은 문장에서 틀린다.
+  const MAIL_RE = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+
   const alreadyKorean = (text) => {
-    const letters = (text.match(LETTER) || []).length;
+    const 셀것 = text.replace(MAIL_RE, " ");
+    const letters = (셀것.match(LETTER) || []).length;
     if (!letters) return true;              // 숫자·기호뿐이면 번역할 것이 없다
-    return (text.match(HANGUL) || []).length / letters >= KO_RATIO;
+    return (셀것.match(HANGUL) || []).length / letters >= KO_RATIO;
   };
 
   // URL 은 번역 대상에서 뺀다. 번역기에 넣으면 경로가 깨지고, 깨진 채로

@@ -230,3 +230,39 @@ def test_통과와_건너뜀을_안_섞는다(tmp_path, monkeypatch):
                         lambda *a, **k: subprocess.CompletedProcess([], 0, "3 passed, 1 skipped", ""))
     물었나, 까닭 = mg.한건(f, "x = 1", "x = 2", ["x"])
     assert not 물었나 and "안 붙들고" in 까닭, "하나라도 돌았으면 건너뜀이 아니다"
+
+
+# ── 러너마다 말이 다르다(DECISIONS §160) ─────────────────────────────────────
+
+def _한건(tmp_path, monkeypatch, 출력: str):
+    import subprocess
+    f = tmp_path / "a.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(mg.subprocess, "run",
+                        lambda *a, **k: subprocess.CompletedProcess([], 0, 출력, ""))
+    return mg.한건(f, "x = 1", "x = 2", ["x"])
+
+
+def test_node_의_멀쩡한_판을_건너뜀으로_안_센다(tmp_path, monkeypatch):
+    """★ **종전 판별은 pytest 의 말투였다**(DECISIONS §160). `node --test` 는 **언제나**
+    `# skipped N` 을 찍고 통과는 `# pass N` 이라 적는다 — 옛 꼴은 「`skipped` 가 있고
+    ` passed` 가 없다」 였으므로 **멀쩡히 통과한 node 판이 「전부 건너뛰어졌다」 로 읽힌다.**
+    살아남은 돌연변이가 **딴 까닭으로 보고되면** 진단이 엉뚱한 데로 간다."""
+    물었나, 까닭 = _한건(tmp_path, monkeypatch, "# tests 124\n# pass 124\n# fail 0\n# skipped 0\n")
+    assert not 물었나 and "안 붙들고" in 까닭, 까닭
+
+
+def test_node_가_전부_건너뛰면_가른다(tmp_path, monkeypatch):
+    물었나, 까닭 = _한건(tmp_path, monkeypatch, "# tests 10\n# pass 0\n# fail 0\n# skipped 10\n")
+    assert not 물었나 and "건너뛰어졌다" in 까닭, 까닭
+
+
+def test_node_에서_통과가_섞이면_건너뜀이_아니다(tmp_path, monkeypatch):
+    물었나, 까닭 = _한건(tmp_path, monkeypatch, "# tests 10\n# pass 7\n# fail 0\n# skipped 3\n")
+    assert not 물었나 and "안 붙들고" in 까닭, "하나라도 돌았으면 건너뜀이 아니다"
+
+
+def test_모르는_러너는_건너뜀으로_안_센다(tmp_path, monkeypatch):
+    # ★ **못 읽는 말투를 「건너뜀」 으로 단정하지 않는다.** 단정하면 멀쩡한 판이 멈춘다.
+    물었나, 까닭 = _한건(tmp_path, monkeypatch, "everything is fine")
+    assert not 물었나 and "안 붙들고" in 까닭, 까닭
