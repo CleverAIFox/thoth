@@ -391,15 +391,23 @@ esac
 # ★ 이 검사는 커밋 전 작업 트리에서만 의미가 있다. CI 에서는 작업 트리가
 #   언제나 HEAD 와 같으므로 항상 통과한다 — 조용히 아무것도 하지 않는
 #   검사다(DECISIONS §21). 훅이 정본이고 CI 는 통과만 한다.
-# DECISIONS 는 추가만 한다. 이미 적힌 절을 고치면 그때 무엇을 몰랐는지가
+# DECISIONS 의 **본문**은 추가만 한다. 이미 적힌 절을 고치면 그때 무엇을 몰랐는지가
 # 사라진다(DECISIONS §3). 기존 절의 수정을 커밋 전에 잡는다.
+#
+# ★ **강제자 줄은 본문이 아니다**(DECISIONS §159). 종전에는 `grep -c "^-[^-]"` 하나였고
+#   그것이 **표기와 본문을 뭉뚱그렸다** — §136 의 썩은 레이블을 고치려면 이 관문을 끄는
+#   수밖에 없었고, 그러면 본문 수정도 같이 열린다. 가름을 `check_docs` 로 옮겼다.
 if git rev-parse --git-dir >/dev/null 2>&1; then
-  CUT="$(git show HEAD:docs/DECISIONS.md 2>/dev/null | wc -l)"
-  if [ -n "$CUT" ] && [ "$CUT" -gt 0 ]; then
-    DIFF="$(git diff HEAD -- docs/DECISIONS.md | grep -c "^-[^-]" || true)"
-    [ "${DIFF:-0}" = "0" ] && ok "DECISIONS 가 추가만 되었다" \
-                           || no "DECISIONS 의 기존 줄 ${DIFF}건이 수정·삭제됐다"
-  fi
+  APPEND_OUT="$(git show HEAD:docs/DECISIONS.md 2>/dev/null \
+                | python3 tools/check_docs.py --추가만 2>&1)"; APPEND_RC=$?
+  case "$APPEND_RC" in
+    0) ok "DECISIONS 의 본문이 추가만 되었다" ;;
+    1) no "DECISIONS 의 본문이 수정·삭제됐다 (강제자 줄은 고쳐도 된다)"
+       printf '%s\n' "$APPEND_OUT" | sed 's/^/    /' ;;
+    3) skip "HEAD 에 DECISIONS 가 없어 본문 추가만을 재지 못했다" ;;
+    *) no "check_docs.py --추가만 이 죽었다 (exit $APPEND_RC)"
+       printf '%s\n' "$APPEND_OUT" | tail -5 | sed 's/^/       /' ;;
+  esac
 fi
 
 echo "== 셸 =="

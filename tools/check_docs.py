@@ -84,13 +84,20 @@ ENFORCER = re.compile(r"^강제자( 없음)? — ", re.M)
 #   따로 있는 것이 그 증거다. 하토르는 실제로 전수로 소급했다 — 360절 중 359, 가장 오래된
 #   `D-0001` 에도 네 줄이 있고 전부 **지금 있는 도구**를 가리킨다.
 #
-# ★ **한 번에 다 하지 않는다.** 107절을 하룻밤에 배정하면 그중 몇은 틀리고, **틀린 강제자는
-#   없는 것보다 나쁘다** — `docseal` 이 그것을 참으로 봉인한다. 한 판에 묶음씩 읽고 바닥을
-#   내린다(seshat PLAN #47 이 같은 일을 같은 방식으로 한다).
+# ★ 종전 주석은 「**한 번에 다 하지 않는다** — 하룻밤에 배정하면 그중 몇은 틀리고, 틀린
+#   강제자는 없는 것보다 나쁘다」 라 적었다. **그 경고가 맞았다.** 2026-10-05 에 §1~§89 를
+#   한 판에 쓰고 **22줄이 틀렸다**(DECISIONS §159). 다만 틀린 꼴이 예상과 달랐다 — 지어낸
+#   강제자가 아니라 **실재하는 시험 이름을 엉뚱한 파일에 붙인 것**이었다.
+#
+# ★ **그래서 막은 방법이 「조금씩」 이 아니라 「틀린 모양이 존재할 수 없다」 였다.**
+#   `doc_fsck.check_enforcer_quotes` 가 인용한 이름이 **그 줄이 적은 파일 안에** 있는지
+#   본다. 22건을 그 자가 전부 잡았고 고친 뒤 바닥이 1 로 내려갔다. **사람의 속도를 늦추는
+#   것보다 기계가 맞대는 것이 싸다.**
 #
 # ★ **이 수는 손으로 못 올린다.** `test_강제자_바닥이_실제와_맞다` 가 **실제로 연속해서
-#   강제자를 든 가장 낮은 번호**와 맞댄다 — 채우면 내려가고, 올리면 운다.
-ENFORCER_FROM = 90
+#   강제자를 든 가장 낮은 번호**와 맞댄다 — 채우면 내려가고, 올리면 운다. 1 이 바닥이므로
+#   이제 **이 수가 움직이는 유일한 길은 강제자 줄을 지우는 것**이고, 그러면 운다.
+ENFORCER_FROM = 1
 
 # ★ **남의 저장소를 가리키는 참조는 저장소 이름을 앞에 적는다.** `파이어레인 DECISIONS §205`
 #   · `하토르 D-0117` · `seshat PLAN #2`. 이름이 붙은 참조는 이 저장소의 절이 아니므로
@@ -379,12 +386,58 @@ def _canary() -> None:
         sys.exit(2)
 
 
+def _본문_줄(글: str) -> list[str]:
+    """강제자 블록을 뺀 줄들. **강제자는 표기이므로 본문이 아니다**(DECISIONS §159).
+
+    ★ 블록은 `강제자 — ` 로 시작해 **빈 줄에서 끊는다** — §158 처럼 세 줄에 걸친 것이 있다.
+    """
+    out: list[str] = []
+    안 = False
+    for line in 글.split("\n"):
+        if ENFORCER.match(line):
+            안 = True
+            continue
+        if 안:
+            if line.strip() == "":
+                안 = False
+            else:
+                continue
+        out.append(line)
+    return out
+
+
+def 본문_수정(옛: str, 새: str) -> list[str]:
+    """DECISIONS 의 **본문**이 고쳐졌는가. 강제자 줄의 변경은 흠이 아니다.
+
+    ★ **종전에는 `git diff | grep -c '^-'` 하나였다**(DECISIONS §159). 그것은 「추가만」 을
+      **줄 단위**로 읽어 **표기와 본문을 뭉뚱그렸다** — 썩은 강제자 인용을 고치려면 관문을
+      끄는 수밖에 없었고, 그러면 본문 수정도 같이 열린다. 하토르 D-0081 의 가름을
+      **코드로** 옮긴다 — 「표기는 전수 강제하고 내용만 신규에 건다」.
+    """
+    import difflib
+    a, b = _본문_줄(옛), _본문_줄(새)
+    흠: list[str] = []
+    for op, i1, i2, _j1, _j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op in ("delete", "replace"):
+            흠 += [f"본문을 지웠다: {s.strip()[:70]}" for s in a[i1:i2] if s.strip()]
+    return 흠
+
+
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv
     _canary()
     if "--list" in args:
         print(__doc__)
         return 0
+    if "--추가만" in args:
+        옛 = sys.stdin.read()
+        if not 옛.strip():
+            print("    HEAD 에 DECISIONS 가 없어 대조하지 않았다")
+            return 3
+        흠 = 본문_수정(옛, (ROOT / "docs/DECISIONS.md").read_text(encoding="utf-8"))
+        for f in 흠:
+            print(f"    {f}")
+        return 1 if 흠 else 0
     fails: list[str] = []
     texts = {}
     for rel in DOCS:

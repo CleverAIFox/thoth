@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 97",
+        "전": "MIN_돌연변이 = 108",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -663,6 +663,83 @@
         "이름": "load_env 뒤에 잰다",
         "전": "THOTH_AMBIENT=\"$(ambient_keys \"$ROOT/.env.example\")\"\nexport THOTH_AMBIENT\nload_env \"$ROOT/.env\"",
         "후": "load_env \"$ROOT/.env\"\nTHOTH_AMBIENT=\"$(ambient_keys \"$ROOT/.env.example\")\"\nexport THOTH_AMBIENT"
+      }
+    ]
+  },
+  "강제자인용": {
+    "_왜": "강제자 줄이 든 이름이 **그 줄이 적은 파일 안에** 있는가. 건초를 넓히면 §159 의 25건이 전부 통과한다.",
+    "파일": "tools/doc_fsck.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_doc_enforcers.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "시험 이름 검사를 끈다",
+        "전": "            for name in 시험:\n                if not any(_has_test(root / f, name) for f in 본문):",
+        "후": "            for name in []:\n                if not any(_has_test(root / f, name) for f in 본문):"
+      },
+      {
+        "이름": "레이블 검사를 끈다",
+        "전": "            for lab in 레이블:\n                if not any(lab in src for src in 본문.values()):",
+        "후": "            for lab in []:\n                if not any(lab in src for src in 본문.values()):"
+      },
+      {
+        "이름": "건초를 그 줄의 파일이 아니라 아무 파일로 넓힌다",
+        "전": "                if not any(_has_test(root / f, name) for f in 본문):",
+        "후": "                if not any(_has_test(q, name) for q in root.rglob('*.py')):"
+      },
+      {
+        "이름": "이어진 줄을 안 읽는다",
+        "전": "ENFORCER_LINE = re.compile(r\"^강제자(?: 없음)? — .*(?:\\n(?!\\s*$).*)*\", re.M)",
+        "후": "ENFORCER_LINE = re.compile(r\"^강제자(?: 없음)? — .*$\", re.M)"
+      },
+      {
+        "이름": "`강제자 없음` 줄을 뺀다",
+        "전": "ENFORCER_LINE = re.compile(r\"^강제자(?: 없음)? — .*(?:\\n(?!\\s*$).*)*\", re.M)",
+        "후": "ENFORCER_LINE = re.compile(r\"^강제자 — .*(?:\\n(?!\\s*$).*)*\", re.M)"
+      },
+      {
+        "이름": "파일처럼 생긴 토막을 레이블로 센다",
+        "전": "        if FILEISH.match(t):\n            파일.append(t.rstrip(\".,)\"))",
+        "후": "        if False:\n            파일.append(t.rstrip(\".,)\"))"
+      }
+    ]
+  },
+  "표기본문": {
+    "_왜": "「표기는 전수 · 본문은 추가만」 의 가름. 뭉뚱그리면 썩은 강제자를 고치려고 관문을 끄게 된다(§159).",
+    "파일": "tools/check_docs.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_doc_enforcers.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "강제자 블록을 본문으로 센다",
+        "전": "        if ENFORCER.match(line):\n            안 = True\n            continue",
+        "후": "        if False:\n            안 = True\n            continue"
+      },
+      {
+        "이름": "이어진 줄을 본문으로 센다",
+        "전": "        if 안:\n            if line.strip() == \"\":\n                안 = False\n            else:\n                continue",
+        "후": "        if 안:\n            안 = False"
+      },
+      {
+        "이름": "지운 줄을 안 센다",
+        "전": "        if op in (\"delete\", \"replace\"):",
+        "후": "        if op in (\"delete\",) and False:"
+      },
+      {
+        "이름": "replace 를 흠으로 안 센다",
+        "전": "        if op in (\"delete\", \"replace\"):",
+        "후": "        if op in (\"delete\",):"
+      },
+      {
+        "이름": "빈 입력을 통과로 센다",
+        "전": "        if not 옛.strip():\n            print(\"    HEAD 에 DECISIONS 가 없어 대조하지 않았다\")\n            return 3",
+        "후": "        if not 옛.strip():\n            return 0"
       }
     ]
   }

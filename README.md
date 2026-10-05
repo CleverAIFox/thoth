@@ -179,7 +179,7 @@ python3 tools/check_docs.py   # 문서 ↔ 문서 — 문체 · 절 · PLAN 표 
 python3 tools/check_infra.py  # 인프라 ↔ 인프라 — 한 부모에 같은 설정이 둘인가
 uv run --with playwright python tools/cascade_check.py   # 박스가 사이트 CSS 에 어디서부터 지는가
 python3 tools/check_skips.py  # 검사의 검사 — 건너뛰는 자리가 전부 선언됐는가
-python3 tools/doc_fsck.py     # 문서 ↔ 실물 — 경로 · 테스트 · 죽은 도구
+python3 tools/doc_fsck.py     # 문서 ↔ 실물 — 경로 · 테스트 · 인용 · 죽은 도구
 python3 tools/docx_check.py   # 기획서 ↔ 정본 — 숫자 · 폐기된 값 · 생성기 지문
 bash tools/build_proposal.sh  # 기획서를 다시 만든다 — 그림 셋 · docx · 자물쇠 · 대조
 bash tools/ship.sh "메시지"   # doctor → 문서 대조 → 커밋 → 푸시 안내
@@ -265,7 +265,7 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->109건 · 워커 <!--count:worker_tests-->720건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->109건 · 워커 <!--count:worker_tests-->733건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |

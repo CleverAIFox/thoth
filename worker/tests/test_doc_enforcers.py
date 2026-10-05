@@ -230,8 +230,9 @@ def test_강제자_바닥이_실제와_맞다():
       지금의 사실이므로 **표기**이고 소급해야 한다(하토르 D-0081 — 「표기는 전수 강제하고
       내용만 신규에 건다」). `강제자 없음 — 까닭` 이라는 꼴이 따로 있는 것이 그 증거다.
 
-    ★ **한 번에 다 하지 않는다.** 107절을 하룻밤에 배정하면 그중 몇은 틀리고, **틀린
-      강제자는 없는 것보다 나쁘다.** 한 판에 묶음씩 읽고 바닥을 내린다.
+    ★ **바닥이 1 이다**(2026-10-05 · DECISIONS §159). 한 판에 §1~§89 를 쓰고 22줄이 틀렸고
+      `doc_fsck.check_enforcer_quotes` 가 전부 잡았다. 이제 이 수가 움직이는 유일한 길은
+      **강제자 줄을 지우는 것**이고, 그러면 이 시험이 운다.
     """
     import importlib.util
     import re
@@ -254,3 +255,121 @@ def test_강제자_바닥이_실제와_맞다():
     assert CD2.ENFORCER_FROM == 바닥, (
         f"`ENFORCER_FROM` 이 {CD2.ENFORCER_FROM} 인데 실제로 연속해서 든 가장 낮은 번호는 "
         f"{바닥} 이다 — 채웠으면 내리고, 올렸으면 되돌린다")
+
+
+# ── 강제자 줄의 인용(DECISIONS §159) ──────────────────────────────────────────
+#
+# ★ **건초가 「그 줄이 적은 파일」 이라는 것이 이 검사의 전부다.** 저장소 전체를 보면
+#   §159 의 25건 중 **한 건도 안 잡힌다** — 전부 저장소 안에는 있었다.
+
+def _절(강제자: str, n: int | None = None) -> str:
+    n = fsck.ENFORCER_FROM if n is None else n
+    return (f"## §{n}. 제목\n\n**2026-10-05**\n\n본문\n\n### 배운 것\n\n무엇.\n\n"
+            f"---\n\n{강제자}\n")
+
+
+def _심는다(tmp_path, 강제자: str, n: int | None = None):
+    (tmp_path / "docs").mkdir(exist_ok=True)
+    (tmp_path / "tools").mkdir(exist_ok=True)
+    (tmp_path / "docs/DECISIONS.md").write_text(_절(강제자, n), encoding="utf-8")
+    f: list = []
+    fsck.check_enforcer_quotes(tmp_path, f)
+    return f
+
+
+def test_인용이_그_파일_안을_본다(tmp_path):
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools/a.py").write_text(
+        "def test_있다():\n    pass\n# 레이블 가\n", encoding="utf-8")
+    assert _심는다(tmp_path, "강제자 — `tools/a.py` 의 `test_있다` · `레이블 가`") == []
+    f = _심는다(tmp_path, "강제자 — `tools/a.py` 의 `test_없다` · `레이블 나`")
+    assert any("test_없다" in x for x in f), f
+    assert any("레이블 나" in x for x in f), f
+
+
+def test_저장소_어딘가에_있는_것으로는_안_통한다(tmp_path):
+    # ★ §159 의 실제 꼴이다 — 이름은 실재하고 **다른 파일**에 있었다.
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools/a.py").write_text("# 비었다\n", encoding="utf-8")
+    (tmp_path / "tools/b.py").write_text("def test_있다():\n    pass\n", encoding="utf-8")
+    f = _심는다(tmp_path, "강제자 — `tools/a.py` 의 `test_있다`")
+    assert any("test_있다" in x for x in f), "저장소 안에 있다고 통과시키면 §159 가 재발한다"
+
+
+def test_이어진_강제자_줄도_본다(tmp_path):
+    # ★ §158 의 강제자는 세 줄이고 **시험 이름이 둘째 줄에 있다.**
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools/a.py").write_text("def test_있다():\n    pass\n", encoding="utf-8")
+    f = _심는다(tmp_path, "강제자 — `tools/a.py` 의\n`test_없다`")
+    assert any("test_없다" in x for x in f), "둘째 줄의 인용이 검사 밖이면 안 된다"
+
+
+def test_강제자_없음_줄도_인용을_본다(tmp_path):
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools/a.py").write_text("# 비었다\n", encoding="utf-8")
+    f = _심는다(tmp_path, "강제자 없음 — `tools/a.py` 의 `test_없다` 가 그 일을 한다")
+    assert any("test_없다" in x for x in f)
+
+
+def test_파일을_안_적은_줄은_안_본다(tmp_path):
+    # ★ 맞댈 자리가 없다. 저장소 전체로 넓히면 그것이 §159 의 거짓 초록이다.
+    assert _심는다(tmp_path, "강제자 없음 — `pgrep` 이 무엇을 찾는지는 그 기계가 정한다") == []
+
+
+def test_파일처럼_안_생긴_토막은_파일로_안_센다(tmp_path):
+    # ★ `.env.example` 은 `TOP/` 밖이지만 파일이다. 못 보면 레이블이 **엉뚱한 파일**과
+    #   맞대져 거짓 빨강이 난다(§124).
+    파일, 시험, 레이블 = fsck.인용("강제자 — `.env.example` 의 `KEY_A` · `output -raw`")
+    assert 파일 == [".env.example"]
+    assert 시험 == []
+    assert 레이블 == ["KEY_A"], 레이블
+
+
+def test_실제_저장소의_강제자_인용이_전부_참말이다():
+    f: list = []
+    fsck.check_enforcer_quotes(ROOT, f)
+    assert f == [], "\n".join(f)
+
+
+# ── 표기는 전수 · 본문은 추가만(DECISIONS §159) ────────────────────────────────
+
+def test_강제자_줄은_고쳐도_본문_수정이_아니다():
+    옛 = _dec(1, "본문") + "\n---\n\n강제자 — `tools/a.py` 의 `옛 레이블`\n"
+    새 = _dec(1, "본문") + "\n---\n\n강제자 — `tools/a.py` 의 `새 레이블`\n"
+    assert cd.본문_수정(옛, 새) == []
+
+
+def test_본문을_고치면_걸린다():
+    옛 = _dec(1, "본문 가") + "\n---\n\n강제자 — `tools/a.py`\n"
+    새 = _dec(1, "본문 나") + "\n---\n\n강제자 — `tools/a.py`\n"
+    f = cd.본문_수정(옛, 새)
+    assert any("본문 가" in x for x in f), f
+
+
+def test_이어진_강제자_줄도_표기로_센다():
+    # ★ §158 의 강제자는 세 줄이다. 둘째 줄을 본문으로 세면 그것만 고쳐도 운다.
+    옛 = _dec(1, "본문") + "\n---\n\n강제자 — `tools/a.py` 의\n`옛것` · `또`\n"
+    새 = _dec(1, "본문") + "\n---\n\n강제자 — `tools/a.py` 의\n`새것`\n"
+    assert cd.본문_수정(옛, 새) == []
+
+
+def test_절을_더하는_것은_수정이_아니다():
+    옛 = _dec(1, "본문")
+    assert cd.본문_수정(옛, 옛 + _dec(2, "본문")) == []
+
+
+def test_실제_저장소의_본문이_추가만_되었다():
+    r = subprocess.run(["git", "show", "HEAD:docs/DECISIONS.md"],
+                       cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0 or not r.stdout.strip():
+        pytest.skip("조건 — HEAD 에 DECISIONS 가 없다 (얕은 사본 · 첫 커밋)")
+    f = cd.본문_수정(r.stdout, (ROOT / "docs/DECISIONS.md").read_text(encoding="utf-8"))
+    assert f == [], "\n".join(f)
+
+
+def test_대조할_옛것이_없으면_3_이다():
+    # ★ **못 잼을 통과로 세지 않는다**(DECISIONS §47 · §59). 0 으로 끝내면 얕은 사본에서
+    #   영영 통과하고, 그 초록은 「본문이 안 고쳐졌다」 를 뜻하지 않는다.
+    r = subprocess.run(["python3", str(ROOT / "tools/check_docs.py"), "--추가만"],
+                       input="", capture_output=True, text=True)
+    assert r.returncode == 3, (r.returncode, r.stdout, r.stderr)
