@@ -872,6 +872,42 @@ case "$CNT_RC" in
      printf '%s\n' "$CNT_OUT" | tail -5 | sed 's/^/       /' ;;
 esac
 
+echo "== 도장 =="
+# ★ **문서가 가리킨 것이 실재하는가**(`doc_fsck`)와 **그 뜻이 아직 참인가**는 다른 물음이다
+#   (DECISIONS §163). 앞의 둘은 한 방향만 본다 — **뜻이 낡은 것은 아무도 안 봤다.**
+#   세샤트가 그 자를 세워 뒀고(세샤트 §211 · §298 · §299) **정본은 거기**다.
+#
+# ★ **무효는 「틀렸다」 가 아니라 「다시 봐야 한다」 다.** 사람이 읽고 `stamp` 로 다시 찍는다.
+# ★ **CI 에서도 돈다.** 기계 설정에 안 기대고 `git` 이 아는 파일만 본다
+SEAL_OUT="$(python3 tools/docseal.py 2>&1)"; SEAL_RC=$?
+case "$SEAL_RC" in
+  0) ok "$(python3 tools/docseal.py status 2>&1 | sed 's/^ *//' | head -1)" ;;
+  1) no "도장이 무효가 된 절이 있다 — 읽고 다시 찍는다"
+     printf '%s\n' "$SEAL_OUT" | sed 's/^/    /' ;;
+  *) no "docseal.py 가 죽었다 (exit $SEAL_RC)"
+     printf '%s\n' "$SEAL_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
+
+echo "== CI =="
+# ★ **이 기계가 초록인 것과 CI 가 초록인 것은 다른 말이다**(DECISIONS §162). 2026-10-05 에
+#   이쪽 CI 가 빨간 채였고 `doctor` 는 끝까지 초록이었다 — **doctor 는 GitHub 을 안 봤다.**
+#   세샤트가 같은 병을 2026-09-28 에 겪고 `tools/ci_status.py` 를 세웠다(세샤트 §170 ·
+#   §172 · §292 · §293 · §295). **정본은 거기이고 여기는 사본**이다.
+#
+# ★ **맨 끝에서 본다.** 앞의 전부가 초록인데 CI 가 빨가면 그것이 읽어야 할 한 줄이다.
+if [ "$SCOPE" = "--repo" ]; then
+  skip "CI 판정 (CI 안 — 이 판이 그 판이다. 제 판정을 제가 묻지 않는다)"
+else
+  CI_OUT="$(python3 tools/ci_status.py 2>&1)"; CI_RC=$?
+  case "$CI_RC" in
+    0) ok "$(printf '%s' "$CI_OUT" | sed 's/^ *//' | head -1)" ;;
+    1) no "CI 가 지금 커밋을 초록으로 안 봤다"
+       printf '%s\n' "$CI_OUT" | sed 's/^/    /' ;;
+    *) no "ci_status.py 가 죽었다 (exit $CI_RC)"
+       printf '%s\n' "$CI_OUT" | tail -5 | sed 's/^/       /' ;;
+  esac
+fi
+
 echo
 # ★ **「이상 없음」 과 「다 봤다」 는 다른 말이다.** 건너뛴 수를 함께 적어야 초록이
 #   무엇을 뜻하는지가 한 줄에서 읽힌다 — 2026-10-03 에 69건이 건너뛰어진 초록을

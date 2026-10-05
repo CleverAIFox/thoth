@@ -1,0 +1,1511 @@
+{
+ "10": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "f405494fe7d005db",
+  "파일": [
+   "worker/tests/test_contract.py"
+  ]
+ },
+ "100": {
+  "날짜": "2026-09-16",
+  "읽음": true,
+  "지문": "8855c0a126073324",
+  "파일": [
+   "tools/check_static.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "101": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "2fee23f5ea5f97cb",
+  "파일": [
+   "tools/check_static.py"
+  ]
+ },
+ "102": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "0e060809c9c7a86b",
+  "파일": [
+   "extension/tests/adapters.test.js",
+   "extension/tests/observe.test.js"
+  ]
+ },
+ "103": {
+  "날짜": "2026-09-16",
+  "읽음": true,
+  "지문": "3c2e9fe0a2cd36d6",
+  "파일": [
+   "extension/tests/styles.test.js",
+   "tools/doctor.sh"
+  ]
+ },
+ "104": {
+  "날짜": "2026-09-19",
+  "읽음": false,
+  "지문": "8227fe57f4e4040e",
+  "파일": [
+   "extension/tests/observe.test.js"
+  ]
+ },
+ "105": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "979b4c6dae9a2562",
+  "파일": [
+   "extension/tests/fixture-page.test.js",
+   "infra/compute.tf"
+  ]
+ },
+ "106": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "c84d735d3c167c63",
+  "파일": [
+   "worker/tests/test_fix_endings.py",
+   "worker/tests/test_endings_corpus.py"
+  ]
+ },
+ "107": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "1fd034cac92888b8",
+  "파일": [
+   "tools/bench_endings.py",
+   "tools/gen_endings.py",
+   "worker/tests/test_endings_corpus.py"
+  ]
+ },
+ "108": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "fd981ded32d52aa4",
+  "파일": [
+   "worker/tests/test_endings_corpus.py::test_후처리의_틀림이_상한과_같다"
+  ]
+ },
+ "109": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "bca2f850bc2b122b",
+  "파일": [
+   "worker/tests/test_engine_http.py",
+   "tools/engine_conformance.py",
+   "worker/tests/test_preflight.py::test_registry_covers_every_engine"
+  ]
+ },
+ "11": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "a26d0d3e5e56b34b",
+  "파일": [
+   "extension/tests/adapters.test.js"
+  ]
+ },
+ "110": {
+  "날짜": "2026-09-22",
+  "읽음": true,
+  "지문": "26088d2111eee57c",
+  "파일": [
+   "worker/tests/test_env_protection.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "111": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "1fdf846c8160bc71",
+  "파일": [
+   "worker/tests/test_doc_enforcers.py",
+   "tools/check_docs.py",
+   "tools/doc_fsck.py"
+  ]
+ },
+ "112": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "36b63ccc835a1c8a",
+  "파일": [
+   "tools/docx_check.py",
+   "worker/tests/test_docx_check.py",
+   ".github/workflows/proposal.yml"
+  ]
+ },
+ "113": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "20347aac1ff3d1b5",
+  "파일": [
+   "tools/check_docs.py::check_plan"
+  ]
+ },
+ "114": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "4ce3898f898ab27c",
+  "파일": [
+   "tools/check_static.py::check_python",
+   "worker/tests/test_check_static.py::test_저장소에_컴파일_경고가_없다"
+  ]
+ },
+ "115": {
+  "날짜": "2026-09-22",
+  "읽음": true,
+  "지문": "cf19b5b51bdc02f3",
+  "파일": [
+   "tools/doctor.sh",
+   "tools/ship.sh"
+  ]
+ },
+ "116": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "6441069f395f76b4",
+  "파일": [
+   "tools/docx_check.py::check",
+   "tools/docx_check.py::check_figures",
+   "worker/tests/test_docx_check.py::test_그림_사실이_늙으면_걸린다",
+   "worker/tests/test_docx_check.py::test_요약판으로_돌아가면_걸린다"
+  ]
+ },
+ "117": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "09d20b8ba9dc703e",
+  "파일": [
+   "tools/docx_check.py::check_figures"
+  ]
+ },
+ "118": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "d4abe4b77355893a",
+  "파일": [
+   "tools/check_docs.py::check_eof",
+   "worker/tests/test_doc_enforcers.py::test_파일_끝은_줄바꿈_하나다",
+   "worker/tests/test_sweep_cache.py::test_캐시에_있는_것만_센다"
+  ]
+ },
+ "119": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "70cc9e1b5dc644a2",
+  "파일": [
+   "tools/docx_check.py::check_figures",
+   "tools/check_docs.py::check_plan"
+  ]
+ },
+ "12": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "18ba554a4e339037",
+  "파일": [
+   "extension/tests/broker.test.js"
+  ]
+ },
+ "120": {
+  "날짜": "2026-09-22",
+  "읽음": false,
+  "지문": "410c787de74d8880",
+  "파일": [
+   "tools/check_static.py::check_node20",
+   ".github/dependabot.yml"
+  ]
+ },
+ "121": {
+  "날짜": "2026-09-22",
+  "읽음": true,
+  "지문": "c69efd0d6f5b3125",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "122": {
+  "날짜": "2026-09-22",
+  "읽음": true,
+  "지문": "28d5ea3dd4e884e9",
+  "파일": [
+   "tools/doctor.sh",
+   "tools/deps.sh"
+  ]
+ },
+ "123": {
+  "날짜": "2026-09-28",
+  "읽음": true,
+  "지문": "c188f9137259cd45",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "124": {
+  "날짜": "2026-10-01",
+  "읽음": false,
+  "지문": "bf5f02ccf24b342e",
+  "파일": [
+   "docs/PLAN.md",
+   "docs/proposal/part3.js"
+  ]
+ },
+ "125": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "34f80df05970166b",
+  "파일": [
+   "tools/check_static.py::check_pinned",
+   "worker/tests/test_check_static.py",
+   "tools/doctor.sh",
+   "infra/oidc.tf",
+   ".github/workflows/ci.yml",
+   "docs/MASTER.md",
+   "docs/PLAN.md"
+  ]
+ },
+ "126": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "d30287058f5aec97",
+  "파일": [
+   "tools/docx_check.py::check_build_lock",
+   "tools/docx_check.py::생성기지문",
+   "docs/proposal/build.js",
+   ".github/workflows/proposal.yml",
+   "worker/tests/test_docx_check.py",
+   "tools/build_proposal.sh",
+   "docs/proposal/figures/charts.py"
+  ]
+ },
+ "127": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "d926b9a097e6da04",
+  "파일": [
+   "tools/docx_check.py::main",
+   "tools/doctor.sh",
+   "worker/tests/test_docx_check.py::test_낡으면_3_이고_배포에서는_1_이다",
+   "worker/tests/test_docx_check.py::test_doctor_가_3_을_받는다",
+   "tools/check_static.py::check_scope_declared",
+   "worker/tests/test_check_static.py",
+   "infra/analytics.tf",
+   "docs/MASTER.md"
+  ]
+ },
+ "128": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "d15ba358683bec21",
+  "파일": [
+   "tools/doctor.sh",
+   "tools/build_proposal.sh"
+  ]
+ },
+ "129": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "9b6c31a2ce726de1",
+  "파일": [
+   "docs/proposal/part1.js",
+   "docs/proposal/build.js",
+   "docs/proposal/figures/charts.py",
+   "tools/docx_check.py",
+   "tools/apply_patch.sh",
+   "worker/tests/test_docx_check.py",
+   "docs/MASTER.md"
+  ]
+ },
+ "13": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "e5cbb0877060e8cc",
+  "파일": [
+   "extension/tests/state.test.js"
+  ]
+ },
+ "130": {
+  "날짜": "2026-10-03",
+  "읽음": false,
+  "지문": "a1304f2c06f61ffb",
+  "파일": [
+   "tools/apply_patch.sh"
+  ]
+ },
+ "131": {
+  "날짜": "2026-10-03",
+  "읽음": false,
+  "지문": "1fe875f6a90ef690",
+  "파일": [
+   "infra/compute.tf",
+   "infra/oidc.tf",
+   "tools/deploy_drift.py",
+   "worker/tests/test_deploy_drift.py"
+  ]
+ },
+ "132": {
+  "날짜": "2026-10-03",
+  "읽음": false,
+  "지문": "abc2e6fa320204fa",
+  "파일": [
+   "extension/tests/styles.test.js",
+   "extension/content.css",
+   "tools/apply_patch.sh"
+  ]
+ },
+ "133": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "e0fbf24ade382f96",
+  "파일": [
+   "tools/lib/infra.sh",
+   "tools/doctor.sh",
+   "tools/ship.sh",
+   "worker/tests/test_infra_stamp.py"
+  ]
+ },
+ "134": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "84e37f1f92c4ef60",
+  "파일": [
+   "tools/check_infra.py",
+   "worker/tests/test_check_infra.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "135": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "9614ee8651ab67d7",
+  "파일": [
+   "tools/cascade_check.py",
+   "extension/src/cssaudit.js",
+   "extension/tests/styles.test.js",
+   "tools/doctor.sh"
+  ]
+ },
+ "136": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "c79f8635674f630a",
+  "파일": [
+   "tools/check_skips.py",
+   "worker/tests/test_check_skips.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "137": {
+  "날짜": "2026-10-03",
+  "읽음": false,
+  "지문": "247da95a2d3b8c0d",
+  "파일": [
+   "extension/tests/node.test.js",
+   "extension/tests/harness.js"
+  ]
+ },
+ "138": {
+  "날짜": "2026-10-03",
+  "읽음": false,
+  "지문": "e3190e0d6863fa47",
+  "파일": [
+   "worker/tests/golden/terms.json",
+   "tools/bench_golden.py",
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "139": {
+  "날짜": "2026-10-03",
+  "읽음": true,
+  "지문": "1eca37aad022f2c1",
+  "파일": [
+   "worker/app/glossary.py",
+   "worker/app/restore.json",
+   "worker/tests/test_restore.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "141": {
+  "날짜": "2026-10-03",
+  "읽음": false,
+  "지문": "7e3835a7c0054e84",
+  "파일": [
+   "tools/bench_golden.py",
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "142": {
+  "날짜": "2026-10-04",
+  "읽음": true,
+  "지문": "93fce80aff640193",
+  "파일": [
+   "tools/bench_golden.py",
+   "worker/tests/test_bench_checks.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "143": {
+  "날짜": "2026-10-04",
+  "읽음": true,
+  "지문": "2457e0b2990ec6df",
+  "파일": [
+   "worker/app/particle.py",
+   "tools/bench_golden.py",
+   "worker/tests/test_particle.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "144": {
+  "날짜": "2026-10-04",
+  "읽음": true,
+  "지문": "f01c87359ef1a505",
+  "파일": [
+   "docs/MASTER.md",
+   "docs/PLAN.md"
+  ]
+ },
+ "145": {
+  "날짜": "2026-10-04",
+  "읽음": true,
+  "지문": "35d0fae710febf6a",
+  "파일": [
+   "tools/lib/pkg.py",
+   "tools/package_lambda.sh",
+   "worker/tests/test_package.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "146": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "66a78d5c07ec21d7",
+  "파일": [
+   "worker/tests/test_mask_probe.py",
+   "tools/mask_probe.py"
+  ]
+ },
+ "147": {
+  "날짜": "2026-10-04",
+  "읽음": true,
+  "지문": "883dd79c961211b4",
+  "파일": [
+   "worker/tests/conftest.py",
+   "worker/tests/test_hermetic.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "148": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "0445aaf76fd0866a",
+  "파일": [
+   "tools/mask_probe.py",
+   "worker/tests/test_mask_probe.py"
+  ]
+ },
+ "15": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "7cf82fbca39dda1c",
+  "파일": [
+   "extension/tests/broker.test.js"
+  ]
+ },
+ "150": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "79787f2d4c117449",
+  "파일": [
+   "tools/check_skips.py",
+   "worker/tests/test_check_skips.py"
+  ]
+ },
+ "151": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "eaf6b974663a6e29",
+  "파일": [
+   "worker/tests/test_fix_endings.py",
+   "worker/tests/test_endings_corpus.py"
+  ]
+ },
+ "152": {
+  "날짜": "2026-10-04",
+  "읽음": true,
+  "지문": "c89a0ef61ebeee36",
+  "파일": [
+   "tools/doctor.sh",
+   "worker/tests/test_mutate_gate.py"
+  ]
+ },
+ "153": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "e75c24230d223db5",
+  "파일": [
+   "tools/mutate_gate.py::한건",
+   "tools/mutate_gate.py::_되돌리고_죽는다",
+   "tools/mutate_gate.py::_이름",
+   "worker/tests/test_mutate_gate.py",
+   "tools/mutations.json"
+  ]
+ },
+ "154": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "3fcbf91e665b0ca5",
+  "파일": [
+   "tools/lib/env.sh",
+   "worker/tests/test_ambient.py",
+   "tools/mutations.json"
+  ]
+ },
+ "155": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "4b7b1606dd80f443",
+  "파일": [
+   "tools/check_proposal.py",
+   "docs/proposal/extract.js",
+   "docs/proposal/numbers.json",
+   "worker/tests/test_proposal_shape.py"
+  ]
+ },
+ "156": {
+  "날짜": "2026-10-04",
+  "읽음": false,
+  "지문": "fa43ad6665225f84",
+  "파일": [
+   "tools/patch_state.py",
+   "tools/ship.sh",
+   "worker/tests/test_patch_state.py"
+  ]
+ },
+ "157": {
+  "날짜": "2026-10-05",
+  "읽음": true,
+  "지문": "ecf447ab1ea203a5",
+  "파일": [
+   "tools/check_scope.py",
+   "tools/doctor.sh",
+   "worker/tests/test_check_scope.py",
+   "tools/mutate_gate.py",
+   "worker/tests/test_mutate_gate.py"
+  ]
+ },
+ "158": {
+  "날짜": "2026-10-05",
+  "읽음": false,
+  "지문": "66095a7e459c765b",
+  "파일": [
+   "tools/check_docs.py",
+   "worker/tests/test_doc_enforcers.py::test_강제자_바닥이_실제와_맞다",
+   "tools/check_proposal.py",
+   "worker/tests/test_proposal_shape.py"
+  ]
+ },
+ "159": {
+  "날짜": "2026-10-05",
+  "읽음": true,
+  "지문": "d2e4341e7d06d95d",
+  "파일": [
+   "tools/doc_fsck.py",
+   "tools/check_docs.py",
+   "tools/doctor.sh",
+   "worker/tests/test_doc_enforcers.py",
+   "tools/mutations.json"
+  ]
+ },
+ "16": {
+  "날짜": "2026-09-12",
+  "읽음": true,
+  "지문": "bcb0a024287c90e0",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "160": {
+  "날짜": "2026-10-05",
+  "읽음": false,
+  "지문": "d9f698e588ed2765",
+  "파일": [
+   "extension/src/adapters/generic.js",
+   "extension/src/broker.js",
+   "extension/tests/adapters.test.js",
+   "extension/tests/node.test.js",
+   "tools/mutate_gate.py",
+   "worker/tests/test_mutate_gate.py"
+  ]
+ },
+ "161": {
+  "날짜": "2026-10-05",
+  "읽음": false,
+  "지문": "627593dd8a6cef4c",
+  "파일": [
+   "tools/doc_fsck.py",
+   "tools/check_docs.py",
+   "worker/tests/test_doc_enforcers.py",
+   "tools/mutations.json"
+  ]
+ },
+ "162": {
+  "날짜": "2026-10-05",
+  "읽음": true,
+  "지문": "9b2c33859c8c3104",
+  "파일": [
+   "tools/ci_status.py",
+   "tools/doctor.sh",
+   "tools/check_skips.py",
+   "tools/check_static.py",
+   "worker/tests/test_ci_status.py"
+  ]
+ },
+ "163": {
+  "날짜": "2026-10-05",
+  "읽음": true,
+  "지문": "43871a40dc9868f6",
+  "파일": [
+   "tools/docseal.py",
+   "tools/doctor.sh",
+   "docs/MASTER.md",
+   "worker/tests/test_docseal.py"
+  ]
+ },
+ "17": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "5e7c8dc5a87cb1a7",
+  "파일": [
+   "extension/tests/fixture-page.test.js"
+  ]
+ },
+ "18": {
+  "날짜": "2026-09-12",
+  "읽음": true,
+  "지문": "cbe37649d3237b72",
+  "파일": [
+   "tools/check_docs.py",
+   "tools/doctor.sh",
+   "docs/PLAN.md"
+  ]
+ },
+ "19": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "fa483108e350a917",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "2": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "2995cec73ee60bae",
+  "파일": [
+   "worker/tests/test_contract.py"
+  ]
+ },
+ "20": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "b4e2a1857a7d4210",
+  "파일": [
+   "worker/tests/test_contract.py",
+   "worker/tests/test_engine_http.py"
+  ]
+ },
+ "21": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "1f8f4c1cfa035b36",
+  "파일": [
+   "tools/mutate_gate.py",
+   "worker/tests/test_check_static.py"
+  ]
+ },
+ "22": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "7aa70f484522cbde",
+  "파일": [
+   "extension/tests/node.test.js"
+  ]
+ },
+ "24": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "ddfc9fef935a9ad7",
+  "파일": [
+   "worker/tests/test_contract.py"
+  ]
+ },
+ "25": {
+  "날짜": "2026-09-13",
+  "읽음": true,
+  "지문": "a9773cead7bc097d",
+  "파일": [
+   "worker/tests/test_contract.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "26": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "9c4dc09e19448f49",
+  "파일": [
+   "tools/apply_patch.sh",
+   "worker/tests/test_patch_state.py"
+  ]
+ },
+ "27": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "861d9c21486ff28c",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "28": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "5daf0ec3b4013519",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "29": {
+  "날짜": "2026-09-13",
+  "읽음": true,
+  "지문": "d1343632a87676cd",
+  "파일": [
+   "tools/check_docs.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "3": {
+  "날짜": "2026-09-12",
+  "읽음": true,
+  "지문": "0d1dbe3683b12bfc",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "30": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "45d6f35196281363",
+  "파일": [
+   "worker/tests/test_contract.py",
+   "worker/tests/test_restore.py"
+  ]
+ },
+ "31": {
+  "날짜": "2026-09-13",
+  "읽음": true,
+  "지문": "492d7dd7adaffb66",
+  "파일": [
+   "worker/tests/test_bench_checks.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "32": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "b5c019e07a9077de",
+  "파일": [
+   "worker/tests/test_bench_checks.py",
+   "worker/tests/test_contract.py"
+  ]
+ },
+ "33": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "aae95d4b6f991748",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "34": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "ce7115cbbad06f97",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "35": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "c70dbee38c6a7645",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "37": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "e2e2eedcb0f89c14",
+  "파일": [
+   "worker/tests/test_bench_checks.py",
+   "worker/tests/test_contract.py"
+  ]
+ },
+ "38": {
+  "날짜": "2026-09-13",
+  "읽음": true,
+  "지문": "d80a6e5325e0a384",
+  "파일": [
+   "extension/tests/state.test.js",
+   "tools/doctor.sh"
+  ]
+ },
+ "39": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "fcb034ee70e7deea",
+  "파일": [
+   "extension/tests/adapters.test.js"
+  ]
+ },
+ "4": {
+  "날짜": "2026-09-12",
+  "읽음": true,
+  "지문": "95d182ecd1130708",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "40": {
+  "날짜": "2026-09-13",
+  "읽음": true,
+  "지문": "c98bda1b835617b7",
+  "파일": [
+   "tools/doctor.sh",
+   "worker/tests/test_ambient.py"
+  ]
+ },
+ "41": {
+  "날짜": "2026-09-13",
+  "읽음": true,
+  "지문": "9d2413a971bae94b",
+  "파일": [
+   "tools/sweep.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "42": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "3416c3c67be66a1e",
+  "파일": [
+   "worker/tests/test_sweep_cache.py"
+  ]
+ },
+ "43": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "0fdacf3b56d08adf",
+  "파일": [
+   "tools/ship.sh",
+   "worker/tests/test_patch_state.py"
+  ]
+ },
+ "44": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "158f389183c94a00",
+  "파일": [
+   "worker/tests/test_sweep_cache.py"
+  ]
+ },
+ "45": {
+  "날짜": "2026-09-13",
+  "읽음": false,
+  "지문": "5ab3609c0fff2cd4",
+  "파일": [
+   "tools/check_docs.py"
+  ]
+ },
+ "46": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "65d2e673e9847c53",
+  "파일": [
+   "tools/check_skips.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "47": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "00cbf667425c0a48",
+  "파일": [
+   "tools/check_skips.py",
+   "worker/tests/test_check_skips.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "48": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "430eae30f14332cb",
+  "파일": [
+   "extension/tests/harness.js",
+   "extension/tests/broker.test.js"
+  ]
+ },
+ "49": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "25611c2eab2adb63",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "5": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "6c577d45f777b1fc",
+  "파일": [
+   "worker/tests/test_contract.py"
+  ]
+ },
+ "50": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "63c9c773199196f1",
+  "파일": [
+   "tools/bench_batch.sh"
+  ]
+ },
+ "51": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "024dee307567bf37",
+  "파일": [
+   "extension/tests/broker.test.js"
+  ]
+ },
+ "52": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "eef0286159e43f0a",
+  "파일": [
+   "tools/ship.sh",
+   "worker/tests/test_patch_state.py"
+  ]
+ },
+ "54": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "a5fcdd764c446764",
+  "파일": [
+   "tools/check_scope.py"
+  ]
+ },
+ "55": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "8ec4379e9c722ee2",
+  "파일": [
+   ".github/workflows/ci.yml",
+   "tools/check_static.py"
+  ]
+ },
+ "56": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "0961da11b341f0d5",
+  "파일": [
+   "extension/tests/fixture-page.test.js",
+   "extension/tests/observe.test.js"
+  ]
+ },
+ "57": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "c523a12bf5bcaa7e",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "58": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "4ea8055c1f744359",
+  "파일": [
+   "worker/tests/test_engine_http.py",
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "59": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "23768bb6d52fa176",
+  "파일": [
+   "worker/tests/test_preflight.py"
+  ]
+ },
+ "6": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "a90393336bc0c058",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "61": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "5192050c1578f1b0",
+  "파일": [
+   "worker/tests/test_patch_state.py"
+  ]
+ },
+ "62": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "f24f2eef9f24ff81",
+  "파일": [
+   "tools/check_counts.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "63": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "24dc88d3ac383b94",
+  "파일": [
+   "tools/mutate_gate.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "64": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "4b6e5f005d6a52ac",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "65": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "a5399765da7a106b",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "67": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "6cfedc5e8337f25c",
+  "파일": [
+   "worker/tests/test_bench_checks.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "68": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "b342c1b4d23b268b",
+  "파일": [
+   "worker/tests/test_contract.py",
+   "worker/tests/test_lambda.py"
+  ]
+ },
+ "69": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "bc736cdf4b8384ef",
+  "파일": [
+   "worker/tests/test_preflight.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "7": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "01b8ecc63af5436a",
+  "파일": [
+   "worker/tests/test_preflight.py"
+  ]
+ },
+ "70": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "704c64d6156eb313",
+  "파일": [
+   "tools/smoke.sh"
+  ]
+ },
+ "71": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "73f9d7cf0208bc3c",
+  "파일": [
+   "tools/package_lambda.sh",
+   "worker/tests/test_package.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "72": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "b4f566460cc586cb",
+  "파일": [
+   "worker/tests/test_package.py"
+  ]
+ },
+ "74": {
+  "날짜": "2026-09-14",
+  "읽음": true,
+  "지문": "28c52febd1d60ac8",
+  "파일": [
+   "tools/lib/env.sh",
+   "worker/tests/test_ambient.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "75": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "77cfcd05820022b6",
+  "파일": [
+   "tools/tf.sh"
+  ]
+ },
+ "76": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "d96ed06ee08f70fd",
+  "파일": [
+   "tools/smoke.sh",
+   "worker/tests/test_lambda.py"
+  ]
+ },
+ "77": {
+  "날짜": "2026-09-14",
+  "읽음": false,
+  "지문": "186482411849dbf5",
+  "파일": [
+   "tools/smoke.sh",
+   "worker/tests/test_contract.py"
+  ]
+ },
+ "79": {
+  "날짜": "2026-09-15",
+  "읽음": false,
+  "지문": "e3393cd8ee5446da",
+  "파일": [
+   "worker/tests/test_logging.py"
+  ]
+ },
+ "8": {
+  "날짜": "2026-09-12",
+  "읽음": false,
+  "지문": "47c21e59a6dee84c",
+  "파일": [
+   "worker/tests/test_contract.py",
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "80": {
+  "날짜": "2026-09-15",
+  "읽음": false,
+  "지문": "d3e2ac40b5bccb36",
+  "파일": [
+   "worker/tests/test_bench_checks.py"
+  ]
+ },
+ "81": {
+  "날짜": "2026-09-15",
+  "읽음": true,
+  "지문": "594a0bd88f0c338c",
+  "파일": [
+   "tools/doctor.sh",
+   "worker/tests/test_restore.py"
+  ]
+ },
+ "84": {
+  "날짜": "2026-09-15",
+  "읽음": true,
+  "지문": "2db6a5575e838d0e",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "85": {
+  "날짜": "2026-09-15",
+  "읽음": true,
+  "지문": "6df78cd89accacf3",
+  "파일": [
+   "tools/check_docs.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "86": {
+  "날짜": "2026-09-15",
+  "읽음": false,
+  "지문": "692e71af38706b91",
+  "파일": [
+   "tools/deploy_drift.py",
+   "worker/tests/test_deploy_drift.py"
+  ]
+ },
+ "87": {
+  "날짜": "2026-09-15",
+  "읽음": false,
+  "지문": "84cdabcf32812b27",
+  "파일": [
+   "tools/check_static.py",
+   "worker/tests/test_check_static.py"
+  ]
+ },
+ "88": {
+  "날짜": "2026-09-16",
+  "읽음": true,
+  "지문": "894d0af9b908560e",
+  "파일": [
+   "tools/check_infra.py",
+   "worker/tests/test_check_infra.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "89": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "2815a27bf7cac8a5",
+  "파일": [
+   "worker/tests/test_deploy_drift.py"
+  ]
+ },
+ "9": {
+  "날짜": "2026-09-12",
+  "읽음": true,
+  "지문": "5bb83bdf5ccb9bd2",
+  "파일": [
+   "tools/check_docs.py",
+   "tools/doctor.sh"
+  ]
+ },
+ "90": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "37d7aa6d57a9cce6",
+  "파일": [
+   "tools/check_infra.py",
+   "tools/tf.sh"
+  ]
+ },
+ "91": {
+  "날짜": "2026-09-16",
+  "읽음": true,
+  "지문": "bf0e4cad380aa659",
+  "파일": [
+   "extension/tests/styles.test.js",
+   "tools/doctor.sh"
+  ]
+ },
+ "92": {
+  "날짜": "2026-09-16",
+  "읽음": true,
+  "지문": "0a8ffdc37735a7fd",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "93": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "0bcb1650ce593b68",
+  "파일": [
+   "tools/bench_endings.py",
+   "tools/gen_endings.py",
+   "worker/tests/test_endings_corpus.py"
+  ]
+ },
+ "94": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "1e4792f4902888bc",
+  "파일": [
+   "docs/bench/baseline.json",
+   "tools/bench_golden.py",
+   "tools/docx_check.py"
+  ]
+ },
+ "95": {
+  "날짜": "2026-09-16",
+  "읽음": true,
+  "지문": "ab86feae79b3898a",
+  "파일": [
+   "tools/doctor.sh"
+  ]
+ },
+ "96": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "4ebf96a95d913bc5",
+  "파일": [
+   "docs/PLAN.md"
+  ]
+ },
+ "97": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "d039250c5f71a06a",
+  "파일": [
+   "infra/analytics.tf",
+   "worker/tests/test_pairs.py",
+   "tools/check_infra.py"
+  ]
+ },
+ "98": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "2d7e0f416ff4d6f5",
+  "파일": [
+   "tools/pairs_check.sh",
+   ".github/workflows/deploy.yml"
+  ]
+ },
+ "99": {
+  "날짜": "2026-09-16",
+  "읽음": false,
+  "지문": "b7ef95aee71f35de",
+  "파일": [
+   "tools/pairs_errors.py"
+  ]
+ },
+ "M0": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "e2668dcf242ce9eb",
+  "파일": [
+   "tools/check_docs.py",
+   "tools/doc_fsck.py",
+   "tools/check_counts.py",
+   "docs/proposal/extract.js",
+   "tools/build_proposal.sh"
+  ]
+ },
+ "M1": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "1f289966a6b9745d",
+  "파일": [
+   "worker/app/main.py",
+   "worker/app/lambda_handler.py",
+   "worker/app/contract.py",
+   "extension/src/broker.js"
+  ]
+ },
+ "M10": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "ea24d2b3e5b220f4",
+  "파일": [
+   "extension/src/broker.js",
+   "extension/src/cssaudit.js",
+   "extension/content.css",
+   "extension/popup.css",
+   "extension/src/popup.js"
+  ]
+ },
+ "M11": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "0315afd68b5c8975",
+  "파일": [
+   "tools/doctor.sh",
+   "tools/check_static.py",
+   "tools/bench_golden.py",
+   "infra/compute.tf",
+   "infra/analytics.tf"
+  ]
+ },
+ "M12": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "1379f9f42172abdc",
+  "파일": [
+   "extension/src/state.js",
+   "extension/tests/state.test.js",
+   "tools/doctor.sh"
+  ]
+ },
+ "M2": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "5d143722577ff1fc",
+  "파일": [
+   "extension/src/adapters/standard.js",
+   "extension/src/adapters/generic.js",
+   "extension/tests/adapters.test.js"
+  ]
+ },
+ "M3": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "389e27f6970dd9e0",
+  "파일": [
+   "extension/src/adapters/udemy.js",
+   "extension/tests/observe.test.js"
+  ]
+ },
+ "M4": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "f50ca51594332434",
+  "파일": [
+   "worker/app/contract.py",
+   "worker/app/main.py",
+   "worker/app/preflight.py",
+   "infra/compute.tf"
+  ]
+ },
+ "M5": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "5bd36d66c31a75dd",
+  "파일": [
+   "worker/app/cache.py"
+  ]
+ },
+ "M6": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "a9c17eb32f58387f",
+  "파일": [
+   "worker/app/guard.py"
+  ]
+ },
+ "M7": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "25b6fb57b65d51c4",
+  "파일": [
+   "worker/app/engine.py",
+   "worker/app/particle.py",
+   "worker/app/restore.json",
+   "worker/app/particle.json",
+   "tools/engine_conformance.py"
+  ]
+ },
+ "M8": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "cc87e2fa258f0fd7",
+  "파일": [
+   "worker/app/glossary.py"
+  ]
+ },
+ "M9": {
+  "날짜": "",
+  "읽음": true,
+  "지문": "2e37cf7c074c7b49",
+  "파일": [
+   "extension/src/background.js",
+   "extension/src/state.js"
+  ]
+ }
+}

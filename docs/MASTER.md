@@ -239,12 +239,12 @@ bash tools/build_proposal.sh     # 잠금 · 그림 셋 · docx · 자물쇠 · 
 | 갈래 | 자리 | 보나 |
 |---|---|---|
 | 도구 <!--count:skip_tool-->11곳 | 그 칸에서 `command -v <도구>` 를 묻는다 | **본다** |
-| 범위 <!--count:skip_scope-->7곳 | `$SCOPE` 로 갈린다 | **본다** |
+| 범위 <!--count:skip_scope-->8곳 | `$SCOPE` 로 갈린다 | **본다** |
 | 조건 <!--count:skip_cond-->16곳 | 모양이 여섯 가지 | **안 본다** — 하나를 고르면 맞는 코드를 비틀게 된다 |
 | 빚 <!--count:skip_debt-->2곳 | 감싼 것이 없다(무조건이 맞다) | PLAN·DECISIONS 인용을 이미 본다 |
 
-★ **<!--count:skip_seen-->18곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
-「<!--count:skip_all-->36곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
+★ **<!--count:skip_seen-->19곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
+「<!--count:skip_all-->37곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
 자리를 좁히고 그 자리를 적는다).
 
 ★ **이 수들은 글자가 아니라 주장이다**(DECISIONS §152). 2026-10-04 에 skip 하나를
@@ -334,6 +334,9 @@ bash tools/build_proposal.sh     # 잠금 · 그림 셋 · docx · 자물쇠 · 
 
 ---
 
+봉인 — `tools/check_docs.py` · `tools/doc_fsck.py` · `tools/check_counts.py` · `docs/proposal/extract.js` · `tools/build_proposal.sh`
+  ★ 이 절의 규약을 **강제하는** 자들이다. 규약을 고치면 이들이 먼저 갈린다.
+
 ## 1. 무엇인가
 
 영어로 된 학습 사이트의 문항·본문을 **사용자 브라우저에 이미 렌더된 상태에서
@@ -386,6 +389,9 @@ pydantic 이 들어간다. 계약을 떼는 쪽이 중복도 0 이고 배포 패
 이 줄이 「5.2초 · 위반 2건」 이었고 정본은 「5.3초 · 위반 4유닛」 이었다.
 
 ---
+
+봉인 — `worker/app/main.py` · `worker/app/lambda_handler.py` · `worker/app/contract.py` · `extension/src/broker.js`
+  ★ 구조를 **서술**한다 — 조각이 늘거나 자리가 바뀌면 이 절이 거짓이 된다.
 
 ## 2. 어댑터 계약
 
@@ -464,6 +470,9 @@ noreply@…` 가 0.273 으로 임계 0.3 아래에 떨어져 **한국어 줄이 
 
 ---
 
+봉인 — `extension/src/adapters/standard.js` · `extension/src/adapters/generic.js` · `extension/tests/adapters.test.js`
+  ★ 계약의 구현과 그 계약을 묻는 시험.
+
 ## 3. Udemy DOM 계약
 
 2026-09-12 실측이다. 채점 전후로 DOM 이 다르다.
@@ -526,6 +535,9 @@ HTML 위반이지만 Udemy 가 그렇게 한다. `getElementById` 는 첫 개만
 `answer-inner` 는 `[class*=...]` 부분 일치로 잡는다.
 
 ---
+
+봉인 — `extension/src/adapters/udemy.js` · `extension/tests/observe.test.js`
+  ★ 관측한 DOM 을 읽는 자. **남의 화면이 바뀌면 여기가 먼저 안다**.
 
 ## 4. 워커 계약
 
@@ -643,6 +655,9 @@ res : { "translations": ["번역", null], "cached": [true, false],
 
 ---
 
+봉인 — `worker/app/contract.py` · `worker/app/main.py` · `worker/app/preflight.py` · `infra/compute.tf`
+  ★ 요청·응답의 꼴과 그것을 세우는 인프라.
+
 ## 5. 캐시
 
 키는 `sha256(원문)` 이다. **사이트를 키에 섞지 않는다.** 같은 문장이 여러
@@ -662,6 +677,9 @@ res : { "translations": ["번역", null], "cached": [true, false],
 재시도한다. 항목마다 `get_item` 을 돌면 왕복이 항목 수만큼 난다.
 
 ---
+
+봉인 — `worker/app/cache.py`
+  ★ 캐시의 열쇠와 수명이 거기 하나다.
 
 ## 6. 비용 가드
 
@@ -696,6 +714,9 @@ res : { "translations": ["번역", null], "cached": [true, false],
 ★ AWS Budgets 는 알림만 보내고 호출을 막지 않는다. 실제 차단은 여기서 한다.
 
 ---
+
+봉인 — `worker/app/guard.py`
+  ★ 한도와 그 판정이 거기 하나다.
 
 ## 7. 번역 엔진
 
@@ -1119,6 +1140,9 @@ bash tools/tf.sh plan -out /tmp/thoth.tfplan && bash tools/tf.sh apply /tmp/thot
 
 ---
 
+봉인 — `worker/app/engine.py` · `worker/app/particle.py` · `worker/app/restore.json` · `worker/app/particle.json` · `tools/engine_conformance.py`
+  ★ 엔진과 조사·되돌리기 표, 그리고 엔진이 계약을 지키나 묻는 자.
+
 ## 8. 용어집
 
 `worker/app/glossary/*.json` 이 도메인별 용어 매핑을 담는다. 현재 `aws.json`
@@ -1181,6 +1205,9 @@ bash tools/tf.sh plan -out /tmp/thoth.tfplan && bash tools/tf.sh apply /tmp/thot
 ★ 새 도메인은 JSON 파일 하나 추가로 끝나고 코드는 건드리지 않는다.
 
 ---
+
+봉인 — `worker/app/glossary.py`
+  ★ 용어 치환의 자리.
 
 ## 9. 권한 모델
 
@@ -1248,6 +1275,9 @@ bash tools/tf.sh plan -out /tmp/thoth.tfplan && bash tools/tf.sh apply /tmp/thot
 돌려주고 호출한 쪽이 끊는다. 끊지 않으면 테스트가 끝나도 프로세스가 죽지 않는다.
 
 ---
+
+봉인 — `extension/src/background.js` · `extension/src/state.js`
+  ★ 무엇을 언제 요구하나 — 권한의 실제 자리.
 
 ## 10. 표시 제어
 
@@ -1414,6 +1444,9 @@ API 로 한다.
 
 ---
 
+봉인 — `extension/src/broker.js` · `extension/src/cssaudit.js` · `extension/content.css` · `extension/popup.css` · `extension/src/popup.js`
+  ★ 박스를 세우는 자와 사이트 CSS 를 이기는 자.
+
 ## 11. 운영
 
 ### 11-1. 로컬 실행
@@ -1489,7 +1522,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->741건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->787건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -2429,6 +2462,9 @@ bash tools/pairs_check.sh 2026-09-16
 됐고 Athena 가 `bedrock · apac.amazon.nova-lite-v1:0 · probe.local · curl · n=1`
 로 읽었다.
 
+봉인 — `tools/doctor.sh` · `tools/check_static.py` · `tools/bench_golden.py` · `infra/compute.tf` · `infra/analytics.tf`
+  ★ 점검과 벤치, 그리고 그것이 보는 인프라.
+
 ## 12. 접근 토큰
 
 `WORKER_TOKEN` 이 비면 워커가 열린다. 채우면 `X-Thoth-Token` 헤더를 요구하고
@@ -2472,3 +2508,6 @@ bash tools/pairs_check.sh 2026-09-16
 
 ★ 토큰이 없을 때 확장은 헤더를 아예 붙이지 않는다. 빈 값으로 보내면 단순
 요청이 아니게 되어 preflight 가 도는데, 얻는 것 없이 왕복만 는다.
+
+봉인 — `extension/src/state.js` · `extension/tests/state.test.js` · `tools/doctor.sh`
+  ★ 토큰이 어디 사나 — 보관과 그 검사.
