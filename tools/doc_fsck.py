@@ -66,6 +66,9 @@ LABELISH = re.compile(r"[가-힣]|^[A-Za-z_][A-Za-z0-9_]*$")
 
 # ★ **죽은 도구 예외는 사유를 적는다.** 사유 없는 예외는 "옮길 수 있는데 안 옮긴 것" 과
 #   구별되지 않는다(파이어레인 DECISIONS §191).
+# ★ **글로 읽지 않는 산출물**(§161). 강제자가 들 수 있고, 들어도 그 안을 못 맞댄다.
+글자아님 = {".docx", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".zip", ".xlsx", ".pptx", ".ico"}
+
 TOOL_EXEMPT: dict[str, str] = {
     "__init__.py": "패키지 표식",
 }
@@ -153,15 +156,32 @@ def check_enforcer_quotes(root: Path, fails: list) -> None:
         for m in ENFORCER_LINE.finditer(b):
             파일, 시험, 레이블 = 인용(m.group(0))
             본문 = {}
+            못잼 = False
             for f in 파일:
                 p = root / f
                 if not p.is_file():
+                    # ★ **git 이 무시하는 자리는 「없다」 가 아니라 「못 잰다」 다**(§161).
+                    #   `data/domain/*.jsonl` 처럼 **만들어 쓰는 것**은 사본에 없는 것이
+                    #   정상이고, 인용한 낱말이 **그 안에 살 수도 있다.** 그 줄의 인용은
+                    #   맞댈 자리를 잃었으므로 **안 본다** — 없다고 단정하면 거짓 빨강이다.
+                    if _ignored(root, f):
+                        못잼 = True
+                    continue
+                if p.suffix.lower() in 글자아님:
+                    # ★ **글이 아닌 산출물은 선언으로 못 잼이다**(§161). `docs/proposal.docx` 는
+                    #   §129 가 드는 **제품**이고 글로 읽을 수 없다. 예외로 처리하면 매 판
+                    #   소음이 한 줄 나고, 소음은 읽히지 않는다.
+                    못잼 = True
                     continue
                 try:
                     본문[f] = p.read_text(encoding="utf-8")
-                except (OSError, UnicodeDecodeError):
+                except (OSError, UnicodeDecodeError) as e:
+                    # ★ **삼키지 않는다**(seshat DECISIONS §255). 선언 밖에서 못 읽은 것은
+                    #   **뜻밖**이고, 뜻밖은 자국을 남긴다 — 조용히 넘어가면 통과로 읽힌다.
+                    print(f"    DECISIONS §{num} 강제자 가 든 {f} 를 못 읽었다 ({e.__class__.__name__})")
+                    못잼 = True
                     continue
-            if not 본문:
+            if not 본문 or 못잼:
                 continue
             for name in 시험:
                 if not any(_has_test(root / f, name) for f in 본문):

@@ -358,12 +358,35 @@ def test_절을_더하는_것은_수정이_아니다():
     assert cd.본문_수정(옛, 옛 + _dec(2, "본문")) == []
 
 
+def test_기계가_다시_쓰는_색인은_본문이_아니다():
+    """★ **이것이 없어서 §296 의 관문이 제 판에서 울었다.** 절 색인은 `--fix-index` 가 다시 쓰는
+    자리라 절을 하나 더하면 「296 절」 로 바뀌고, 줄 단위로 보면 그것이 「지운 줄」 이다.
+    자동으로 고치라고 해 두고 고친 것을 흠으로 세면 **관문을 끄는 수밖에 없어진다.**
+    """
+    시, 끝 = cd.자동_블록[0]
+    머리 = f"{시}\n<details><summary>절 색인 — %d 절</summary>\n\n- §1\n\n</details>\n{끝}\n\n"
+    옛 = (머리 % 1) + _dec(1, "본문")
+    새 = (머리 % 2) + _dec(1, "본문") + _dec(2, "본문")
+    assert cd.본문_수정(옛, 새) == []
+    # ★ 자동 블록 **밖**은 그대로 본다 — 표시가 전부를 면제하지 않는다
+    assert any("본문" in x for x in cd.본문_수정(옛, (머리 % 2) + _dec(1, "")))
+
+
+def test_표시가_없는_문서는_아무_자리도_면제되지_않는다():
+    """★ 사본끼리 글자가 같게 하려고 표시로 찾는다 — 표시가 없으면 **전부 본문**이다."""
+    옛 = _dec(1, "본문 가") + "\n<details><summary>손으로 적은 접기</summary>\n\n속\n\n</details>\n"
+    새 = _dec(1, "본문 가") + "\n<details><summary>손으로 적은 접기</summary>\n\n딴것\n\n</details>\n"
+    assert any("속" in x for x in cd.본문_수정(옛, 새))
+
+
 def test_실제_저장소의_본문이_추가만_되었다():
+    # ★ **건너뛰지 않는다**(seshat DECISIONS §255 — 안 도는 시험은 없는 시험이다). HEAD 에
+    #   DECISIONS 가 없는 것은 **얕은 사본 · 첫 커밋뿐**이고, 그때는 **옛것이 없으니 본문이
+    #   고쳐졌을 수도 없다** — 빈 옛것과 견주면 지운 줄이 0 이라 그대로 참이다.
     r = subprocess.run(["git", "show", "HEAD:docs/DECISIONS.md"],
                        cwd=ROOT, capture_output=True, text=True)
-    if r.returncode != 0 or not r.stdout.strip():
-        pytest.skip("조건 — HEAD 에 DECISIONS 가 없다 (얕은 사본 · 첫 커밋)")
-    f = cd.본문_수정(r.stdout, (ROOT / "docs/DECISIONS.md").read_text(encoding="utf-8"))
+    옛 = r.stdout if r.returncode == 0 else ""
+    f = cd.본문_수정(옛, (ROOT / "docs/DECISIONS.md").read_text(encoding="utf-8"))
     assert f == [], "\n".join(f)
 
 
@@ -373,3 +396,32 @@ def test_대조할_옛것이_없으면_3_이다():
     r = subprocess.run(["python3", str(ROOT / "tools/check_docs.py"), "--추가만"],
                        input="", capture_output=True, text=True)
     assert r.returncode == 3, (r.returncode, r.stdout, r.stderr)
+
+
+def test_글로_못_읽는_산출물을_든_줄의_인용은_안_본다(tmp_path):
+    """★ **선언으로 못 잼이다**(DECISIONS §161). `docs/proposal.docx` 는 §129 가 드는
+    **제품**이고 글로 읽을 수 없다. 예외로 처리하면 매 판 소음이 한 줄 나고 **소음은
+    읽히지 않는다** — 선언 밖에서 못 읽은 것만 자국을 남긴다."""
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools/a.py").write_text("# 비었다\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir(exist_ok=True)
+    (tmp_path / "docs/p.docx").write_bytes(b"PK\x03\x04binary")
+    f = _심는다(tmp_path, "강제자 — `tools/a.py` · `docs/p.docx` 의 `KEY_A`")
+    assert f == [], f
+
+
+def test_무시되는_파일을_든_줄의_인용은_안_본다(tmp_path):
+    """★ **「없다」 와 「못 잰다」 를 가른다**(DECISIONS §161 · §59). `data/domain/*.jsonl` 처럼
+    **만들어 쓰는 것**은 사본에 없는 것이 정상이고, 인용한 낱말이 그 안에 살 수도 있다 —
+    없다고 단정하면 **거짓 빨강**이고, 거짓 빨강이 쌓이면 사람이 검사를 끈다(§158)."""
+    import subprocess
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("만든것/\n", encoding="utf-8")
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools/a.py").write_text("# 비었다\n", encoding="utf-8")
+    f = _심는다(tmp_path, "강제자 — `tools/a.py` · `만든것/d.jsonl` 의 `KEY_A`")
+    assert f == [], f
+    # ★ 음성도 본다. 무시되지 **않는** 없는 파일은 종전대로 경로 검사가 잡고,
+    #   그 줄의 인용은 남은 파일로 맞댄다.
+    g = _심는다(tmp_path, "강제자 — `tools/a.py` 의 `KEY_A`")
+    assert any("KEY_A" in x for x in g), g

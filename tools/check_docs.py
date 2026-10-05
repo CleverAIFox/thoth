@@ -386,14 +386,33 @@ def _canary() -> None:
         sys.exit(2)
 
 
+자동_블록 = [("<!-- 색인 시작 -->", "<!-- 색인 끝 -->")]
+"""기계가 다시 쓰는 자리. **표시로 찾는다** — 저장소 이름으로 가르지 않는다.
+
+★ 이 표시가 없는 저장소에서는 아무 자리도 안 빼므로, 두 사본의 글자가 같다.
+"""
+
+
 def _본문_줄(글: str) -> list[str]:
     """강제자 블록을 뺀 줄들. **강제자는 표기이므로 본문이 아니다**(DECISIONS §159).
 
+    ★ `자동_블록` 안도 뺀다 — 기계가 다시 쓰는 자리는 사람이 적은 본문이 아니다.
     ★ 블록은 `강제자 — ` 로 시작해 **빈 줄에서 끊는다** — §158 처럼 세 줄에 걸친 것이 있다.
     """
     out: list[str] = []
     안 = False
+    자동 = None
     for line in 글.split("\n"):
+        if 자동 is not None:
+            if 자동 in line:
+                자동 = None
+            continue
+        for 시, 끝 in 자동_블록:
+            if 시 in line:
+                자동 = 끝
+                break
+        if 자동 is not None:
+            continue
         if ENFORCER.match(line):
             안 = True
             continue

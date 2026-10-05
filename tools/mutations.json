@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 115",
+        "전": "MIN_돌연변이 = 121",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -714,6 +714,21 @@
         "이름": "파일처럼 생긴 토막을 레이블로 센다",
         "전": "        if FILEISH.match(t):\n            파일.append(t.rstrip(\".,)\"))",
         "후": "        if False:\n            파일.append(t.rstrip(\".,)\"))"
+      },
+      {
+        "이름": "무시되는 파일을 「없다」 로 센다",
+        "전": "                    if _ignored(root, f):\n                        못잼 = True",
+        "후": "                    if False:\n                        못잼 = True"
+      },
+      {
+        "이름": "못 잼을 무시하고 그냥 본다",
+        "전": "            if not 본문 or 못잼:",
+        "후": "            if not 본문:"
+      },
+      {
+        "이름": "글 아닌 산출물을 글로 읽는다",
+        "전": "                if p.suffix.lower() in 글자아님:",
+        "후": "                if False:"
       }
     ]
   },
@@ -750,6 +765,21 @@
         "이름": "빈 입력을 통과로 센다",
         "전": "        if not 옛.strip():\n            print(\"    HEAD 에 DECISIONS 가 없어 대조하지 않았다\")\n            return 3",
         "후": "        if not 옛.strip():\n            return 0"
+      },
+      {
+        "이름": "기계가 쓰는 자리를 안 뺀다",
+        "전": "        for 시, 끝 in 자동_블록:\n            if 시 in line:\n                자동 = 끝\n                break",
+        "후": "        for 시, 끝 in 자동_블록:\n            if False:\n                자동 = 끝\n                break"
+      },
+      {
+        "이름": "자동 블록이 끝나도 계속 뺀다",
+        "전": "        if 자동 is not None:\n            if 자동 in line:\n                자동 = None\n            continue",
+        "후": "        if 자동 is not None:\n            continue"
+      },
+      {
+        "이름": "표시를 안 보고 전부 면제한다",
+        "전": "자동_블록 = [(\"<!-- 색인 시작 -->\", \"<!-- 색인 끝 -->\")]",
+        "후": "자동_블록 = [(\"<details>\", \"</details>\")]"
       }
     ]
   },
