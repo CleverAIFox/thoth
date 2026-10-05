@@ -41,6 +41,7 @@ import json
 import re
 import subprocess
 import sys
+from html import unescape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -123,10 +124,135 @@ def 수들(t: dict) -> list[str]:
     return sorted(set(out))
 
 
+# ── 두 번째 렌더러(DECISIONS §166) ──────────────────────────────────────────
+#
+# ★ **§155 는 「본문이 docx 를 안 만진다」 까지였다.** 그것은 `extract.js` 가 **기록만 하는
+#   가짜**로 증명한다. 거기서 멈추면 「포맷 중립」 은 **아직 주장**이다 — 블록 어휘로
+#   **실제 산출물이 하나 더** 나와야 증명이 끝난다. `html.js` 가 그 둘째다.
+# ★ **묻는 것은 「HTML 이 예쁜가」 가 아니라 「두 렌더러가 같은 블록을 받았나」 다.**
+#   블록의 **보이는 글**이 HTML 에 전부 있어야 한다 — 하나라도 빠지면 한쪽 산출물이
+#   조용히 짧아진 것이다.
+# ★ **밖 — 안 보이는 인자는 안 본다.** `FIGURE(name, caption)` 의 `name` 은 파일 이름이고
+#   화면에 안 나온다(대체 텍스트로만 간다). **선언으로 뺀다** — 안 적으면 다음 사람이
+#   「왜 이것만 빠지나」 를 다시 판다.
+# ★ **밖 — 짧은 토막은 안 본다.** 여섯 자 미만은 표의 `-` 나 `○` 같은 기호가 섞여
+#   **우연히 들어 있는지**를 가를 수 없다.
+안보이는인자 = {("FIGURE", 0)}
+# ★ **줄 안 태그는 지우고 덩이 태그는 빈칸으로 바꾼다**(DECISIONS §166). 둘을 같이 다루면
+#   `<b>thoth</b>(공개` 가 `thoth (공개` 가 되어 **멀쩡한 산출물이 빨개진다** — 첫 판이
+#   그랬고, 빨강 스물이 전부 그 한 줄 탓이었다. **자가 틀렸지 산출물이 아니었다.**
+_줄안태그 = re.compile(r"</?(?:b|i|em|strong|code|span)>")
+_태그 = re.compile(r"<[^>]+>")
+_꾸밈 = re.compile(r"<style>.*?</style>", re.S)
+_실린것 = re.compile(r'src="data:[^"]*"')
+
+
+def html_글(root: Path | None = None) -> str:
+    """`html.js` 가 구운 글. **굽는 것이 곧 검사다** — 터지면 2 로 끝난다."""
+    root = root or ROOT
+    out = root / "docs/proposal/.build/proposal.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run(["node", "html.js", str(out)], cwd=root / "docs/proposal",
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"    ★ html.js 가 {r.returncode} 로 죽었다\n{r.stderr[-600:]}", file=sys.stderr)
+        raise SystemExit(2)
+    return out.read_text(encoding="utf-8")
+
+
+def 납작(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def 보이는글(t: dict) -> list[tuple[str, str]]:
+    """(블록 종류, 화면에 나와야 하는 글). `**` 와 백틱은 **표시**라 뺀다."""
+    out = []
+    for b in t["블록"]:
+        for i, 글 in enumerate(b["글"]):
+            if (b["종류"], i) in 안보이는인자:
+                continue
+            조각 = 납작(re.sub(r"[*`]", "", 글))
+            if len(조각) >= 6:
+                out.append((b["종류"], 조각))
+    return out
+
+
+def 두렌더러(t: dict, html: str) -> list[str]:
+    본문 = 납작(unescape(_태그.sub(" ", _줄안태그.sub("", _실린것.sub("", _꾸밈.sub("", html))))))
+    난것 = []
+    for 종류, 글 in 보이는글(t):
+        if 글 not in 본문:
+            난것.append(f"`{종류}` 의 글이 HTML 에 없다 — 두 렌더러가 다른 것을 받았다 : {글[:48]}")
+    return 난것[:20]
+
+
+# ── 박은 수와 치환된 수(DECISIONS §167) ─────────────────────────────────────
+#
+# ★ **기계가 가르는 것과 사람이 가르는 것을 나눈다.** 「소스에 글자 그대로 있나」 는 기계가
+#   센다 — 있으면 **박은 수**, 없으면 **산출물에서 읽고 있는 수**다. 실측으로 36 중 **일곱이
+#   이미 치환돼 있었고**(`${rows.length}건` 꼴) 장부가 36 을 한 뭉치로 들던 동안 **그 사실이
+#   안 보였다.** 두 수가 한 이름으로 불리면 한쪽을 고치고 다른 쪽을 봤다고 생각한다(세샤트 §302).
+# ★ **갈래 셋은 사람이 가른다.** `밖`(남의 사실 · 다른 저장소의 실측) · `면제`(방법 · 서술) ·
+#   `치환예정`(이 저장소의 산출물에서 읽을 수 있다). **낱말 목록으로 가르면 그 비율이 자의
+#   잡음이다** — `PLAN` 이 그렇게 경고했고, 실제로 「`baseline.json` 에 그 글자가 있나」 로
+#   재 봤더니 **스무 개가 걸렸고 전부 거짓**이었다(`5` 가 어딘가에 있으면 `5초` 가 걸린다).
+# ★ **양방향 톱니다.** 박은 수는 **늘면 막고**, `치환예정` 은 **줄기만 한다** — 치환하지 않고
+#   `밖` 으로 옮겨 적으면 그것은 갚은 것이 아니다.
+MAX_박은수 = 28
+MAX_치환예정 = 5
+본문파일 = ("part1.js", "part2.js", "part3.js")
+
+
+def 본문소스(root: Path | None = None) -> str:
+    """`part*.js` 를 글자로 읽는다. **렌더러가 아니라 소스를 본다** — 박았는지가 물음이다.
+
+    ★ **온 줄 주석은 뺀다**(DECISIONS §167). 치환하고 나서 **왜 치환했는지를 주석에 적으면**
+      그 주석의 수가 「아직 박혀 있다」 로 세어진다 — 실제로 `35%` 를 치환한 판에서 그랬다.
+      주석은 안 그려지므로 산문이 아니다.
+    ★ **온 줄만 뺀다.** 줄 끝 주석까지 지우려면 `//` 를 찾아야 하는데 **`https://` 가
+      문자열 안에 있다** — 그것을 자르면 **멀쩡한 글이 사라지고 수가 조용히 줄어든다.**
+    """
+    root = root or ROOT
+    글 = []
+    for f in 본문파일:
+        for 줄 in (root / "docs/proposal" / f).read_text(encoding="utf-8").split("\n"):
+            if 줄.lstrip().startswith("//"):
+                continue
+            글.append(줄)
+    return "\n".join(글)
+
+
+def 박은수(지금: list[str], 소스: str) -> tuple[list[str], list[str]]:
+    """(소스에 글자 그대로 있는 수, 없는 수). 뒤엣것은 **이미 산출물에서 읽고 있다.**"""
+    return [x for x in 지금 if x in 소스], [x for x in 지금 if x not in 소스]
+
+
 def 장부(root: Path | None = None) -> set[str]:
-    p = (root or ROOT) / "docs/proposal/numbers.json"
-    raw = json.loads(p.read_text(encoding="utf-8"))
+    """갈래 전부를 한 집합으로. **옛 부름자리가 그대로 돈다.**"""
+    raw = _장부raw(root)
     return {x for k, v in raw.items() if not k.startswith("_") for x in v}
+
+
+def _장부raw(root: Path | None = None) -> dict:
+    p = (root or ROOT) / "docs/proposal/numbers.json"
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def 갈래흠(박은것: list[str], raw: dict) -> list[str]:
+    """박은 수마다 갈래가 **꼭 하나**인가. 그리고 갈래에 **없는 수**가 적혀 있지 않은가."""
+    갈래들 = {k: set(v) for k, v in raw.items() if not k.startswith("_")}
+    난것 = []
+    for x in 박은것:
+        든곳 = [k for k, v in 갈래들.items() if x in v]
+        if not 든곳:
+            난것.append(f"박은 수 `{x}` 에 갈래가 없다 — `밖` · `면제` · `치환예정` 중 하나에 적는다")
+        elif len(든곳) > 1:
+            난것.append(f"박은 수 `{x}` 가 갈래 둘에 있다({' · '.join(든곳)}) — 하나만 고른다")
+    박은집합 = set(박은것)
+    for k, v in sorted(갈래들.items()):
+        for x in sorted(v - 박은집합):
+            난것.append(f"`{k}` 의 `{x}` 는 **이제 산문에 없거나 치환됐다** — 장부에서 지운다")
+    return 난것
 
 
 def 견준다(지금: list[str], 적힌: set[str]) -> tuple[list[str], list[str]]:
@@ -165,19 +291,33 @@ def main(argv: list[str] | None = None) -> int:
         import collections
         c = collections.Counter(b["종류"] for b in t["블록"])
         print(f"  블록 {len(t['블록'])} — " + " · ".join(f"{k} {v}" for k, v in sorted(c.items())))
-        print(f"  산문 속 단위를 든 수 {len(지금)}")
+        박, 치환됨 = 박은수(지금, 본문소스())
+        raw = _장부raw()
+        print(f"  산문 속 단위를 든 수 {len(지금)} — 박은 것 {len(박)} · 산출물에서 읽는 것 {len(치환됨)}")
+        for k in ("밖", "면제", "치환예정"):
+            print(f"    {k} {len(raw.get(k, []))} : " + " · ".join(sorted(raw.get(k, []))))
         print(f"  이름표 없는 날짜 {len(날짜흠(DEC.read_text(encoding='utf-8'), CHARTS.read_text(encoding='utf-8')))}")
         for x in 지금:
             print(f"    {x}")
         return 0
-    난것 = 문() + 블록(t)
+    난것 = 문() + 블록(t) + 두렌더러(t, html_글())
     빠진 = 날짜흠(DEC.read_text(encoding="utf-8"), CHARTS.read_text(encoding="utf-8"))
     난것 += [f"DECISIONS 의 {d} 에 `charts.py` 이름표가 없다 — `LABEL` 에 더한다" for d in 빠진]
-    새것, 안쓰는것 = 견준다(지금, 장부())
-    난것 += [f"장부에 없는 수 `{x}` — `docs/proposal/numbers.json` 에 적는다" for x in 새것]
-    if 안쓰는것:
-        print(f"  ※ 안 쓰게 된 수 {len(안쓰는것)} — 장부에서 지운다 : " + " ".join(안쓰는것))
-    print(f"  블록 {len(t['블록'])} · 산문 속 수 {len(지금)} · 장부 {len(장부())}")
+    raw = _장부raw()
+    박, 치환됨 = 박은수(지금, 본문소스())
+    난것 += 갈래흠(박, raw)
+    # ★ **양방향 톱니**(DECISIONS §167). 박은 수는 늘면 막고, `치환예정` 은 줄기만 한다 —
+    #   치환하지 않고 `밖` 으로 옮겨 적으면 그것은 **갚은 것이 아니다.**
+    if len(박) > MAX_박은수:
+        난것.append(f"박은 수가 {len(박)} 으로 바닥 {MAX_박은수} 를 넘었다 — "
+                    f"산출물에서 읽게 고치거나 `MAX_박은수` 를 올린 까닭을 DECISIONS 에 적는다")
+    예정 = len(raw.get("치환예정", []))
+    if 예정 > MAX_치환예정:
+        난것.append(f"`치환예정` 이 {예정} 으로 천장 {MAX_치환예정} 을 넘었다 — **빚은 늘지 않는다**")
+    if len(박) < MAX_박은수 or 예정 < MAX_치환예정:
+        print(f"  ※ 좋아졌다 — `MAX_박은수` 를 {len(박)} 으로, `MAX_치환예정` 을 {예정} 으로 내린다")
+    print(f"  블록 {len(t['블록'])} · 산문 속 수 {len(지금)} "
+          f"(박은 것 {len(박)} · 산출물에서 읽는 것 {len(치환됨)}) · 렌더러 2")
     for x in 난것:
         print(f"    {x}")
     return 1 if 난것 else 0

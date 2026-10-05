@@ -216,3 +216,29 @@ html.st-off .st-translation { display: none !important; }
   white-space: pre-wrap !important;
   overflow-wrap: break-word !important;
 }
+
+/* 행 다음에 세우는 줄(DECISIONS §165).
+ *
+ * ★ **표 안에서는 덮지 말고 민다.** 칸은 행 높이가 고정이라 **넓어도 겹친다** —
+ *   2026-10-05 지메일에서 147px 폭에 222px 높이짜리 세로 기둥이 목록을 덮었다.
+ *   행 다음에 `colspan` 줄로 세우면 같은 글이 **694px 폭에 61px** 다.
+ * ★ **사이트가 행에 거는 것을 받지 않는다.** 목록 행에는 보통 높이 · `overflow` ·
+ *   `cursor` · 배경이 걸려 있고, 그것이 이 줄에 오면 박스가 또 잘린다.
+ *   여기도 `!important` 를 쓴다 — 비상구와 같은 자리다(§135).
+ */
+.st-translation-row.st-translation-row {
+  display: table-row !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  background: none !important;
+}
+
+.st-translation-row.st-translation-row > td {
+  display: table-cell !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  border: 0 !important;
+}

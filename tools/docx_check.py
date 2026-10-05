@@ -223,7 +223,7 @@ def check(text: str, root: Path) -> list[str]:
 # ★ **그림 쪽 소스도 센다.** 첫 판은 `*.js` 만 봤는데, `f_seshat` 그림이 **닫힌 행
 #   여섯을 번호로 그리고 있었다** — **그림은 글과 달리 검사가 글자를 못 읽어서 더 오래
 #   산다.** 번호가 사는 자리는 `figures/*.py` 이고, 거기는 읽을 수 있다(DECISIONS §129).
-생성기들 = ("part1.js", "part2.js", "part3.js", "build.js", "lib.js",
+생성기들 = ("part1.js", "part2.js", "part3.js", "build.js", "html.js", "lib.js", "facts.js",
           "figures/charts.py", "figures/diagrams.py", "figures/shots.py", "figures/figlib.py")
 남의이름 = frozenset({"파이어레인", "하토르", "세샤트", "베스"})
 _PLAN참조 = re.compile(r"(?:([가-힣]+|[a-z][a-z0-9_-]*)\s+)?PLAN\s+(#\d+(?:\s*[·–]\s*#?\d+)*)")
@@ -368,7 +368,9 @@ def _canary() -> None:
 # ★ **`doctor` 에서는 WARN 이고 배포에서는 실패다**(`--deploy`). 다시 쓰는 중에
 #   커밋을 막을 일은 아니지만 **낡은 기획서를 내보내는 것은 막아야 한다.** 등급이
 #   다른 두 자리에서 같은 사실을 쓴다.
-생성기 = ("build.js", "lib.js", "part1.js", "part2.js", "part3.js",
+# ★ **두 번째 렌더러도 생성기다**(DECISIONS §166). `html.js` 가 바뀌면 화면이 바뀌고,
+#   `facts.js` 가 바뀌면 **둘 다** 바뀐다 — 자물쇠가 그것을 안 세면 배포본이 조용히 뒤진다.
+생성기 = ("build.js", "html.js", "lib.js", "facts.js", "part1.js", "part2.js", "part3.js",
           "figures/figlib.py", "figures/charts.py", "figures/diagrams.py", "figures/shots.py")
 
 

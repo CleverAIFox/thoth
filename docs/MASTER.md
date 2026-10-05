@@ -135,20 +135,30 @@ PLAN 머리의 「이 문서의 규약」 표가 정본이다 — §1 표 하나
 
 ### 0-7. 기획서
 
-**`docs/proposal.docx` 가 네 번째 문서다.** 밖에 내는 제출본이고 시제 규칙 밖이다. 문서 뷰어의 품질이
-마크다운 변환보다 높아 docx 로 두고, GitHub Pages 가 변환 없이 그린다(`site/proposal.html` ·
-`.github/workflows/proposal.yml`). **docx 는 손으로 고치지 않는다** — 생성기 `docs/proposal/` 가
-만든다(DECISIONS §116).
+**`docs/proposal.docx` 가 네 번째 문서다.** 밖에 내는 제출본이고 시제 규칙 밖이다. **docx 는 손으로
+고치지 않는다** — 생성기 `docs/proposal/` 가 만든다(DECISIONS §116).
+
+★ **산출물이 둘이다**(DECISIONS §166). 같은 `part*.js` 에서 `build.js` 가 `docs/proposal.docx` 를,
+`html.js` 가 `site/proposal.html` 을 굽는다. **본문은 블록 어휘만 쓰고 포맷을 모른다** — 그것이
+주장이 아니라 사실인 까닭은 **둘째 산출물이 실제로 나오기 때문**이다. `check_proposal` 이 두
+렌더러가 **같은 글을 받았는지** 맞댄다. 포맷을 안 타는 사실(`날짜→절 범위` · 그림 읽기)은
+`docs/proposal/facts.js` 하나에 산다.
+
+★ **HTML 은 그물에 안 기댄다.** 그림은 `data:` 로 실리고 스크립트가 없다 — 종전 화면은
+`jsdelivr` 에서 `docx-preview` 를 받아 **브라우저에서 docx 를 풀었고**, 그물이 끊기면 빈 쪽이었다.
+★ **쪽 번호 · 머리말 · 꼬리말은 HTML 에 없다.** 쪽이 없는 매체에서 **없는 것을 흉내내지 않는다.**
 
 ★ **docx 를 생성기에 묶는 것은 `docs/proposal/build.lock.json` 이다**(DECISIONS §126).
-`build.js` 가 생성기 아홉 파일의 지문을 거기 적고 `docx_check` 가 견준다.
+`build.js` 가 생성기 열한 파일의 지문을 거기 적고 `docx_check` 가 견준다 — **두 렌더러와 공통 사실이 다 든다.**
 **다시 만드는 입구는 `tools/build_proposal.sh` 하나다** — 그림 셋의 의존성 묶음이
 거기 산다(전에는 README 에 명령 넷이 늘어서 있었고 한 묶음에서 `matplotlib` 이 빠져 있었다). 2026-10-03 까지 그
 자물쇠가 없어서 **배포본이 생성기보다 뒤진 채로 초록이었다** — 가운데 화살표(`node build.js`)를
 사람이 돌리는데 그것을 확인하는 것이 아무것도 없었다. `doctor` 는 WARN, 배포는 실패다.
 
-★ **`site/proposal.html` 은 docx 를 `cache: "reload"` 로 받는다.** 같은 URL 의 1.9MB
-바이너리라 브라우저와 Pages CDN 이 옛 사본을 준다 — 배포가 맞게 돌아도 화면이 옛것이었다.
+★ **`site/proposal.html` 은 이제 생성물이다**(DECISIONS §166). 종전에는 손으로 적은 뷰어
+껍데기였고 docx 를 `cache: "reload"` 로 받았다 — 같은 URL 의 2MB 바이너리라 브라우저와 Pages
+CDN 이 옛 사본을 줬고, **배포가 맞게 돌아도 화면이 옛것이었다.** 그 문제는 **받을 것이 없어져**
+사라졌다.
 
 ```bash
 bash tools/build_proposal.sh     # 잠금 · 그림 셋 · docx · 자물쇠 · 대조까지 한 줄
@@ -1432,7 +1442,7 @@ id 로 붙잡으므로 요소를 늘리면 스크립트와 한 쌍이 더 생긴
 ★ **그려진 노드를 보는 검사가 생겼다**(DECISIONS §137). 2026-10-03 까지 확장 검사는
 실패 판정과 클라이언트 계약만 봤고, 로딩 클래스가 붙고 떨어지는 것은 **눈으로만
 확인돼 있었다.** `extension/tests/node.test.js` 가 §10-1 의 그 사실들을 시험으로 적는다.
-확장 검사는 <!--count:ext_tests-->125건이다.
+확장 검사는 <!--count:ext_tests-->140건이다.
 
 ★ **이 수에 `<!--count:-->` 를 달았다**(DECISIONS §125). 2026-10-02 까지 `43` 이었다 —
 README 의 같은 수는 표시가 붙어 `check_counts` 가 보는데 여기는 표시가 없어 **검사 밖에서
@@ -1522,7 +1532,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->787건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->808건을 함께 돌린다.
 
 **등급이 셋이다.**
 

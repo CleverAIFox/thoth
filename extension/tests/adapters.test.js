@@ -243,3 +243,59 @@ test("메일 한 통에서 본문 세 토막을 다 모은다", need, async () =
   const 것 = ST.genericCollect(makeDoc(html).body);
   assert.equal(것.length, 3, `본문 셋 중 ${것.length}건만 모았다`);
 });
+
+// ── 한 행 안의 포함 관계(DECISIONS §165) ─────────────────────────────────────
+
+test("한 행 안에서 남의 글을 통째로 품은 것은 안 모은다", need, async () => {
+  // ★ **2026-10-05 지메일 받은편지함의 실물 꼴이다.** 한 행에 상자가 둘 떴다 —
+  //   하나는 제목만, 하나는 `보낸사람 + 제목 + 시각 + 본문 앞머리` 를 통째로.
+  //   §160 이 막은 것은 **조상-자손**이고 이 둘은 **형제**라 그 가름으로는 안 보였다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`
+    <table role="grid"><tbody>
+      <tr role="row">
+        <td role="gridcell"><div>Action may be required CloudTrail event source change.</div></td>
+        <td role="gridcell"><div>health@aws.com, Action may be required CloudTrail event source change. 4:36 PM</div></td>
+      </tr>
+    </tbody></table>`);
+  const units = ST.genericCollect(doc.body);
+  assert.equal(units.length, 1, "품은 쪽을 버려 하나만 남는다");
+  assert.ok(!units[0].text.includes("4:36 PM"), "보낸사람·시각이 섞인 쪽을 버린다");
+});
+
+test("행이 다르면 같은 글이라도 둘 다 모은다", need, async () => {
+  // ★ **울타리가 행이다.** 행 밖까지 묻으면 목록에서 같은 제목 둘 중 하나가 사라진다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`
+    <table role="grid"><tbody>
+      <tr role="row"><td><div>The quarterly report is attached for your review.</div></td></tr>
+      <tr role="row"><td><div>The quarterly report is attached for your review.</div></td></tr>
+    </tbody></table>`);
+  assert.equal(ST.genericCollect(doc.body).length, 2);
+});
+
+test("행이 없으면 아무것도 안 버린다", need, async () => {
+  // ★ **문서 본문에서 같은 문장이 두 번 나오는 것은 정상이다.** 지우면 글이 사라진다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`
+    <section><p>The quarterly report is attached for your review here.</p></section>
+    <section><p>The quarterly report is attached for your review here. And more text follows.</p></section>`);
+  assert.equal(ST.genericCollect(doc.body).length, 2);
+});
+
+test("다른 행이 품은 것은 안 버린다", need, async () => {
+  // ★ **울타리가 행이라는 것을 이 시험이 붙든다**(DECISIONS §165). 긴 제목 하나가 짧은
+  //   제목을 **우연히 품는 것**은 목록에서 흔하다 — 행 밖까지 묻으면 **긴 쪽이 통째로
+  //   사라진다.** 「같은 글이 둘」 만 보는 시험으로는 이 가름이 안 잡힌다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`
+    <table role="grid"><tbody>
+      <tr role="row"><td><div>The quarterly report is attached for your review. Please read it before Friday.</div></td></tr>
+      <tr role="row"><td><div>The quarterly report is attached for your review.</div></td></tr>
+    </tbody></table>`);
+  assert.equal(ST.genericCollect(doc.body).length, 2, "다른 행이면 품어도 안 버린다");
+});

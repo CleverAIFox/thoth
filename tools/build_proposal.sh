@@ -65,8 +65,15 @@ fi
 say "docx + 자물쇠"
 node build.js
 
+# ★ **두 번째 렌더러**(DECISIONS §166). 같은 `part*.js` 로 HTML 을 굽는다 — 이것이 돌아야
+#   「본문이 포맷 중립이다」 가 주장에서 사실이 된다. 터지면 여기서 멈춘다.
+# ★ **한 파일이다.** 그림은 `data:` 로 실려 CDN 도 옆 파일도 없다 — 종전 화면은
+#   `jsdelivr` 에서 `docx-preview` 를 받아 와 브라우저에서 docx 를 풀었다.
+say "html — 같은 블록으로 두 번째 산출물"
+node html.js
+
 say "대조"
 cd "$ROOT"
 python3 tools/docx_check.py --deploy
 echo
-echo "다음 : git add docs/proposal.docx docs/proposal/build.lock.json && git commit"
+echo "다음 : git add docs/proposal.docx docs/proposal/build.lock.json site/proposal.html && git commit"

@@ -251,3 +251,73 @@ def test_선언_수가_실물과_맞다():
     **느슨해진 래칫은 초록으로 위장한다.**"""
     몸 = (cs.ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
     assert len(cs.scope_branches(몸)) == cs.SCOPE_BRANCHES
+
+
+# ── 워크플로가 드는 저장소 경로(DECISIONS §164) ──────────────────────────────
+
+def test_워크플로가_드는_경로가_실재한다():
+    """★ **세샤트가 이것으로 엿새를 날렸다**(§164 · 세샤트 §291). 예약 작업이 옮긴 파일을
+    계속 가리켰고, 주 1회라 아무도 몰랐고, 그 빨강이 관계없는 밀기를 막았다."""
+    assert cs.check_workflow_paths() == []
+
+
+def test_워크플로_경로_카나리아():
+    """★ **이 저장소는 0 건이다** — 그래서 정규식이 죽어도 **초록**이다. 합성으로 묻는다."""
+    assert cs.워크플로경로("  run: python3 tools/x.py\n") == [(1, "tools/x.py")]
+    assert cs.워크플로경로("  run: bash tools/doctor.sh --repo\n") == [(1, "tools/doctor.sh")]
+    assert cs.워크플로경로("  run: cat docs/*.md\n") == []
+    assert cs.워크플로경로("  run: ls $HOME/tools/x.py\n") == []
+    assert cs.워크플로경로("  # 세샤트 tools/ci_status.py 와 같다\n") == []
+    assert cs.워크플로경로("  run: git add docs/papers.md\n") == [(1, "docs/papers.md")]
+    # ★ **ASCII 만 든다**(세샤트와 같은 꼴). 한글 파일 이름은 이 자가 **못 본다** —
+    #   이 저장소의 워크플로에는 하나도 없고, 생기면 여기가 조용히 안 본다는 뜻이다
+    assert cs.워크플로경로("  run: python3 tools/없는것.py\n") == []
+    # ★ **글롭은 「안에」 가 아니라 「뒤에」 남는다**(§164). 글자 집합이 `*` 를 안 받으므로
+    #   `"*" in q` 는 영영 거짓이었다 — 돌연변이가 그 줄을 **아무것도 안 붙든다**고 물었다.
+    #   진짜 꼴은 이것이다 : 정규식이 `docs/a` 까지만 집고 그 잘린 것이 없는 파일이다
+    assert cs.워크플로경로("  path: docs/a*b.md\n") == []
+    assert cs.워크플로경로("  run: python3 tools/${NAME}.py\n") == []
+
+
+def test_없는_경로를_들면_걸린다(tmp_path, monkeypatch):
+    """★ **양성만 보면 아무것도 못 잡는 검사가 초록이다.** 0 건인 저장소에서는 더 그렇다."""
+    (tmp_path / ".github/workflows").mkdir(parents=True)
+    (tmp_path / ".github/workflows/x.yml").write_text(
+        "name: x\non:\n  push:\njobs:\n  a:\n    steps:\n"
+        "      - run: python3 tools/no_such.py\n", encoding="utf-8")
+    monkeypatch.setattr(cs, "ROOT", tmp_path)
+    난것 = cs.check_workflow_paths()
+    assert any("tools/no_such.py" in x for x in 난것), 난것
+
+
+def test_무시되는_자리는_안_든다(tmp_path, monkeypatch):
+    """★ **거짓 빨강이 쌓이면 사람이 검사를 끈다**(§158). `dist/` 는 만들어지는 것이다.
+
+    ★ 이 저장소에 무시되는 자리를 드는 워크플로가 **지금 하나도 없다** — 그래서 실물로는
+      이 가지가 **안 돌고**, 돌연변이가 그것을 물었다. 합성 저장소에서 묻는다.
+    """
+    import subprocess
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("dist/\n", encoding="utf-8")
+    (tmp_path / ".github/workflows").mkdir(parents=True)
+    (tmp_path / ".github/workflows/x.yml").write_text(
+        "name: x\non:\n  push:\njobs:\n  a:\n    steps:\n"
+        "      - run: ls tools/dist/pkg.zip\n", encoding="utf-8")
+    (tmp_path / "tools").mkdir(exist_ok=True)
+    monkeypatch.setattr(cs, "ROOT", tmp_path)
+    assert cs._무시된다("tools/dist/pkg.zip"), "git 이 무시한다고 하는데 못 읽었다"
+    assert cs.check_workflow_paths() == [], "무시되는 자리를 흠으로 세면 거짓 빨강이다"
+
+
+def test_무시_안_되는_없는_자리는_든다(tmp_path, monkeypatch):
+    """★ **음성만 있으면 무엇이든 통과시키는 검사가 초록이다.** 위 시험의 짝이다."""
+    import subprocess
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("dist/\n", encoding="utf-8")
+    (tmp_path / ".github/workflows").mkdir(parents=True)
+    (tmp_path / ".github/workflows/x.yml").write_text(
+        "name: x\non:\n  push:\njobs:\n  a:\n    steps:\n"
+        "      - run: ls tools/build/pkg.zip\n", encoding="utf-8")
+    monkeypatch.setattr(cs, "ROOT", tmp_path)
+    assert not cs._무시된다("tools/build/pkg.zip")
+    assert any("tools/build/pkg.zip" in x for x in cs.check_workflow_paths())

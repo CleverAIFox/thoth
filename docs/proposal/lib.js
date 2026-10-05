@@ -1,7 +1,5 @@
 // 기획서 생성기의 공통 도구(DECISIONS §116). 파이어레인 기획서의 모양을 따른다 — 맑은 고딕
 // 10pt · 표 머리 D9E2F3 · 제목 1F3864 · 이름 C00000.
-const fs = require("fs");
-const path = require("path");
 const D = require("docx");
 const { Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ShadingType, AlignmentType,
   BorderStyle, PageBreak, ImageRun, VerticalAlign, HeadingLevel } = D;
@@ -10,9 +8,9 @@ const FONT = "맑은 고딕";
 const MONO = "Consolas";
 const W = 9638; // A4 · 좌우 여백 1134(2cm)
 const NAVY = "1F3864", RED = "C00000", HEAD = "D9E2F3", SUB = "F2F2F2", GRAY = "555555";
-const ROOT = path.resolve(__dirname, "../..");
-const FIG = path.join(__dirname, ".build/fig") + "/";
-const SEP = " ¦ "; // 사실 구분자. tools/docx_check.py 와 같다
+// ★ **포맷을 안 타는 사실은 `facts.js` 하나에 산다**(DECISIONS §166). 두 번째 렌더러
+//   (`html.js`)가 같은 것을 쓰고, 베끼면 한쪽만 늙는다.
+const { ROOT, SEP, RNG, secs, 그림 } = require("./facts");
 
 const t = (text, o = {}) => new TextRun({ text, font: o.mono ? MONO : FONT, size: o.size || 20, bold: o.bold,
   color: o.color, italics: o.it });
@@ -43,11 +41,14 @@ const PART = (s) => [new Paragraph({ children: [new PageBreak()] }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200, after: 120 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: NAVY, space: 6 } },
     children: [t(s, { size: 32, bold: true, color: NAVY })] }), GAP(160)];
+// ★ **제목도 `runs` 를 쓴다**(DECISIONS §166). 종전에는 `t()` 였고, 그래서 제목에 든
+//   `` `bes` `` 가 **백틱째 찍히고 있었다** — 두 번째 렌더러를 세워 글자를 맞대 보고서야
+//   났다. 한 자리뿐이라 눈에 안 띄었고, **눈에 안 띄는 것이 안 틀린 것은 아니다.**
 const H1 = (s) => new Paragraph({ heading: HeadingLevel.HEADING_1, spacing: { before: 280, after: 160 },
-  children: [t(s, { size: 28, bold: true, color: "000000" })] });
+  children: runs(s, { size: 28, bold: true, color: "000000" }) });
 const H2 = (s) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 220, after: 100 },
-  children: [t("□ " + s, { size: 22, bold: true })] });
-const H3 = (s) => new Paragraph({ spacing: { before: 140, after: 80 }, children: [t(s, { size: 20, bold: true, color: NAVY })] });
+  children: runs("□ " + s, { size: 22, bold: true }) });
+const H3 = (s) => new Paragraph({ spacing: { before: 140, after: 80 }, children: runs(s, { size: 20, bold: true, color: NAVY }) });
 const B = (s, lvl = 0) => new Paragraph({ children: [t(lvl ? "– " : "- ", {}), ...runs(s)],
   indent: { left: 200 + lvl * 300, hanging: 160 }, spacing: { after: 60, line: 290 } });
 const NOTE = (s) => new Paragraph({ children: runs(s, { size: 18, color: GRAY }), spacing: { after: 80, line: 270 } });
@@ -100,18 +101,10 @@ function TBL(head, rows, widths, o = {}) {
 // 2단 개요표 — 왼쪽 머리칸이 음영
 function KV(rows, lw = 1.6) { return TBL(null, rows, [lw, 10 - lw], { rowHead: true }); }
 
-function pngSize(file) {
-  const b = fs.readFileSync(file);
-  return { w: b.readUInt32BE(16), h: b.readUInt32BE(20), data: b };
-}
 let FIG_N = 0;
 // ★ 그림의 사실 선언(figures/figlib.py)을 대체 텍스트에 싣는다. docx_check 가 그것을 다시 대조한다.
 function FIGURE(name, caption, widthIn = 6.5) {
-  const f = FIG + name + ".png";
-  const factsFile = FIG + name + ".facts.json";
-  if (!fs.existsSync(factsFile)) throw new Error(`${name}: 사실 선언이 없다 — figures/ 를 먼저 돌린다`);
-  const facts = JSON.parse(fs.readFileSync(factsFile, "utf8"));
-  const { w, h, data } = pngSize(f);
+  const { data, w, h, facts } = 그림(name);
   const pw = Math.round(widthIn * 96);
   const ph = Math.round((pw * h) / w);
   return [
@@ -122,28 +115,6 @@ function FIGURE(name, caption, widthIn = 6.5) {
       children: [t(`[그림 ${++FIG_N}] ${caption}`, { size: 18, color: GRAY })] }),
   ];
 }
-
-// DECISIONS 의 날짜 줄 → { 날짜: [첫 절, 끝 절] }. figures/figlib.py 의 decisions_ranges 와 같은 규칙
-function decisionsRanges() {
-  const out = {};
-  let cur = null;
-  for (const line of fs.readFileSync(path.join(ROOT, "docs/DECISIONS.md"), "utf8").split("\n")) {
-    let m = line.match(/^## §(\d+)\./);
-    if (m) { cur = +m[1]; continue; }
-    m = line.match(/^\*\*(\d{4}-\d{2}-\d{2})\*\*$/);
-    if (m && cur !== null) {
-      const [a, b] = out[m[1]] || [cur, cur];
-      out[m[1]] = [Math.min(a, cur), Math.max(b, cur)];
-      cur = null;
-    }
-  }
-  return out;
-}
-const RNG = decisionsRanges();
-const secs = (...days) => {
-  const a = Math.min(...days.map((d) => RNG[d][0])), b = Math.max(...days.map((d) => RNG[d][1]));
-  return a === b ? `§${a}` : `§${a}–§${b}`;
-};
 
 // ★ **표지와 목차도 블록이다**(DECISIONS §155). 종전에는 `part1.js` 가 `docx` 를 직접 만졌다 —
 //   열 곳. 그러면 **본문이 렌더러를 침범하고**, 「렌더러가 아는 블록만 굽는다」 가 성립하지 않는다.

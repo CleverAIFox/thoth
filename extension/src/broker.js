@@ -227,6 +227,7 @@
   //   실패에서는 1.5초마다 영원히 워커를 때린다(DECISIONS §12).
   const drop = (u, fatal) => {
     u.node.remove();
+    u.줄?.remove();              // 행 다음에 세운 줄은 박스와 함께 사라진다(§165)
     if (fatal) {
       u.el.dataset.stFail = "1";       // 이 세션에서 다시 건드리지 않는다
       delete u.el.dataset.stDone;
@@ -430,7 +431,39 @@
       const anchor = ad.anchorFor ? ad.anchorFor(u.el) : u.anchor;
       // 앵커가 이미 떨어져 나갔으면 꽂을 자리가 없다.
       if (!anchor?.isConnected) { delete u.el.dataset.stDone; continue; }
-      if (anchor.matches("td,th")) anchor.appendChild(u.node);
+      // ★ **비상구를 기본으로 켠다**(DECISIONS §165). 바탕 규칙은 명시도 `(0,2,0)` 이고
+      //   §135 가 「`(0,2,2)` · `(1,0,2)` · `!important` 에 진다」 를 이미 재 뒀다.
+      //   2026-10-05 지메일에서 **박스 스물둘이 전부 `display:none`** 이었다 — 번역이
+      //   아예 안 보였다. **문을 만들어 놓고 안 열고 있었다.**
+      u.node.classList.add(`${CLS}--wide`);
+      // ★ **자리를 수로 고른다**(DECISIONS §165). 레이아웃이 없는 곳(jsdom)에서는
+      //   `꽂을자리` 가 없거나 폭이 0 이라 **옛 길로 간다** — 못 재는 데서 고르지 않는다.
+      const 자리 = (typeof ST.꽂을자리 === "function" && anchor.clientWidth > 0)
+        ? ST.꽂을자리(anchor) : null;
+      if (자리?.꼴 === "행다음") {
+        // ★ **덮지 않고 민다.** 칸 안은 행 높이가 고정이라 넓어도 겹친다.
+        const 행 = 자리.자리;
+        if (행.tagName === "TR") {
+          const 새줄 = document.createElement("tr");
+          const 칸 = document.createElement("td");
+          칸.colSpan = 행.children.length || 1;
+          칸.appendChild(u.node);
+          새줄.appendChild(칸);
+          새줄.className = `${CLS}-row`;
+          행.insertAdjacentElement("afterend", 새줄);
+          u.줄 = 새줄;
+        } else {
+          행.insertAdjacentElement("afterend", u.node);
+        }
+      } else if (자리?.꼴 === "형제") {
+        자리.자리.appendChild(u.node);
+      } else if (자리 === null && typeof ST.꽂을자리 === "function" && anchor.clientWidth > 0) {
+        // ★ **못 꽂는 것도 답이다**(DECISIONS §59 · §165). 억지로 꽂은 것이 그 세로 기둥이다.
+        //   **세어서 적는다** — 조용히 안 하는 것과 못 한다고 적는 것은 다른 일이다.
+        ST.못꽂음 = (ST.못꽂음 || 0) + 1;
+        delete u.el.dataset.stDone;
+        continue;
+      } else if (anchor.matches("td,th")) anchor.appendChild(u.node);
       else anchor.insertAdjacentElement("afterend", u.node);
       live.push(u);
     }

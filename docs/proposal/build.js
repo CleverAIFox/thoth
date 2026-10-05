@@ -31,7 +31,7 @@ const doc = new Document({
 //   2026-10-03 까지 이 줄이 없어서 **배포본이 생성기보다 몇 주 뒤진 채로 초록이었다.**
 const 자물쇠 = () => {
   const crypto = require("crypto");
-  const 것 = ["build.js", "lib.js", "part1.js", "part2.js", "part3.js",
+  const 것 = ["build.js", "html.js", "lib.js", "facts.js", "part1.js", "part2.js", "part3.js",
             "figures/figlib.py", "figures/charts.py", "figures/diagrams.py", "figures/shots.py"];
   const 생성기 = {};
   for (const rel of 것) {

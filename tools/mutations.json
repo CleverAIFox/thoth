@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 128",
+        "전": "MIN_돌연변이 = 152",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -874,6 +874,182 @@
         "이름": "안 본 커밋을 초록으로 적는다",
         "전": "    본것 = [이름 for 이름, x in 고름.items() if x.get(\"headSha\") == 여기]",
         "후": "    본것 = list(고름)"
+      }
+    ]
+  },
+  "워크플로경로": {
+    "_왜": "0 건인 검사가 가장 쉽게 죽는다(§164). 실물이 0 이라 정규식이 늙어도 초록이다 — 합성으로만 가를 수 있다.",
+    "파일": "tools/check_static.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_check_static.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "잘린 글롭·변수를 안 뺀다",
+        "전": "            if 줄[m.end():m.end() + 1] in (\"*\", \"$\", \"{\"):\n                continue",
+        "후": "            if False:\n                continue"
+      },
+      {
+        "이름": "남의 저장소 것을 든다",
+        "전": "        if any(q in 줄 for q in _WF남의것):\n            continue",
+        "후": "        if False:\n            continue"
+      },
+      {
+        "이름": "없는 경로를 흠으로 안 센다",
+        "전": "            if not (ROOT / q).exists() and not _무시된다(q):",
+        "후": "            if False:"
+      },
+      {
+        "이름": "무시되는 자리도 흠으로 센다",
+        "전": "    try:\n        return any(subprocess.run([\"git\", \"-C\", str(ROOT), \"check-ignore\", \"-q\", x],\n                                  capture_output=True).returncode == 0\n                   for x in (q, q.rstrip(\"/\") + \"/\"))",
+        "후": "    try:\n        return False"
+      }
+    ]
+  },
+  "꽂을자리": {
+    "_왜": "재는 자가 고자질만 하고 있었다(§165). 고르는 규칙이 틀리면 번역이 147px 세로 기둥으로 선다.",
+    "파일": "extension/src/cssaudit.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/mount.test.js tests/adapters.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "행보다 폭을 먼저 본다",
+        "전": "  const 행 = 길.findIndex((x) => x.행인가);\n  if (행 >= 0) return { 자리: 행, 꼴: \"행다음\" };",
+        "후": "  const 행 = 길.findIndex((x) => x.행인가);\n  if (행 < 0 && false) return { 자리: 행, 꼴: \"행다음\" };"
+      },
+      {
+        "이름": "잘리는 자리에도 꽂는다",
+        "전": "    if (길[i].잘림) continue;",
+        "후": "    if (false) continue;"
+      },
+      {
+        "이름": "좁아도 꽂는다",
+        "전": "    if (길[i].폭 >= globalThis.ST.최소폭) return { 자리: i, 꼴: \"형제\" };",
+        "후": "    if (길[i].폭 >= 0) return { 자리: i, 꼴: \"형제\" };"
+      },
+      {
+        "이름": "못 고를 때도 아무 데나 꽂는다",
+        "전": "  return null;\n};\n\n/** 실제 노드를 재서 `고른다` 에 넘긴다",
+        "후": "  return { 자리: 0, 꼴: \"형제\" };\n};\n\n/** 실제 노드를 재서 `고른다` 에 넘긴다"
+      },
+      {
+        "이름": "li 를 행 경계에 넣는다",
+        "전": "globalThis.ST.행경계 = \"tr,[role=row]\";",
+        "후": "globalThis.ST.행경계 = \"tr,[role=row],li\";"
+      }
+    ],
+    "_밖": "`break` 는 **빠르기**이지 판정이 아니다. 지우면 행 위의 조상까지 `getComputedStyle` 을 읽지만, `고른다` 가 **가장 가까운 행**을 먼저 집으므로 답이 같다 — 표 안의 표에서도 `findIndex` 가 안쪽 행을 준다. **물릴 수 없는 줄은 선언한다**(DECISIONS §153)."
+  },
+  "행중복": {
+    "_왜": "한 행에 상자가 둘 떴다(§165). §160 이 막은 것은 조상-자손이고 이 둘은 형제다.",
+    "파일": "extension/src/adapters/generic.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/mount.test.js tests/adapters.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "포함 관계를 안 뺀다",
+        "전": "      if (a.length > b.length && a.includes(b)) { 버린다.add(i); break; }",
+        "후": "      if (false) { 버린다.add(i); break; }"
+      },
+      {
+        "이름": "행 밖까지 뺀다",
+        "전": "      if (i === j || 행[j] !== 행[i]) continue;",
+        "후": "      if (i === j) continue;"
+      },
+      {
+        "이름": "품은 쪽이 아니라 품긴 쪽을 버린다",
+        "전": "      if (a.length > b.length && a.includes(b)) { 버린다.add(i); break; }",
+        "후": "      if (a.length < b.length && b.includes(a)) { 버린다.add(i); break; }"
+      },
+      {
+        "이름": "행이 없어도 묻는다",
+        "전": "    if (!행[i]) continue;",
+        "후": "    if (false) continue;"
+      }
+    ]
+  },
+  "두렌더러": {
+    "_왜": "「본문이 포맷 중립이다」 를 주장에서 사실로 바꾸는 자(§166). 느슨해지면 한쪽 산출물이 조용히 짧아진다.",
+    "파일": "tools/check_proposal.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_proposal_shape.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "HTML 에 없는 글을 안 센다",
+        "전": "        if 글 not in 본문:\n            난것.append(f\"`{종류}` 의 글이 HTML 에 없다 — 두 렌더러가 다른 것을 받았다 : {글[:48]}\")",
+        "후": "        if False:\n            난것.append(f\"`{종류}` 의 글이 HTML 에 없다 — 두 렌더러가 다른 것을 받았다 : {글[:48]}\")"
+      },
+      {
+        "이름": "안 보이는 인자 선언을 무시한다",
+        "전": "            if (b[\"종류\"], i) in 안보이는인자:\n                continue",
+        "후": "            if False:\n                continue"
+      },
+      {
+        "이름": "줄 안 태그도 빈칸으로 바꾼다",
+        "전": "    본문 = 납작(unescape(_태그.sub(\" \", _줄안태그.sub(\"\", _실린것.sub(\"\", _꾸밈.sub(\"\", html))))))",
+        "후": "    본문 = 납작(unescape(_태그.sub(\" \", _실린것.sub(\"\", _꾸밈.sub(\"\", html)))))"
+      },
+      {
+        "이름": "짧은 토막까지 본다",
+        "전": "            if len(조각) >= 6:\n                out.append((b[\"종류\"], 조각))",
+        "후": "            if True:\n                out.append((b[\"종류\"], 조각))"
+      }
+    ]
+  },
+  "박은수": {
+    "_왜": "박은 수와 산출물에서 읽는 수를 가르는 자(§167). 느슨해지면 「갚았다」 가 거짓이 된다.",
+    "파일": "tools/check_proposal.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_proposal_shape.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "온 줄 주석을 소스로 센다",
+        "전": "            if 줄.lstrip().startswith(\"//\"):\n                continue",
+        "후": "            if False:\n                continue"
+      },
+      {
+        "이름": "줄 끝 주석까지 지운다",
+        "전": "            if 줄.lstrip().startswith(\"//\"):",
+        "후": "            if \"//\" in 줄 and (줄 := 줄.split(\"//\")[0]) is not None and False:"
+      },
+      {
+        "이름": "갈래가 둘이어도 넘어간다",
+        "전": "        elif len(든곳) > 1:",
+        "후": "        elif False:"
+      },
+      {
+        "이름": "갈래 없는 수를 안 센다",
+        "전": "        if not 든곳:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "죽은 장부 줄을 안 든다",
+        "전": "        for x in sorted(v - 박은집합):",
+        "후": "        for x in []:"
+      },
+      {
+        "이름": "박은 수가 늘어도 안 막는다",
+        "전": "    if len(박) > MAX_박은수:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "치환예정이 늘어도 안 막는다",
+        "전": "    if 예정 > MAX_치환예정:",
+        "후": "    if False:"
       }
     ]
   }

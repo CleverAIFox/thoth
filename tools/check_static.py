@@ -383,6 +383,68 @@ def check_python() -> list[str]:
     return fails
 
 
+# ── 워크플로가 드는 저장소 경로(DECISIONS §164) ──────────────────────────────
+#
+# ★ **2026-10-05 에 세샤트의 CI 가 이것 때문에 빨갰다.** 거기 §288 이 `docs/next/papers.md`
+#   를 `docs/papers.md` 로 옮기고 파이썬 쪽은 따라 고쳤는데 **워크플로 세 자리를 안 고쳤다.**
+#   예약 작업은 주 1회라 **엿새 동안 아무도 모른다** — 그리고 그 판이 「마지막으로 끝난 CI」
+#   가 되어 **관계없는 밀기를 막았다**(세샤트 §291).
+# ★ **이 저장소는 지금 0 건이다.** 그래도 세운다 — **가족 중 한쪽에서 실측된 병은 있는 병이다**
+#   (§162). 「없는 병에 관문을 세우지 않는다」(§133)는 **아무 데서도 안 난 병**을 말한다.
+# ★ **문서 쪽은 `doc_fsck` 가 이미 본다. 워크플로는 아무도 안 봤다** — 코드도 문서도 아닌
+#   자리가 검사의 사각이었다.
+# ★ **밖 — 글롭과 변수가 든 경로는 안 본다.** `$GITHUB_WORKSPACE/…` · `docs/*.md` 는
+#   무엇을 가리킬지 돌려 봐야 안다.
+# ★ **밖 — 저장소 이름이 붙은 남의 것은 안 본다.** `세샤트 tools/ci_status.py` 는 이 저장소의
+#   파일이 아니다(`check_docs` 의 같은 규칙).
+# ★ **밖 — git 이 무시하는 자리는 안 본다.** `dist/` · `.cache/` 는 **만들어지는** 것이고
+#   저장소에 없는 것이 정상이다. 요구하면 **거짓 빨강**이고, 거짓 빨강이 쌓이면 사람이
+#   검사를 끈다(§158).
+_WF앞 = ("tools", "worker", "extension", "infra", "docs", ".github", "site")
+_WF경로 = re.compile(r"(?<![\w./-])((?:%s)/[A-Za-z0-9_./-]*[A-Za-z0-9_])"
+                     % "|".join(re.escape(t) for t in _WF앞))
+_WF남의것 = ("파이어레인", "하토르", "세샤트", "seshat", "fire-lane", "hathor")
+
+
+def 워크플로경로(글: str) -> list[tuple[int, str]]:
+    """워크플로가 드는 (줄, 저장소 경로). 글롭 · 변수 · 남의 저장소 것은 뺀다."""
+    난것 = []
+    for n, 줄 in enumerate(글.split("\n"), 1):
+        if any(q in 줄 for q in _WF남의것):
+            continue
+        for m in _WF경로.finditer(줄):
+            q = m.group(1).rstrip(".,)'\"")
+            # ★ **글롭·변수는 「안에」 가 아니라 「뒤에」 남는다**(DECISIONS §164). 글자 집합이
+            #   `*` 와 `$` 를 안 받으므로 `"*" in q` 는 **영영 거짓**이다 — 세샤트에서 옮겨
+            #   적을 때 그대로 따라 적었고, 돌연변이가 **그 줄이 아무것도 안 붙든다**고 물었다.
+            #   진짜 꼴은 `docs/a*b.md` 다 : 정규식이 `docs/a` 까지만 집고 **그 잘린 것이
+            #   없는 파일**이라 거짓 빨강이 된다. 집은 자리 **바로 뒤**를 본다.
+            if 줄[m.end():m.end() + 1] in ("*", "$", "{"):
+                continue
+            난것.append((n, q))
+    return 난것
+
+
+def _무시된다(q: str) -> bool:
+    """git 이 무시하는 자리. 없는 디렉터리는 `dir/` 꼴 규칙에 안 걸려 끝에 `/` 를 붙여 한 번 더 묻는다."""
+    import subprocess
+    try:
+        return any(subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", x],
+                                  capture_output=True).returncode == 0
+                   for x in (q, q.rstrip("/") + "/"))
+    except OSError:
+        return False
+
+
+def check_workflow_paths() -> list[str]:
+    난것 = []
+    for p in sorted((ROOT / ".github/workflows").glob("*.yml")):
+        for n, q in 워크플로경로(p.read_text(encoding="utf-8")):
+            if not (ROOT / q).exists() and not _무시된다(q):
+                난것.append(f"{p.name}:{n} 워크플로가 없는 것을 가리킨다 — {q}")
+    return 난것
+
+
 def _canary() -> None:
     """★ **판별식이 사나.** 정규식을 쓰는 검사는 **합성 문자열에서 기대한 것을 못 찾으면**
     2 로 끝낸다 — 0건이 목표인 검사는 **깨끗해서 0 인지 죽어서 0 인지** 못 가른다(MASTER §0-8).
@@ -401,6 +463,14 @@ def _canary() -> None:
         print("    ★ 카나리아가 죽었다 — Node 20 액션을 못 찾는다"); sys.exit(2)
     if not unpinned_uses("    uses: actions/checkout@v4\n"):
         print("    ★ 카나리아가 죽었다 — SHA 로 안 고정된 액션을 못 찾는다"); sys.exit(2)
+    # ★ **조용히 0건이 되는 자리다**(DECISIONS §164). 정규식이 늙으면 아무것도 못 찾고
+    #   **그래도 초록**이다 — 이 저장소는 실제로 0건이라 더더욱 가를 길이 없다.
+    if 워크플로경로("  run: python3 tools/x.py\n") != [(1, "tools/x.py")]:
+        print("    ★ 카나리아가 죽었다 — 워크플로의 저장소 경로를 못 찾는다"); sys.exit(2)
+    if 워크플로경로("  run: cat docs/*.md\n") or 워크플로경로("  run: ls $HOME/tools/x.py\n"):
+        print("    ★ 카나리아가 죽었다 — 글롭·변수가 든 경로를 든다"); sys.exit(2)
+    if 워크플로경로("  # 세샤트 tools/ci_status.py 와 같다\n"):
+        print("    ★ 카나리아가 죽었다 — 남의 저장소 것을 든다"); sys.exit(2)
 
 
 def main() -> int:
@@ -410,7 +480,7 @@ def main() -> int:
         return 0
     fails = (check_tf() + check_node20() + check_runner() + check_python()
              + check_pinned() + check_cache_rm() + check_timeouts()
-             + check_scope_declared())
+             + check_scope_declared() + check_workflow_paths())
     wf, skip = check_workflows()
     fails += wf
     for f in fails:
@@ -420,7 +490,7 @@ def main() -> int:
     if not fails:
         print("  인용 문자열이 ASCII 다 · Node 20 액션 없음 · 러너 고정 · 파이썬 컴파일 경고 없음"
               " · 액션이 SHA 로 고정됐다 · 작업마다 시간 상한 · 캐시 삭제 지시 없음"
-              " · CI 밖이 전부 선언됐다"
+              " · CI 밖이 전부 선언됐다 · 워크플로가 드는 경로가 실재한다"
               + ("" if skip else " · 워크플로가 YAML 이다"))
     return 1 if fails else 0
 

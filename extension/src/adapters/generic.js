@@ -72,7 +72,32 @@ globalThis.ST.genericCollect = function (root, opts) {
 
     out.push({ id: "g" + out.length, text, el, anchor: el, group: null });
   }
-  return out;
+  return globalThis.ST.행안의포함을_뺀다(out);
+};
+
+// ★ **한 행 안에서 남의 글을 통째로 품은 것은 모으지 않는다**(DECISIONS §165).
+//   2026-10-05 지메일 받은편지함에서 **한 행에 상자가 둘** 떴다 — 하나는 제목만,
+//   하나는 `보낸사람 + 제목 + 시각 + 본문 앞머리` 를 통째로. 뒤엣것이 앞엣것을 품는다.
+//   §160 이 `표 안의 표`(조상-자손)는 `BLOCK` 으로 막았는데, 이쪽은 **둘 다 말단**이고
+//   **형제**다 — 그 가름으로는 안 보인다.
+// ★ **품은 쪽을 버린다.** 그쪽에는 보낸사람·시각이 섞여 있어 번역이 더 나쁘다.
+// ★ **밖 — 행이 없으면 아무것도 안 버린다.** 문서 본문에서 같은 문장이 두 번 나오는 것은
+//   정상이고, 그것까지 지우면 **글이 사라진다.** 행이라는 울타리 안에서만 묻는다.
+globalThis.ST.행안의포함을_뺀다 = function (units) {
+  const 행경계 = globalThis.ST.행경계 || "tr,[role=row]";
+  const 납작 = (s) => s.replace(/\s+/g, " ").trim();
+  const 행 = units.map((u) => (typeof u.el.closest === "function" ? u.el.closest(행경계) : null));
+  const 버린다 = new Set();
+  for (let i = 0; i < units.length; i++) {
+    if (!행[i]) continue;
+    const a = 납작(units[i].text);
+    for (let j = 0; j < units.length; j++) {
+      if (i === j || 행[j] !== 행[i]) continue;
+      const b = 납작(units[j].text);
+      if (a.length > b.length && a.includes(b)) { 버린다.add(i); break; }
+    }
+  }
+  return units.filter((_, i) => !버린다.has(i));
 };
 
 if (!globalThis.ST.adapters.some((a) => a.name === "generic"))
