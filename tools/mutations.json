@@ -317,7 +317,7 @@
       },
       {
         "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 152",
+        "전": "MIN_돌연변이 = 156",
         "후": "MIN_돌연변이 = 1"
       },
       {
@@ -941,6 +941,16 @@
         "이름": "li 를 행 경계에 넣는다",
         "전": "globalThis.ST.행경계 = \"tr,[role=row]\";",
         "후": "globalThis.ST.행경계 = \"tr,[role=row],li\";"
+      },
+      {
+        "이름": "앵커의 폭을 레이아웃 물음으로 쓴다",
+        "전": "  const 뿌리 = globalThis.document && globalThis.document.documentElement;\n  return !!뿌리 && 뿌리.clientWidth > 0;",
+        "후": "  const 뿌리 = globalThis.document && globalThis.document.body;\n  return !!뿌리 && 뿌리.clientWidth > 0;"
+      },
+      {
+        "이름": "레이아웃이 없어도 고른다",
+        "전": "  if (typeof getComputedStyle !== \"function\") return false;",
+        "후": "  if (false) return false;"
       }
     ],
     "_밖": "`break` 는 **빠르기**이지 판정이 아니다. 지우면 행 위의 조상까지 `getComputedStyle` 을 읽지만, `고른다` 가 **가장 가까운 행**을 먼저 집으므로 답이 같다 — 표 안의 표에서도 `findIndex` 가 안쪽 행을 준다. **물릴 수 없는 줄은 선언한다**(DECISIONS §153)."
@@ -1004,6 +1014,16 @@
         "이름": "짧은 토막까지 본다",
         "전": "            if len(조각) >= 6:\n                out.append((b[\"종류\"], 조각))",
         "후": "            if True:\n                out.append((b[\"종류\"], 조각))"
+      },
+      {
+        "이름": "그림이 없어도 그림을 요구한다",
+        "전": "    if not (root / \"docs/proposal/.build/fig\").is_dir():\n        인자.append(그림없이)",
+        "후": "    if False:\n        인자.append(그림없이)"
+      },
+      {
+        "이름": "깃발 글자를 바꾼다",
+        "전": "그림없이 = \"--그림없이\"",
+        "후": "그림없이 = \"--no-figures\""
       }
     ]
   },

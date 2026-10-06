@@ -114,3 +114,54 @@ test("행이 없고 좁기만 하면 null 이다", 돔필요, () => {
   const doc = 창(`<div data-w="겉"><span data-w="글">x</span></div>`, { 글: 0, 겉: 147 });
   assert.equal(ST.꽂을자리(doc.querySelector("span")), null);
 });
+
+// ── 레이아웃을 잴 수 있나(DECISIONS §168) ───────────────────────────────────
+//
+// ★ **§165 가 이 스위치를 앵커의 폭으로 만들었고, 지메일에서 셋 중 둘이 칸 안에 섰다.**
+//   인라인 요소는 **레이아웃이 멀쩡해도 `clientWidth` 가 0** 이다 — 지메일의 제목 ·
+//   미리보기 앵커가 전부 `span` 이라 고르는 자가 통째로 건너뛰어졌다.
+// ★ **실측(2026-10-06)** : 부모 `TD.yX` pad 0/32px · width=157 그릇 168 — 행이 아니라 칸이다.
+
+test("뿌리에 폭이 없으면 못 잰다", 돔필요, () => {
+  const dom = new JSDOM("<!doctype html><body><span>x</span></body>");
+  globalThis.document = dom.window.document;
+  globalThis.getComputedStyle = dom.window.getComputedStyle;
+  // jsdom 은 레이아웃이 없어 뿌리도 0 이다 — 거기서는 **안 고르는 것이 맞다**
+  assert.equal(ST.잴수있나(), false);
+});
+
+test("인라인 앵커의 폭 0 을 레이아웃 없음으로 안 읽는다", 돔필요, () => {
+  // ★ **이것이 §168 의 전부다.** `span` 의 0 과 jsdom 의 0 을 **가른다** —
+  //   한 수로 물으면 좁은 것과 레이아웃 없는 것이 같아 보인다.
+  const dom = new JSDOM("<!doctype html><body><span id=a>x</span></body>");
+  const win = dom.window;
+  Object.defineProperty(win.Element.prototype, "clientWidth", {
+    get() { return this.tagName === "HTML" ? 1200 : 0; }, configurable: true,
+  });
+  globalThis.document = win.document;
+  globalThis.getComputedStyle = win.getComputedStyle;
+  assert.equal(win.document.getElementById("a").clientWidth, 0, "앵커는 0 이다");
+  assert.equal(ST.잴수있나(), true, "그래도 레이아웃은 있다");
+});
+
+test("브로커가 앵커의 폭으로 스위치를 안 삼는다", () => {
+  // ★ **글자로 못 박는다**(족 가드). 이 줄이 돌아오면 지메일이 또 칸 안에 선다.
+  const src = fs.readFileSync(path.join(뿌리, "src/broker.js"), "utf8");
+  assert.ok(!/anchor\.clientWidth\s*>\s*0/.test(src), "앵커의 폭이 다시 스위치가 됐다");
+  assert.ok(src.includes("ST.잴수있나()"), "레이아웃 물음이 한 자리에 있어야 한다");
+});
+
+test("재는 자가 없으면 못 잰다", () => {
+  // ★ **`getComputedStyle` 이 없는 데서 고르면 터진다**(§168). 뿌리 폭만 보면 그 자리를
+  //   안 묻게 되고, 돌연변이가 그 줄이 **아무것도 안 붙든다**고 말했다.
+  const 옛재는자 = globalThis.getComputedStyle;
+  const 옛문서 = globalThis.document;
+  try {
+    globalThis.getComputedStyle = undefined;
+    globalThis.document = { documentElement: { clientWidth: 1200 } };
+    assert.equal(ST.잴수있나(), false, "뿌리가 넓어도 잴 자가 없으면 못 잰다");
+  } finally {
+    globalThis.getComputedStyle = 옛재는자;
+    globalThis.document = 옛문서;
+  }
+});

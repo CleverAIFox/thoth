@@ -64,6 +64,22 @@ globalThis.ST.cssMeasure = function (node) {
 // ★ **밖 — `li` 는 행 경계가 아니다.** 지메일이 `tr` 이고, `li` 까지 넣으면 Udemy 쪽
 //   자리가 같이 바뀐다. **오늘 잰 병만 고친다**(§133). `li` 꼴의 목록은 **안 본다.**
 
+/**
+ * **레이아웃을 잴 수 있는 자리인가**(DECISIONS §168).
+ *
+ * ★ **앵커의 폭으로 묻지 않는다.** §165 가 처음 그렇게 적었고 **지메일에서 셋 중 둘이
+ *   칸 안에 섰다** — 인라인 요소(`span`)는 **레이아웃이 멀쩡해도 `clientWidth` 가 0** 이다.
+ *   지메일의 제목 · 미리보기 앵커가 전부 `span` 이라 고르는 자가 통째로 건너뛰어졌다.
+ * ★ **묻는 것은 「이 노드가 넓나」 가 아니라 「이 문서에 레이아웃이 있나」 다.** 둘을
+ *   한 수로 물으면 **좁은 것과 레이아웃 없는 것이 같아 보인다** — jsdom 과 `span` 이
+ *   똑같이 0 을 준다. 뿌리의 폭으로 묻는다.
+ */
+globalThis.ST.잴수있나 = function () {
+  if (typeof getComputedStyle !== "function") return false;
+  const 뿌리 = globalThis.document && globalThis.document.documentElement;
+  return !!뿌리 && 뿌리.clientWidth > 0;
+};
+
 /** 행 경계로 세는 것. 여기 꽂으면 **덮지 않고 민다.** */
 globalThis.ST.행경계 = "tr,[role=row]";
 

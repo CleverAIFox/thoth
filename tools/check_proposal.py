@@ -147,12 +147,34 @@ _꾸밈 = re.compile(r"<style>.*?</style>", re.S)
 _실린것 = re.compile(r'src="data:[^"]*"')
 
 
+#: `html.js` 가 아는 깃발. **글자가 두 곳에 살면 한쪽만 늙는다**(§91) — 시험이 둘을 맞댄다.
+그림없이 = "--그림없이"
+
+
+def html_인자(out: Path, root: Path | None = None) -> list[str]:
+    """`html.js` 를 부르는 인자. 그림이 없으면 **그림 없이** 굽는다(DECISIONS §168)."""
+    root = root or ROOT
+    인자 = ["node", "html.js", str(out)]
+    if not (root / "docs/proposal/.build/fig").is_dir():
+        인자.append(그림없이)
+    return 인자
+
+
 def html_글(root: Path | None = None) -> str:
     """`html.js` 가 구운 글. **굽는 것이 곧 검사다** — 터지면 2 로 끝난다."""
     root = root or ROOT
     out = root / "docs/proposal/.build/proposal.html"
     out.parent.mkdir(parents=True, exist_ok=True)
-    r = subprocess.run(["node", "html.js", str(out)], cwd=root / "docs/proposal",
+    # ★ **그림이 없으면 그림 없이 굽는다**(DECISIONS §168). `.build/fig` 는 gitignore 라
+    #   **깨끗한 사본에 없고 CI 가 바로 그 사본**이다. 그림을 요구하면 이 관문이 CI 에서
+    #   **2 로 죽고**, 그러면 「두 렌더러가 같은 글을 받았나」 를 **CI 에서 영영 안 묻는다.**
+    # ★ **묻는 것은 PNG 바이트가 아니라 글이다** — 캡션은 그대로 나오므로 대조가 온전하다.
+    #   PNG 자체는 `docx_check` 의 `FIGURES` 가 사실 선언으로 따로 본다.
+    인자 = html_인자(out, root)
+    if 그림없이 in 인자:
+        print("  ※ 그림이 없어 **그림 없이** 구웠다 — 글 대조는 그대로 돈다"
+              " (`bash tools/build_proposal.sh` 가 그림까지 굽는다)")
+    r = subprocess.run(인자, cwd=root / "docs/proposal",
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(f"    ★ html.js 가 {r.returncode} 로 죽었다\n{r.stderr[-600:]}", file=sys.stderr)

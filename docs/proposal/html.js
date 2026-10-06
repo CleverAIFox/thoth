@@ -15,6 +15,9 @@ const path = require("path");
 const { ROOT, SEP, RNG, secs, 그림 } = require("./facts");
 
 const libPath = require.resolve("./lib");
+// ★ **그림을 못 구운 나무에서도 돌아야 한다**(DECISIONS §168). `--그림없이` 는 자리와
+//   설명만 내고 PNG 를 비운다 — `check_proposal` 이 `.build/fig` 가 없을 때 그렇게 부른다.
+const 그림없이 = process.argv.includes("--그림없이");
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // **굵게** · `코드` — `lib.js` 의 `runs` 와 **같은 가름**이다. 가름이 갈리면 두 산출물의
@@ -73,10 +76,18 @@ const 가짜 = {
   CODE: (lines) => [`<pre>${lines.map((l) => esc(l || " ")).join("\n")}</pre>`],
   TBL: 표,
   KV: (rows, lw = 1.6) => 표(null, rows, [lw, 10 - lw], { rowHead: true }),
+  // ★ **그림 없이도 굽는다**(DECISIONS §168). `.build/fig` 는 gitignore 라 **깨끗한 사본에
+  //   없다** — CI 가 바로 그 사본이다. 그림을 요구하면 **관문이 CI 에서 2 로 죽고**,
+  //   그러면 「두 렌더러가 같은 글을 받았나」 를 **CI 에서 영영 안 묻는다.**
+  // ★ **묻는 것은 PNG 바이트가 아니라 글이다.** 자리와 설명은 그대로 내고 그림만 비운다 —
+  //   `FIGURE` 의 캡션이 두 렌더러 대조에 그대로 든다.
+  // ★ **「비웠다」 를 글로 적는다.** 조용히 빈 `<figure>` 를 내면 배포본에서도 그럴 수 있다.
   FIGURE: (name, caption) => {
+    const 캡 = `<figcaption>[그림 ${++그림번}] ${esc(caption)}</figcaption>`;
+    if (그림없이) return [`<figure data-st-fig="${esc(name)}" data-st-빈그림="1">${캡}</figure>`];
     const { data, facts } = 그림(name);
     return [`<figure><img alt="${esc(facts.join(SEP))}" src="data:image/png;base64,${data.toString("base64")}">`
-            + `<figcaption>[그림 ${++그림번}] ${esc(caption)}</figcaption></figure>`];
+            + 캡 + `</figure>`];
   },
   COVER: (줄) => [`<section class="cover">${줄.map(([글]) => `<p>${esc(글)}</p>`).join("")}</section>`],
   TOC: (항목) => [`<nav class="toc"><h2>목차</h2>${항목.map(([x, l]) =>
@@ -131,7 +142,8 @@ figcaption { font-size:9pt; color:var(--gray); margin-top:5px }
 @media print { body { background:#ffffff } main { box-shadow:none; max-width:none; padding:0 } hr.pb { page-break-after:always; border:0 } }
 `.trim();
 
-const out = process.argv[2] || path.join(ROOT, "site/proposal.html");
+const out = process.argv.find((x, i) => i >= 2 && !x.startsWith("--"))
+  || path.join(ROOT, "site/proposal.html");
 fs.writeFileSync(out, `<!DOCTYPE html>
 <html lang="ko">
 <head>

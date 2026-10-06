@@ -438,7 +438,8 @@
       u.node.classList.add(`${CLS}--wide`);
       // ★ **자리를 수로 고른다**(DECISIONS §165). 레이아웃이 없는 곳(jsdom)에서는
       //   `꽂을자리` 가 없거나 폭이 0 이라 **옛 길로 간다** — 못 재는 데서 고르지 않는다.
-      const 자리 = (typeof ST.꽂을자리 === "function" && anchor.clientWidth > 0)
+      const 잴수있나 = typeof ST.잴수있나 === "function" && ST.잴수있나();
+      const 자리 = (typeof ST.꽂을자리 === "function" && 잴수있나)
         ? ST.꽂을자리(anchor) : null;
       if (자리?.꼴 === "행다음") {
         // ★ **덮지 않고 민다.** 칸 안은 행 높이가 고정이라 넓어도 겹친다.
@@ -457,7 +458,7 @@
         }
       } else if (자리?.꼴 === "형제") {
         자리.자리.appendChild(u.node);
-      } else if (자리 === null && typeof ST.꽂을자리 === "function" && anchor.clientWidth > 0) {
+      } else if (자리 === null && typeof ST.꽂을자리 === "function" && 잴수있나) {
         // ★ **못 꽂는 것도 답이다**(DECISIONS §59 · §165). 억지로 꽂은 것이 그 세로 기둥이다.
         //   **세어서 적는다** — 조용히 안 하는 것과 못 한다고 적는 것은 다른 일이다.
         ST.못꽂음 = (ST.못꽂음 || 0) + 1;

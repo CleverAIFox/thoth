@@ -356,3 +356,34 @@ def test_치환예정_천장이_실제로_막는다(monkeypatch, capsys):
     monkeypatch.setattr(CP, "MAX_치환예정", 예정 - 1)
     assert CP.main([]) == 1
     assert "빚은 늘지 않는다" in capsys.readouterr().out
+
+
+# ── 그림 없는 나무(DECISIONS §168) ──────────────────────────────────────────
+
+def test_그림이_없으면_그림_없이_굽는다(tmp_path):
+    """★ **`.build/fig` 는 gitignore 라 깨끗한 사본에 없고 CI 가 바로 그 사본이다**(§168).
+    그림을 요구하면 이 관문이 CI 에서 **2 로 죽고**, 그러면 「두 렌더러가 같은 글을
+    받았나」 를 **CI 에서 영영 안 묻는다.** 2026-10-06 에 실제로 그렇게 빨갰다."""
+    (tmp_path / "docs/proposal").mkdir(parents=True)
+    assert CP.그림없이 in CP.html_인자(tmp_path / "out.html", tmp_path)
+    (tmp_path / "docs/proposal/.build/fig").mkdir(parents=True)
+    assert CP.그림없이 not in CP.html_인자(tmp_path / "out.html", tmp_path)
+
+
+def test_깃발의_글자가_두_곳에서_같다():
+    """★ **글자가 두 곳에 살면 한쪽만 늙는다**(§91). 파이썬이 주는 깃발을 JS 가 모르면
+    **조용히 그림을 요구하고** 다시 2 로 죽는다."""
+    src = (ROOT / "docs/proposal/html.js").read_text(encoding="utf-8")
+    assert f'includes("{CP.그림없이}")' in src, "html.js 가 그 깃발을 모른다"
+
+
+def test_그림_없이_구워도_글이_같다():
+    """★ **묻는 것은 PNG 바이트가 아니라 글이다.** 캡션이 빠지면 대조가 반쪽이 된다."""
+    import subprocess
+    t = CP.나무()
+    밖 = ROOT / "docs/proposal/.build/없이.html"
+    밖.parent.mkdir(parents=True, exist_ok=True)
+    r = subprocess.run(["node", "html.js", str(밖), CP.그림없이],
+                       cwd=ROOT / "docs/proposal", capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-400:]
+    assert CP.두렌더러(t, 밖.read_text(encoding="utf-8")) == []
