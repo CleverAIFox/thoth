@@ -387,3 +387,105 @@ def test_그림_없이_구워도_글이_같다():
                        cwd=ROOT / "docs/proposal", capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-400:]
     assert CP.두렌더러(t, 밖.read_text(encoding="utf-8")) == []
+
+
+# ── 속성 안에 들어가는 글 (DECISIONS §171) ──────────────────────────────────
+#
+# ★ **본문 글자와 속성값은 다른 자리다.** 본문에서는 `&` · `<` · `>` 셋이면 되지만
+#   속성 안에서는 **`"` 하나로 속성이 끝나고** 그 뒤가 **새 속성으로 읽힌다.**
+#   2026-10-05 에 `esc` 가 셋만 바꾸고 있었고, 그 값이 `data-st-fig="…"` 와 `alt="…"`
+#   둘에 들어갔다. CodeQL 이 **이틀** 동안 들고 있었다.
+#
+# ★ **「지금은 안 들어온다」 는 근거가 아니다.** `facts` 는 DECISIONS 에서 나오고
+#   거기 큰따옴표가 993 개다. 들어오는 날 `check_figures` 는 **깨진 글을 사실로 읽는다.**
+#
+# ★ **손 목록이 아니라 족 가드다.** 속성값에 든 보간을 **전수로 뽑아**, `esc(` 로 감싼
+#   것이 아니면 **까닭이 적혀 있어야** 통과한다. 새 속성이 늘면 분류를 강요한다.
+#   아래 목록은 「글이 아니라서 안 감싼다」 를 적는 자리이지 **면제 장부가 아니다.**
+안감싸는까닭 = {
+    "((w / 합) * 100).toFixed(2)": "수다 — `toFixed` 가 숫자만 낸다",
+    "lvl": "수다 — `B` 의 깊이",
+    "l ? 1 : 0": "수다 — 삼항이 1 아니면 0 을 낸다",
+    'data.toString("base64")': "base64 는 A-Za-z0-9+/= 뿐이라 따옴표가 못 든다",
+}
+
+
+def _속성보간(src: str) -> list[str]:
+    """`이름="… ${x} …"` 꼴에서 `${}` 안의 글을 전부 꺼낸다.
+
+    ★ **정규식 한 줄로 못 한다.** `src="…${data.toString("base64")}"` 처럼 **보간 안에
+      따옴표가 든다** — `[^"]*` 로 읽으면 속성값이 거기서 잘리고, **검사가 잡으려던 바로
+      그 병을 검사가 앓는다**(처음 판이 그랬다). 중괄호 깊이를 세며 훑는다.
+    ★ **보간 안의 따옴표는 속성을 안 끝낸다.** 끝내는 것은 **깊이 0 의 `"`** 뿐이다.
+    """
+    것: list[str] = []
+    i = 0
+    while (j := src.find('="', i)) != -1:
+        k, 깊이, 시작 = j + 2, 0, -1
+        while k < len(src):
+            c = src[k]
+            if c == "\n" and 깊이 == 0:
+                break                      # 한 줄 안에서 안 닫히면 속성이 아니다
+            if src.startswith("${", k):
+                if 깊이 == 0:
+                    시작 = k + 2
+                깊이 += 1
+                k += 2
+                continue
+            if 깊이:
+                if c == "{":
+                    깊이 += 1
+                elif c == "}":
+                    깊이 -= 1
+                    if 깊이 == 0:
+                        것.append(src[시작:k])
+            elif c == '"':
+                break
+            k += 1
+        i = k + 1
+    return 것
+
+
+def test_속성에_드는_글이_전부_감싸졌거나_까닭이_있다():
+    src = (ROOT / "docs/proposal/html.js").read_text(encoding="utf-8")
+    것 = _속성보간(src)
+    assert len(것) >= 5, f"보간을 {len(것)} 개밖에 못 찾았다 — 정규식이 늙었다"
+    난것 = [x for x in 것 if not x.startswith("esc(") and x.strip() not in 안감싸는까닭]
+    assert 난것 == [], f"속성에 안 감싼 글이 든다 — 감싸거나 까닭을 적는다 : {난것}"
+    # ★ **양방향이다.** 안 쓰는 까닭이 남으면 **다음 사람이 그 자리가 아직 있는 줄 안다.**
+    쓰임 = {x.strip() for x in 것}
+    죽은것 = [k for k in 안감싸는까닭 if k not in 쓰임]
+    assert 죽은것 == [], f"안감싸는까닭 에 죽은 항목이 있다 — 지운다 : {죽은것}"
+
+
+def test_esc_가_속성을_끝내는_글자까지_바꾼다():
+    """★ **다섯 전부를 민다.** 셋만 바꾸면 속성 안에서 샌다(§171).
+    ★ **합성으로 먹인다** — node 를 띄우지 않고 글자로 묻는다(§21 과 같은 꼴)."""
+    src = (ROOT / "docs/proposal/html.js").read_text(encoding="utf-8")
+    머리 = src.split("const esc =", 1)[1].split("\n\n", 1)[0]
+    for 글자, 바뀜 in (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"),
+                       ('"', "&quot;"), ("'", "&#x27;")):
+        assert 바뀜 in 머리, f"esc 가 {글자!r} 를 {바뀜} 로 안 바꾼다"
+    # ★ `&` 를 **먼저** 바꿔야 한다. 나중에 바꾸면 `&lt;` 의 `&` 가 다시 밀려 `&amp;lt;` 가 된다.
+    assert 머리.index("&amp;") < 머리.index("&lt;"), "`&` 를 먼저 안 바꾼다 — 두 번 밀린다"
+
+
+def test_esc_를_실제로_돌려_본다():
+    """★ **글자로 본 것과 돌려 본 것은 다르다**(§152). 정규식이 맞아도 **순서**가 틀리면
+    `&lt;` 의 `&` 가 다시 밀려 `&amp;lt;` 가 된다 — 그것은 글자로 안 보인다.
+    ★ **`eval` 로 안 꺼낸다.** `const` 는 `eval` 제 범위에 생겨 밖에서 안 보인다
+      (첫 판이 `esc is not defined` 로 죽었다). **선언을 글자로 옮겨 적고 내보낸다.**
+    """
+    import subprocess
+    src = (ROOT / "docs/proposal/html.js").read_text(encoding="utf-8")
+    선언 = "const esc =" + src.split("const esc =", 1)[1].split("\n\n", 1)[0]
+    밖 = ROOT / "docs/proposal/.build"
+    밖.mkdir(parents=True, exist_ok=True)
+    (밖 / "esc_probe.js").write_text(
+        선언 + "\nprocess.stdout.write(esc("
+                "String.fromCharCode(97,38,98,60,99,62,100,34,101,39,102)));\n",
+        encoding="utf-8")
+    r = subprocess.run(["node", ".build/esc_probe.js"],
+                       cwd=ROOT / "docs/proposal", capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-400:]
+    assert r.stdout == "a&amp;b&lt;c&gt;d&quot;e&#x27;f", r.stdout

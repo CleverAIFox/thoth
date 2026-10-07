@@ -70,23 +70,31 @@
   // ★ **대비가 모자라면 아무것도 넘기지 않는다.** 사이트 색이 이상하면 결과도
   //   이상해진다. 그때는 변수를 지워 content.css 의 기본값이 그대로 선다 —
   //   못 잰 자리에 값을 적지 않는 것과 같다(DECISIONS §59).
+  // ★ **잰 테마를 돌려준다**(DECISIONS §169). `html` 에만 붙이던 때는 섀도 안에서
+  //   그것을 고를 수 없었다 — 섀도 선택자는 **밖의 조상을 볼 수 없다.** 호스트에도
+  //   같은 값을 붙여야 `:host([data-st-theme="dark"])` 가 선다. 두 번 재지 않으려고
+  //   여기서 값을 내보낸다.
   const markTheme = (el) => {
     const root = document.documentElement;
     const bg = paintedBg(el);
-    root.dataset.stTheme = lum(bg) < 0.45 ? "dark" : "light";
+    const 테마 = lum(bg) < 0.45 ? "dark" : "light";
+    root.dataset.stTheme = 테마;
 
     const text = parseRgb(getComputedStyle(el).color);
     const vars = ["--st-site-text", "--st-site-surface",
                   "--st-site-border", "--st-site-skel"];
     if (!text || contrast(text, bg) < 4.5) {
       vars.forEach((v) => root.style.removeProperty(v));
-      return;
+      return 테마;
     }
     // 면은 바탕을 글자색 쪽으로 아주 조금 섞어 한 단계 띄운다.
+    // ★ **사용자 지정 속성은 섀도 경계를 넘어 상속된다** — `html` 에 얹은 값이
+    //   박스 안까지 내려온다. 그래서 여기는 §169 로도 바뀌지 않았다.
     root.style.setProperty("--st-site-text", css(text));
     root.style.setProperty("--st-site-surface", css(mix(bg, text, 0.045)));
     root.style.setProperty("--st-site-border", css(mix(bg, text, 0.14)));
     root.style.setProperty("--st-site-skel", css(mix(bg, text, 0.10)));
+    return 테마;
   };
   // 배치 크기는 엔진에 달렸다. 코드에 박지 않고 chrome.storage 의 stBatch 로
   // 둔다(DECISIONS §80).
@@ -162,6 +170,56 @@
     }
   };
 
+  // ── 박스를 섀도 경계 뒤에 짓는다 (DECISIONS §169) ──────────────────────────
+  //
+  // ★ **지금까지는 명시도로 이기고 있었다.** 바탕 `(0,2,0)` 이 지면 비상구
+  //   `!important` 가 받는 사다리였고, **사이트가 하나 늘 때마다 칸이 하나 느는
+  //   구조**였다. 2026-10-06 실측 — 안쪽을 `!important` 로 때리는 규칙
+  //   하나에 납작 박스는 `padding` · `background` · `font-size` · `line-height`
+  //   **넷을 내줬다.** 같은 공격이 섀도 안에서는 **하나도 안 통한다.**
+  //
+  // ★ **「이기려고 애쓴다」 가 아니라 「질 수가 없다」 로 간다.** 섀도 경계는
+  //   명시도가 아니라 **규칙**이다. 사이트 CSS 는 들어올 수 없다.
+  //
+  // ★ **`attachShadow` 에 대한 대비를 두지 않는다**(§133). MV3 을 돌리는 크롬에는
+  //   전부 있고, 없는 브라우저는 확장 자체를 못 돌린다. **없는 병에 관문을 세우지
+  //   않는다.** 반면 **CSS 를 못 읽는 일은 실제로 난다**(페이지 CSP) — 그쪽은 아래에서
+  //   말하고 넘어간다. 맨몸이어도 글자는 보인다.
+  //
+  // ★ **`mode: "open"` 이다.** 닫아도 CSS 는 똑같이 못 넘어온다 — `mode` 는
+  //   캐스케이드와 무관하다. 열어 두면 콘솔에서 `el.shadowRoot` 로 들여다볼 수 있고,
+  //   **고치는 사람이 보는 비용이 막아서 얻는 것보다 크다.**
+  //
+  // ★ **`adoptedStyleSheets` 를 안 쓴다.** 박스마다 `<style>` 하나면 글자 7KB 가
+  //   박스 수만큼 늘지만, 재어 본 적 없는 메모리를 아끼려고 **환경마다 갈리는 길을
+  //   둘로 만들지 않는다**(jsdom 에는 구성 가능한 스타일시트가 없다).
+  //
+  // ★ **CSS 를 여기서 받지 않는다.** `background.js` 가 `ST.상자CSS` 로 **밀어 넣는다** —
+  //   콘텐츠 스크립트가 제 손으로 `fetch` 하려면 `web_accessible_resources` 가 필요하고
+  //   그러면 모든 사이트가 우리 CSS 를 읽을 수 있다. **없는 자리를 만들지 않는다.**
+  //   밀어 넣기가 실패하거나 순서가 어긋나면 비어 있고, 그때는 아래에서 말한다.
+  let CSS말함 = false;
+
+  /** 호스트에 섀도를 달고 **글자가 들어갈 몸**을 돌려준다. */
+  const 속짓는다 = (host) => {
+    const 뿌리 = host.shadowRoot || host.attachShadow({ mode: "open" });
+    if (ST.상자CSS) {
+      const s = document.createElement("style");
+      s.textContent = ST.상자CSS;
+      뿌리.appendChild(s);
+    } else if (!CSS말함) {
+      // ★ **실패를 삼키지 않는다**(§103 과 같은 자리). 맨몸으로 서는 것이 안 보이는
+      //   것보다는 낫지만, 조용하면 또 모른다. 박스마다 말하면 안 읽히므로 한 번만.
+      CSS말함 = true;
+      console.warn("[st] 섀도에 넣을 CSS 가 없다 — 박스가 맨몸으로 선다"
+                   + " (background.js 가 ST.상자CSS 를 밀어 넣는다)");
+    }
+    const 몸 = document.createElement("div");
+    몸.classList.add(ST.몸클래스);
+    뿌리.appendChild(몸);
+    return 몸;
+  };
+
   const pickAdapter = () =>
     [...(ST.adapters || [])].sort((a, b) => b.priority - a.priority).find((a) => a.match());
 
@@ -209,8 +267,14 @@
   const finish = (u, text) => {
     if (!u.node.isConnected) return;   // 그 사이 SPA 가 갈아엎었다
     u.node.classList.remove(`${CLS}--loading`);
-    u.node.textContent = text;
-    appendLinks(u.node, u.urls);
+    // ★ **글자는 섀도 안의 몸에 들어간다**(DECISIONS §169). 호스트에 쓰면 섀도가
+    //   달린 뒤로는 **그려지지도 않는다** — 섀도 루트가 있는 요소의 자식 노드는
+    //   슬롯이 없으면 렌더 트리에 안 올라온다.
+    u.속.textContent = text;
+    appendLinks(u.속, u.urls);
+    // ★ **`--줄N` 을 떼지 않는다.** 뼈대 규칙은 `:host(.st-translation--loading)` 아래에만
+    //   있으므로 위에서 `--loading` 을 뗀 순간 이미 안 선다. **지울 일이 없는 것을
+    //   지우는 줄을 두지 않는다**(§133).
     // ★ **레이아웃이 끝난 뒤에 잰다.** 같은 틱에 재면 폭이 0 이라 전부 어긋남으로 찍힌다.
     //
     // ★ **레이아웃이 없는 곳에서는 아예 재지 않는다.** jsdom 에는
@@ -420,13 +484,17 @@
       if (alreadyKorean(body)) continue;   // 이미 한국어다
       u.body = body;
       u.urls = urls;
-      markTheme(u.el);
+      const 테마 = markTheme(u.el);
       u.node = document.createElement("div");
       // ★ 기다리는 상태를 클래스로 남긴다. 한 문항이 5초이고 그동안 표시가
       //   없으면 눌렀는지조차 알 수 없다. 글자가 아니라 클래스로 두는 이유는
       //   번역이 도착할 때 내용이 갈리지 않게 하기 위해서다.
       u.node.className = `${CLS} ${CLS}--loading`;
-      u.node.textContent = "…";
+      // ★ **테마를 호스트에도 붙인다**(DECISIONS §169) — 섀도 안에서는 밖의 `html` 을
+      //   고를 수 없다.
+      if (테마) u.node.dataset.stTheme = 테마;
+      u.속 = 속짓는다(u.node);
+      u.속.textContent = "…";
       ad.decorate?.(u.node, u);
       const anchor = ad.anchorFor ? ad.anchorFor(u.el) : u.anchor;
       // 앵커가 이미 떨어져 나갔으면 꽂을 자리가 없다.
@@ -441,6 +509,15 @@
       const 잴수있나 = typeof ST.잴수있나 === "function" && ST.잴수있나();
       const 자리 = (typeof ST.꽂을자리 === "function" && 잴수있나)
         ? ST.꽂을자리(anchor) : null;
+      // ★ **모양을 꼴에서 고른다**(DECISIONS §170). `행다음` 은 목록 행 뒤라 **띠**이고,
+      //   그 밖은 본문 안이라 **카드**다 — **사이트 이름을 묻지 않는다**(§165 와 같은 처방).
+      //   카드 한 꼴로 목록 행마다 둥근 면과 그림자를 세우면 **원문보다 번역이 더
+      //   무겁고**, 스무 줄이면 회색 슬래브 스무 장이 된다.
+      const 띠 = 자리?.꼴 === "행다음";
+      if (띠) u.node.classList.add(`${CLS}--띠`);
+      // ★ **뼈대 줄 수를 원문 길이와 잰 폭으로 센다**(§170). 전에는 `min-height: 104px`
+      //   를 박아 **스물두 자짜리 토막도 백네 픽셀**을 잡았다.
+      u.node.classList.add(`${CLS}--줄${ST.줄수(u.body.length, 자리?.폭 || 0, 띠 ? "띠" : "카드")}`);
       if (자리?.꼴 === "행다음") {
         // ★ **덮지 않고 민다.** 칸 안은 행 높이가 고정이라 넓어도 겹친다.
         const 행 = 자리.자리;

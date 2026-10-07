@@ -906,6 +906,23 @@ else
     *) no "ci_status.py 가 죽었다 (exit $CI_RC)"
        printf '%s\n' "$CI_OUT" | tail -5 | sed 's/^/       /' ;;
   esac
+
+  # ★ **위의 CI 판정이 이것을 영영 못 본다**(DECISIONS §171). `ci_status.py` 는 물을
+  #   목록을 `.github/workflows/*.yml` 에서 꺼내는데 **CodeQL 은 GitHub 기본 설정으로
+  #   돌아 파일이 없다.** 2026-10-05~07 에 「CI 가 이 커밋을 초록으로 봤다 — 워크플로 3
+  #   전부」 를 찍는 동안 `docs/proposal/html.js` 의 경보 둘이 **이틀** 떠 있었다.
+  #   **그 줄은 참말이었고 모자랐다** — 참말인 초록이 가장 오래 숨긴다.
+  CS_OUT="$(python3 tools/code_scanning.py 2>&1)"; CS_RC=$?
+  case "$CS_RC" in
+    0) ok "$(printf '%s' "$CS_OUT" | sed 's/^ *//' | head -1)" ;;
+    1) no "코드 스캐닝에 열린 경보가 있다"
+       printf '%s\n' "$CS_OUT" | sed 's/^/    /' ;;
+    # ★ **2 는 둘 중 하나다** — 묻지 못했거나(`gh` · 권한 · 꺼짐), **물었는데 그 답이
+    #   이 나무에 관한 것이 아니거나**(경보가 가리킨 파일이 스캔 이후 바뀌었다, §172).
+    #   둘 다 **초록이 아니라 건너뜀**이고, 둘 다 줄을 그대로 보여 준다.
+    *) skip "코드 스캐닝이 이 나무를 답하지 못했다"
+       printf '%s\n' "$CS_OUT" | sed 's/^/       /' ;;
+  esac
 fi
 
 echo

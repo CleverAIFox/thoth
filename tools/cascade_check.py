@@ -49,7 +49,9 @@ FIXTURE = ROOT / "extension/tests/fixtures/cascade.html"
 #   살고 언젠가 하나만 고쳐진다(DECISIONS §132 · §135). 픽스처가 그 파일을 싣는다.
 측정 = """() => {
   const out = [];
-  for (const n of document.querySelectorAll(".st-translation")) {
+  // ★ **`[data-case]` 를 붙인 것만 본다**(§169). 안쪽 사다리의 호스트 넷도
+  //   `.st-translation` 이라 그대로 긁으면 `dataset.case` 가 없어 터진다.
+  for (const n of document.querySelectorAll(".st-translation[data-case]")) {
     const [구조, 사다리, 비상구] = n.dataset.case.split("|");
     const p = n.parentElement;
     const ps = getComputedStyle(p);
@@ -62,14 +64,53 @@ FIXTURE = ROOT / "extension/tests/fixtures/cascade.html"
 }"""
 
 
+# ★ **안쪽은 「어디서부터 지는가」 가 아니라 「질 수가 있는가」 다**(DECISIONS §169).
+#   `padding` · `border-radius` · `background` · `box-shadow` · `font-size` ·
+#   `line-height` · `color` — 박스를 박스로 보이게 하는 것들이다. 넉 달 동안
+#   **이것을 때리는 적수를 한 번도 세우지 않았다.** 재는 자가 안 보고 있었으므로
+#   세울 생각도 안 했다 — 그래서 지메일에서 박스가 싼티나게 깨져 있는데 표는
+#   초록이었다(§59 : 「못 쟀다」 를 「없다」 로 읽었다).
+#
+# ★ **같은 규칙 · 같은 값 · 다른 것은 경계 하나.**
+#     대조 : `.st-몸` 을 **페이지에** 둔 것. §169 전의 박스다. **져야 한다.**
+#     섀도 : 같은 것을 섀도 안에 둔 것. **이겨야 한다.**
+# ★ **양방향이다.** 섀도가 지면 경계가 샌 것이고, **대조가 안 지면 적수가
+#   무력해진 것**이다. 후자를 안 보면 이 검사는 초록을 내면서 아무것도 안 본다.
+안쪽기대 = {("없음", "대조"): 0, ("없음", "섀도"): 0,
+            ("KILL", "섀도"): 0}
+# ★ **적수의 세기를 수로 못 박는다**(2026-10-06 실측 : 아홉). 늘면 **사이트가 셀 수
+#   있는 자리가 늘었다**는 뜻이고, 줄면 **적수가 약해졌다**는 뜻이다 — 후자가 더
+#   위험하다. 약해진 적수에게 안 진 섀도의 0 은 「이겼다」 가 아니라 「때린 적이
+#   없다」 다. `비상구쓸모` 와 같은 양방향 톱니다.
+안쪽적수세기 = {("KILL", "대조"): 9}
+
+안쪽측정 = """() => {
+  const 볼것 = window.__안쪽볼것;
+  const 셋 = window.__안쪽;
+  const 읽 = (el) => { const s = getComputedStyle(el); const o = {};
+                       for (const k of 볼것) o[k] = s[k]; return o; };
+  // ★ **기대값을 파이썬에 적지 않는다.** 「적수 없는 대조」 가 곧 설계가 말하는
+  //   모양이고, 나머지는 그것과 **다른 자리**만 센다(§132).
+  const 기준 = 읽(셋.find((x) => x.적수 === "없음" && x.꼴 === "대조").속);
+  return 셋.map(({ 적수, 꼴, 속 }) => {
+    const 값 = 읽(속);
+    return { 적수, 꼴, 어긋남: 볼것.filter((k) => 값[k] !== 기준[k]) };
+  });
+}"""
+
+
 def 잰다(fixture: pathlib.Path):
-    """(행들, None) 또는 (None, 못 잰 까닭)."""
+    """(행들, 안쪽행들, None) 또는 (None, None, 못 잰 까닭)."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as e:
-        return None, f"playwright 가 없다 ({e})"
+        return None, None, f"playwright 가 없다 ({e})"
     try:
         with sync_playwright() as p:
+            # ★ **`--allow-file-access-from-files` 를 안 켠다.** 섀도 안의 `<link>` 는
+            #   **문서 하위 리소스**라 `file://` 에서도 그냥 실린다 — 재 보고 지웠다.
+            #   **없는 병에 깃발을 세우지 않는다**(§133). 대신 실제로 실렸는지를
+            #   아래에서 `borderRadius` 로 **묻는다** — 그쪽이 진짜 관문이다.
             b = p.chromium.launch()
             try:
                 pg = b.new_page(viewport={"width": 1100, "height": 900})
@@ -78,12 +119,25 @@ def 잰다(fixture: pathlib.Path):
                 # ★ **픽스처가 `cssaudit.js` 를 못 실었으면 거기서 멈춘다.** 안 실린 채
                 #   0 건으로 통과하면 검사가 아무것도 안 보면서 초록을 낸다(§59).
                 if not pg.evaluate("() => typeof window.ST?.cssMeasure === 'function'"):
-                    return None, "픽스처가 src/cssaudit.js 를 싣지 못했다"
-                return pg.evaluate(측정), None
+                    return None, None, "픽스처가 src/cssaudit.js 를 싣지 못했다"
+                if not pg.evaluate("() => Array.isArray(window.__안쪽) && window.__안쪽.length === 4"):
+                    return None, None, "픽스처가 안쪽 사다리 넷을 세우지 못했다"
+                # ★ **섀도가 스타일시트를 실제로 받았는지 먼저 묻는다.** 못 받았으면
+                #   아래 「안 졌다」 는 참이지만 **아무 의미가 없다**(§59).
+                핀 = pg.evaluate("""() => {
+                  const 속 = window.__안쪽.find((x) => x.꼴 === "섀도").속;
+                  return getComputedStyle(속).borderRadius;
+                }""")
+                if "16px" not in (핀 or ""):
+                    return None, None, f"섀도가 content.css 를 못 받았다 (borderRadius={핀!r})"
+                return pg.evaluate(측정), pg.evaluate(안쪽측정), None
             finally:
                 b.close()
     except Exception as e:    # 까닭을 삼키지 않고 그대로 내보낸다(§70)
-        return None, f"크로미움을 못 띄웠다 ({str(e).splitlines()[0][:120]})"
+        # ★ **까닭을 「크로미움을 못 띄웠다」 로 뭉개지 않는다.** 띄우고 나서 재다
+        #   터진 것까지 그 말로 적고 있었고, 그 말을 믿고 playwright 설치를
+        #   다시 뒤지게 된다(§70 — 까닭을 삼키지 않는다).
+        return None, None, f"재다 터졌다 ({str(e).splitlines()[0][:160]})"
 
 
 def 판정(행들: list[dict]) -> list[str]:
@@ -140,8 +194,33 @@ def 쓸모(행들: list[dict]) -> dict:
     return out
 
 
+def 안쪽판정(행들: list[dict]) -> list[str]:
+    """경계가 제 일을 하는가 — 그리고 적수가 아직 센가."""
+    fails = []
+    본것 = set()
+    for r in 행들:
+        키 = (r["적수"], r["꼴"])
+        본것.add(키)
+        n = len(r["어긋남"])
+        if 키 in 안쪽기대 and n != 안쪽기대[키]:
+            말 = "·".join(r["어긋남"])
+            fails.append(
+                f"안쪽 {r['적수']} · {r['꼴']} : {n} 개가 어긋났다({말}) — 표는 "
+                f"{안쪽기대[키]} 다. " + ("**섀도 경계가 샜다**" if r["꼴"] == "섀도"
+                                          else "적수 없이 기준과 갈렸다"))
+        if 키 in 안쪽적수세기 and n != 안쪽적수세기[키]:
+            말 = "늘었으면 사이트가 셀 자리가 늘었고" if n > 안쪽적수세기[키] \
+                 else "줄었으면 적수가 약해졌고 — 그러면 섀도의 0 은 「이겼다」 가 아니라 「때린 적이 없다」 다"
+            fails.append(
+                f"안쪽 {r['적수']} · {r['꼴']} : {n} 개가 어긋났다 — 표는 "
+                f"{안쪽적수세기[키]} 다. {말} 둘 다 적어야 한다(§59)")
+    for 키 in {*안쪽기대, *안쪽적수세기} - 본것:
+        fails.append(f"안쪽 {키[0]} · {키[1]} 칸이 픽스처에 없다")
+    return fails
+
+
 def main() -> int:
-    행들, 왜 = 잰다(FIXTURE)
+    행들, 안쪽행들, 왜 = 잰다(FIXTURE)
     if 행들 is None:
         print(f"재지 못했다 — {왜}")
         # ★ **되는 명령을 적는다.** `uv run --with playwright` 는 **임시 환경**에
@@ -153,7 +232,7 @@ def main() -> int:
         return 2
 
     if "--json" in sys.argv:
-        print(json.dumps(행들, ensure_ascii=False, indent=2))
+        print(json.dumps({"호스트": 행들, "안쪽": 안쪽행들}, ensure_ascii=False, indent=2))
 
     구조들 = sorted({r["구조"] for r in 행들})
     print("바탕 규칙만 — 이기는가 (비상구 없음)")
@@ -171,7 +250,13 @@ def main() -> int:
     for e, n in sorted(쓸모(행들).items()):
         print(f"  {e:<6} {n}")
 
-    fails = 판정(행들)
+    print()
+    print("안쪽 — 경계가 막는가 (어긋난 속성 수 / 기준은 「적수 없는 대조」)")
+    for r in sorted(안쪽행들, key=lambda x: (x["적수"], x["꼴"])):
+        말 = "·".join(r["어긋남"]) or "—"
+        print(f"  {r['적수']:<5} {r['꼴']:<4} {len(r['어긋남']):>2}  {말}")
+
+    fails = 판정(행들) + 안쪽판정(안쪽행들)
     if fails:
         print()
         print("표와 다르다 :")

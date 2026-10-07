@@ -129,7 +129,13 @@ export function fakeChrome(initial = {}) {
           async set(obj) { Object.assign(store, obj); },
         },
       },
-      runtime: { lastError: null },
+      // ★ **§169 로 브로커가 `getURL` 로 `content.css` 를 받는다.** 흉내를 안 두면
+      //   섀도가 **맨몸으로** 서고, 그러면 「박스가 섰다」 는 초록인데 꾸밈은 한 번도
+      //   검사를 지나지 않는다 — 실사이트에서만 깨지는 종류다.
+      runtime: {
+        lastError: null,
+        getURL: (p) => `chrome-extension://thoth-test/${p}`,
+      },
     },
   };
 }
@@ -192,7 +198,7 @@ export const BROKER_FILES = (() => {
     .filter((n) => !n.startsWith("adapters/") && n !== "config.local");
 })();
 
-export async function loadBroker() {
+export async function loadBroker(손질 = null) {
   const here = dirname(fileURLToPath(import.meta.url));
   const timers = [];
   const realSI = globalThis.setInterval;
@@ -200,7 +206,18 @@ export async function loadBroker() {
   globalThis.setInterval = (fn, ms) => { const t = realSI(fn, ms); timers.push(t); return t; };
   globalThis.setTimeout = (fn, ms) => { const t = realST(fn, ms); timers.push(t); return t; };
 
+  // ★ **배경이 하는 일을 똑같은 순서로 한다**(DECISIONS §169). `background.js` 는
+  //   ST_FILES 보다 **먼저** `ST.상자CSS` 에 `content.css` 를 밀어 넣는다 — 뒤에
+  //   넣으면 첫 순회의 박스들만 맨몸으로 선다. 여기서 순서를 바꾸면 **검사가 실제와
+  //   다른 배선을 보게 되므로**, 순서 자체는 `broker.test.js` 가 소스로 묻는다.
+  (globalThis.ST ??= {}).상자CSS = readFileSync(join(here, "..", "content.css"), "utf8");
+
   for (const n of BROKER_FILES) {
+    // ★ **`broker.js` 바로 앞에서 손볼 틈을 준다.** 브로커는 **올라가는 줄에서** 첫
+    //   순회를 돌린다(`run()` 이 파일 끝에 있다) — 올라간 뒤에 얹으면 **첫 판이 이미
+    //   지나갔다.** 그리고 `cssaudit.js` 가 다시 평가되므로 **그보다 앞도 안 된다.**
+    //   틈은 그 사이 한 곳뿐이다.
+    if (n === "broker") 손질?.();
     new Function(readFileSync(join(here, "..", "src", `${n}.js`), "utf8"))();
   }
 

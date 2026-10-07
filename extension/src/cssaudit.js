@@ -13,12 +13,25 @@
 //   사는 것을 피할 수 없으면 **검사가 둘을 묶는다**(§131 의 태그와 같은 처방).
 globalThis.ST ??= {};
 
+// ★ **이 목록이 손으로 들려 있어서 열일곱을 못 봤다**(DECISIONS §169). `content.css`
+//   의 바탕 규칙이 선언하던 속성은 **스물둘**이었고 여기 적힌 것은 **다섯**이었다 —
+//   `padding` · `border` · `border-radius` · `background` · `box-shadow` · `font-size`
+//   · `line-height` · `margin` · `color` 는 **아무도 안 보고 있었다.** 그래서 지메일에서
+//   박스가 싼티나게 깨져 있는데 콘솔은 조용했다. **「못 쟀다」 를 「없다」 로 읽었다**(§59).
+//
+// ★ **고친 길은 목록을 늘리는 것이 아니라 싸울 거리를 줄이는 것이다.** 열일곱은
+//   섀도 경계 뒤로 갔고 — 거기서는 **질 수가 없다** — 페이지에 남은 것은 호스트의
+//   **넷**뿐이다. 아래 목록은 이제 `content.css` 의 페이지 구역이 선언하는 것과
+//   **전수로 같다.** 같은지는 `extension/tests/styles.test.js` 가 두 파일을 함께
+//   읽어 보고, **분류가 빠짐없는지**까지 문다(족 가드 — 목록이 다시 짧아질 수 없다).
 globalThis.ST.CSS_EXPECT = {
   display: "block",
-  whiteSpace: "pre-wrap",
-  overflowWrap: "break-word",
   boxSizing: "border-box",
+  overflow: "visible",
 };
+
+/** 섀도 안쪽 본문 요소의 클래스. 브로커가 붙이고 `content.css` 가 꾸민다. */
+globalThis.ST.몸클래스 = "st-몸";
 
 // 폭은 키워드가 아니라 수다. 1px 은 소수 반올림 몫이다.
 globalThis.ST.CSS_WIDTH_TOL = 1;
@@ -104,6 +117,44 @@ globalThis.ST.고른다 = function (길) {
   return null;
 };
 
+// ── 뼈대를 몇 줄로 세울 것인가(DECISIONS §170) ──────────────────────────────
+//
+// ★ **`min-height: 104px` 를 박고 있었다.** 스물두 자짜리 UI 토막도 백네 픽셀을
+//   잡았고, 메일 목록 스무 줄이면 **회색 슬래브 스무 장**이 됐다. 그것이 「싼티」 의
+//   절반이다. 자리를 잡는 것은 맞지만 **얼마나 잡을지를 안 재고 있었다.**
+//
+// ★ **두 수를 실측했다** — 추측으로 안 짓는다(§294 의 처방).
+//     번역/원문 글자수 비 : 골든셋 45유닛의 `ratio_min` 0.3 · `ratio_max` 0.75,
+//                           가운데 **0.525**(`worker/tests/golden/cases.json`)
+//     한 줄에 드는 글자수 : 크로미움 실측(2026-10-06, 한글 지문 612자)
+//                           카드 15.5px/1.74 — 폭 320·480·600·694 에서 20·34·41·51 자
+//                           띠   14px/1.62  — 같은 폭에서 26·41·51·56 자
+//                           → 거의 선형이다. **폭 ÷ 14**(카드) · **폭 ÷ 12.4**(띠)
+globalThis.ST.번역비 = 0.525;
+globalThis.ST.글자폭 = { 카드: 14, 띠: 12.4 };
+globalThis.ST.줄상한 = 4;
+
+/**
+ * 원문 길이와 폭으로 **뼈대 줄 수**를 센다. 순수 함수다 — 브라우저 없이 시험한다.
+ *
+ * ★ **못 재면 셋이다.** 폭이 0 이면 §170 전의 값(세 줄)으로 둔다 —
+ *   **「못 쟀다」 를 「한 줄」 로 읽으면 자리가 모자라 글자가 튄다**(§59).
+ * ★ **넷에서 끊는다.** 뼈대는 「기다린다」 를 말하는 장치고, 넷을 넘으면 어차피
+ *   스크롤 밖이다. 상한이 없으면 긴 지문 하나가 화면을 통째로 덮는다.
+ *
+ * @param {number} 원문글자  번역 전 원문의 글자수
+ * @param {number} 폭        박스가 설 자리의 안쪽 폭(px). 0 이하면 못 쟀다는 뜻
+ * @param {"카드"|"띠"} 꼴
+ * @returns {number} 1 .. ST.줄상한
+ */
+globalThis.ST.줄수 = function (원문글자, 폭, 꼴) {
+  if (!(폭 > 0)) return 3;
+  const 자폭 = globalThis.ST.글자폭[꼴 === "띠" ? "띠" : "카드"];
+  const 한줄 = Math.max(1, Math.floor(폭 / 자폭));
+  const 줄 = Math.ceil((원문글자 * globalThis.ST.번역비) / 한줄);
+  return Math.min(globalThis.ST.줄상한, Math.max(1, 줄));
+};
+
 /** 실제 노드를 재서 `고른다` 에 넘긴다. 레이아웃이 있는 곳에서만 부른다. */
 globalThis.ST.꽂을자리 = function (anchor) {
   const 요소 = [];
@@ -122,5 +173,7 @@ globalThis.ST.꽂을자리 = function (anchor) {
     n = n.parentElement;
   }
   const 뽑 = globalThis.ST.고른다(길);
-  return 뽑 ? { 자리: 요소[뽑.자리], 꼴: 뽑.꼴 } : null;
+  // ★ **고른 자리의 폭을 함께 돌려준다**(DECISIONS §170). 뼈대 줄 수가 그 수에서
+  //   나온다 — **이미 잰 값을 버리고 나중에 다시 재면** 꽂기 전과 꽂은 뒤가 갈린다.
+  return 뽑 ? { 자리: 요소[뽑.자리], 꼴: 뽑.꼴, 폭: 길[뽑.자리].폭 } : null;
 };

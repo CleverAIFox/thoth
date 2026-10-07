@@ -17,6 +17,23 @@ const inject = async (tabId) => {
 
   try {
     await chrome.scripting.insertCSS({ target: { tabId }, files: ["content.css"] });
+    // ★ **같은 파일을 섀도 안에도 넣어야 한다**(DECISIONS §169). 번역 박스의 꾸밈은
+    //   섀도 경계 뒤에 있고, `insertCSS` 는 **페이지**에만 넣는다.
+    //
+    // ★ **브로커가 제 손으로 받지 않는다.** 콘텐츠 스크립트에서 `fetch` 로 확장
+    //   리소스를 받으려면 `web_accessible_resources` 가 필요하고 — 그러면 **모든
+    //   사이트가 우리 CSS 를 읽을 수 있다** — 페이지 CSP 에 걸릴 수도 있다.
+    //   **서비스 워커는 제 리소스를 아무 제약 없이 읽는다.** 글자로 밀어 넣는다.
+    //
+    // ★ **ST_FILES 보다 먼저다.** `broker.js` 는 올라가는 순간 첫 순회를 돌린다 —
+    //   뒤에 넣으면 **첫 순회의 박스들만 맨몸으로** 서고, 그것이 가장 늦게
+    //   발견되는 종류다(§169).
+    const 글 = await (await fetch(chrome.runtime.getURL("content.css"))).text();
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (s) => { (globalThis.ST ??= {}).상자CSS = s; },
+      args: [글],
+    });
     await chrome.scripting.executeScript({ target: { tabId }, files: ST_FILES });
   } catch (e) {
     // chrome:// · 웹스토어 · 파일 URL 등은 주입이 막혀 있다. 다만 조용히

@@ -1,15 +1,14 @@
 {
-  "_왜": "관문이 제 밖과 생사를 선언하나(DECISIONS §157). 지금 못 지키는 자리를 이름으로 적고 **늘면 막는다.** 갚으면 도구가 찍어 준다 — 줄지 않는 장부는 영구 면제가 된다.",
-  "_갚는_법": "머리말에 「… 는 안 본다」 한 줄(밖) ·  나 (생사). 갚고 나서 이 목록에서 지운다.",
-  "지금": [
-    "bench_golden.py:생사",
-    "cascade_check.py:밖",
-    "cascade_check.py:생사",
-    "check_infra.py:밖",
-    "check_infra.py:생사",
-    "env_protection.py:밖",
-    "env_protection.py:생사",
-    "sweep.py:밖",
-    "sweep.py:생사"
-  ]
+ "_왜": "관문이 제 밖과 생사를 선언하나(DECISIONS §157). 지금 못 지키는 자리를 이름으로 적고 **늘면 막는다.** 갚으면 도구가 찍어 준다 — 줄지 않는 장부는 영구 면제가 된다.",
+ "_갚는_법": "머리말에 「… 는 안 본다」 한 줄(밖) ·  나 (생사). 갚고 나서 이 목록에서 지운다.",
+ "지금": [
+  "bench_golden.py:생사",
+  "cascade_check.py:생사",
+  "check_infra.py:밖",
+  "check_infra.py:생사",
+  "env_protection.py:밖",
+  "env_protection.py:생사",
+  "sweep.py:밖",
+  "sweep.py:생사"
+ ]
 }

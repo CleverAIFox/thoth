@@ -82,9 +82,24 @@
 </section>
 
 <section>
-  <h2>기다리는 중</h2>
+  <h2>기다리는 중 — 뼈대가 원문 길이를 따라간다(DECISIONS §170)</h2>
   <p class="q">The pipeline must ensure that each Glue job completes before the next begins.</p>
-  <div class="st-translation st-translation--loading">…</div>
+  <div class="st-translation st-translation--loading st-translation--줄2">…</div>
+  <p class="q">Enable Streams.</p>
+  <!-- ★ **전에는 이 토막도 104px 를 잡았다.** 메일 목록 스무 줄이면 회색 슬래브
+       스무 장이 됐고 그것이 「싼티」 의 절반이었다. -->
+  <div class="st-translation st-translation--loading st-translation--줄1">…</div>
+</section>
+
+<section>
+  <h2>띠 꼴 — 목록 행 다음에 서는 자리(DECISIONS §170)</h2>
+  <!-- ★ **카드가 한 꼴뿐인 것이 나머지 절반이었다.** 메일 목록 한 행 뒤에 둥근
+       테두리와 그림자짜리 카드를 세우면 **원문 행보다 번역이 더 크고 더 무겁다.**
+       꼴은 브로커가 **잰 꽂은 자리**에서 고른다 — 사이트 이름을 묻지 않는다. -->
+  <p class="q">health@aws.com · CloudTrail event source change · Oct 5</p>
+  <div class="st-translation st-translation--띠">CloudTrail 이벤트 소스 변경 — 알림 센터에서 세부 내용을 확인하세요.</div>
+  <p class="q">billing@aws.com · Your monthly invoice is available · Oct 1</p>
+  <div class="st-translation st-translation--띠 st-translation--loading st-translation--줄1">…</div>
 </section>
 
 <section>
@@ -111,9 +126,36 @@
   //   여기서는 손으로 바꿔 양쪽을 나란히 본다.
   const root = document.documentElement;
   root.dataset.stTheme = "light";
+
+  // ── 박스를 섀도 꼴로 바꾼다 (DECISIONS §169) ────────────────────────────
+  //
+  // ★ **위 마크업은 납작하다.** 실물은 호스트가 비어 있고 글자가 섀도 안의
+  //   `.st-몸` 에 들어간다. 바꾸지 않으면 **이 화면에서만 박스가 맨몸으로 보인다** —
+  //   §103 에서 글꼴이 그 반대로 틀렸던 자리와 같은 종류다(이 미리보기가 초록불이고
+  //   실사이트가 404 였다).
+  //
+  // ★ **마크업을 손으로 섀도로 적지 않는다.** 읽을 수 없게 되고, 상태를 하나
+  //   늘릴 때마다 다섯 줄이 된다. **글자는 마크업에 두고 여기서 옮긴다.**
+  for (const n of document.querySelectorAll(".st-translation")) {
+    const 뿌리 = n.attachShadow({ mode: "open" });
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "content.css";
+    const 몸 = document.createElement("div");
+    몸.className = "st-몸";
+    while (n.firstChild) 몸.appendChild(n.firstChild);
+    뿌리.appendChild(link);
+    뿌리.appendChild(몸);
+    // ★ **테마를 호스트에도 붙인다.** 섀도 안에서는 밖의 `html` 을 고를 수 없다.
+    n.dataset.stTheme = root.dataset.stTheme;
+  }
+
   $("theme").onclick = () => {
     const dark = root.dataset.stTheme === "dark";
     root.dataset.stTheme = dark ? "light" : "dark";
+    // 호스트마다 같이 바꿔 준다 — 실물에서 브로커가 하는 일이다.
+    for (const n of document.querySelectorAll(".st-translation"))
+      n.dataset.stTheme = root.dataset.stTheme;
     $("theme").textContent = dark ? "어둡게" : "밝게";
   };
   $("wide").onclick = () => {

@@ -236,8 +236,15 @@ test("다 된 번역에는 이름표가 없고 기다릴 때만 선다", async (
   const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "content.css"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/content:\s*"한글"/.test(css), "다 된 번역에 이름표가 돌아왔다");
-  assert.ok(!/\.st-translation\.st-translation::before/.test(css), "완료 박스에 ::before 가 있다");
-  assert.match(css, /\.st-translation--loading\.st-translation--loading::before\s*\{[^}]*content:\s*"번역 중"/);
+  // ★ **§169 로 선택자가 섀도 꼴이 됐다.** 이름표는 `:host(.--loading) .st-몸::before` 다 —
+  //   호스트가 아니라 안쪽 몸에 붙는다. 완료 박스에는 여전히 붙지 않아야 한다.
+  // `.st-몸::before` 가 나오는 자리는 **전부** `:host(.--loading)` 아래여야 한다.
+  //   「없다」 로 묻던 옛 꼴을 그대로 쓰면 선택자가 바뀐 지금 **언제나 참**이 된다.
+  const 몸앞 = [...css.matchAll(/([^{};]*)\.st-몸::before/g)].map((m) => m[1]);
+  assert.ok(몸앞.length > 0, "이름표 규칙을 하나도 못 찾았다 — 검사가 아무것도 안 본다");
+  assert.deepEqual(몸앞.filter((x) => !/:host\(\.st-translation--loading[.)]/.test(x)), [],
+                   "완료 박스에 ::before 가 있다");
+  assert.match(css, /:host\(\.st-translation--loading\)\s*\.st-몸::before\s*\{[^}]*content:\s*"번역 중"/);
 });
 
 // ---------- 배치 기본값 ----------
@@ -287,4 +294,29 @@ test("그룹이 없는 본문은 낱개로 나간다", need, async () => {
 
   assert.equal(f.calls.length, 5, "다섯 문단이 다섯 번 나간다");
   assert.ok(f.calls.every((c) => c.body.texts.length === 1));
+});
+
+test("배경이 섀도 CSS 를 ST_FILES 보다 먼저 밀어 넣는다", async () => {
+  // ★ **순서가 틀리면 첫 순회의 박스만 맨몸으로 선다**(DECISIONS §169). 아무도
+  //   안 터지고, 다음 순회부터는 멀쩡하고, 사람이 새로고침하면 또 재현된다 —
+  //   **가장 늦게 발견되는 종류**다. 하네스도 같은 순서를 흉내내므로
+  //   **정본인 `background.js` 를 글자로 묻는다.**
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const { dirname, join } = await import("node:path");
+  const bg = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "src", "background.js"), "utf8");
+  const 민자리 = bg.indexOf("상자CSS");
+  const 실은자리 = bg.indexOf("files: ST_FILES");
+  assert.ok(민자리 > 0, "배경이 ST.상자CSS 를 안 밀어 넣는다 — 박스가 전부 맨몸이다");
+  assert.ok(실은자리 > 0, "ST_FILES 주입 줄을 못 찾았다 — 검사가 늙었다");
+  assert.ok(민자리 < 실은자리,
+            "CSS 를 ST_FILES 뒤에 밀어 넣는다 — 첫 순회의 박스가 맨몸으로 선다");
+  // ★ **`web_accessible_resources` 로 열지 않는다**(§169). 열면 모든 사이트가 우리
+  //   CSS 를 읽는다. 배경이 밀어 넣으므로 열 까닭이 없다.
+  const mf = JSON.parse(readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "manifest.json"), "utf8"));
+  const 열린것 = mf.web_accessible_resources.flatMap((r) => r.resources);
+  assert.ok(!열린것.includes("content.css"),
+            "content.css 가 모든 사이트에 열려 있다 — 배경이 밀어 넣는 길로 간다");
 });

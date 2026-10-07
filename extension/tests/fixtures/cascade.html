@@ -70,11 +70,42 @@
     width: 60px !important; white-space: nowrap !important;
     overflow-wrap: normal !important; display: inline !important;
   }
+
+  /* ── 안쪽 적수 (DECISIONS §169) ────────────────────────────────────────
+   * ★ **위 사다리 다섯은 넉 달 동안 같은 넷만 때렸다** — `width` · `white-space` ·
+   *   `overflow-wrap` · `display`. 그 넷은 비상구가 막는 넷이고, 그래서 표는 늘
+   *   초록이었다. **박스 꾸밈 열일곱(`padding` · `border-radius` · `background` ·
+   *   `box-shadow` · `font-size` · `line-height` · `color` …)을 때리는 적수는 한 번도
+   *   세워 본 적이 없었다.** 재는 자가 안 보고 있었으니 세울 생각도 안 했다(§59).
+   *
+   * ★ **아래가 그 적수다.** 꼴 두 가지로 똑같이 때린다 —
+   *     `대조` : `.st-몸` 을 **페이지에** 둔다. `content.css` 의 안쪽 규칙이 그대로
+   *              맞으므로 **지면 진다.** 이것이 §169 전의 박스다.
+   *     `섀도` : 같은 `.st-몸` 을 섀도 루트 안에 둔다. **들어올 수 없다.**
+   *   같은 규칙 · 같은 값 · 다른 것은 **경계 하나**뿐이다.
+   *
+   * ★ **양방향 래칫이다.** 섀도가 약해지면 운다. 그리고 **대조가 안 지면 그때도
+   *   운다** — 적수가 무력해졌다는 뜻이고, 그러면 이 검사는 초록을 내면서
+   *   아무것도 안 보는 자가 된다(§59 · 세샤트 §297 과 같은 처방). */
+  .advK .st-몸 {
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: #ff0000 !important;
+    box-shadow: none !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+    letter-spacing: normal !important;
+    white-space: normal !important;
+  }
+  /* ★ 태그로 뭉개는 사이트도 있다 — 선택자 이름을 몰라도 때린다. */
+  .advK div { color: #ff00ff !important; font-weight: 900 !important; }
 </style>
 </head>
 <body>
 
 <div id="cases"></div>
+<h2 style="margin:32px 0 6px;font-size:13px;color:#555">안쪽 — 경계가 있는 것과 없는 것(DECISIONS §169)</h2>
+<div id="inner"></div>
 
 <script>
 // ★ **손으로 서른 덩이를 적지 않는다.** 구조 다섯 × 사다리 다섯 × 비상구 유무면
@@ -92,11 +123,32 @@ const 비상구클래스 = {
   "wide": ["st-translation--wide"],
 };
 
+// ★ **글자는 섀도 안에 넣는다**(DECISIONS §169). 전에는 호스트에 바로 담았고,
+//   그래서 **픽스처가 §169 전의 박스를 재고 있었다** — 실물은 호스트가 비어 있다.
+//   차이는 작지 않다 : 호스트에 긴 글이 있으면 적수의 `white-space: nowrap` 이
+//   **grid 칸을 늘려** 폭 판정이 「졌다」 로 뒤집힌다. 실물에는 없는 병이었다.
+//
+// ★ **스타일시트를 글자로 베껴 넣지 않는다.** 섀도 안에 같은 `<link>` 를 하나 더
+//   둔다 — `file://` 에서 `fetch` 도 `cssRules` 도 막히는데 `<link>` 는 된다.
+//   그리고 **같은 파일**을 두 곳이 읽으므로 값이 두 곳에 살지 않는다(§132).
+function 섀도를단다(host) {
+  const 뿌리 = host.attachShadow({ mode: "open" });
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "../../content.css";
+  const 속 = document.createElement("div");
+  속.className = "st-몸";
+  // 길게 둔다 — `white-space` 와 `overflow-wrap` 이 지면 한 줄로 삐져나간다.
+  속.textContent = "이 문장은 접혀야 한다 ".repeat(6);
+  뿌리.appendChild(link);
+  뿌리.appendChild(속);
+  return 속;
+}
+
 function 박스(비상구이름) {
   const n = document.createElement("div");
   n.className = ["st-translation", ...비상구클래스[비상구이름]].join(" ");
-  // 길게 둔다 — `white-space` 와 `overflow-wrap` 이 지면 한 줄로 삐져나간다.
-  n.textContent = "이 문장은 접혀야 한다 ".repeat(6);
+  섀도를단다(n);
   return n;
 }
 
@@ -160,6 +212,53 @@ for (const s of 구조) {
       칸.appendChild(바깥);
       뿌리.appendChild(칸);
     }
+  }
+}
+
+// ── 안쪽 사다리 (DECISIONS §169) ──────────────────────────────────────────
+//
+// ★ **스타일시트를 글자로 베껴 넣지 않는다.** 섀도 안에 같은 `<link>` 를 하나 더
+//   둔다 — `file://` 에서 `fetch` 도 `cssRules` 도 막히는데 `<link>` 는 된다.
+//   그리고 **같은 파일**을 두 곳이 읽으므로 값이 두 곳에 살지 않는다(§132).
+// ★ **목록이 여기 하나다.** `tools/cascade_check.py` 가 `window.__안쪽볼것` 으로 읽는다 —
+//   따로 적으면 같은 사실이 두 언어에 살고 언젠가 하나만 고쳐진다(§132 · §135).
+window.__안쪽볼것 = ["padding", "borderRadius", "backgroundColor", "boxShadow",
+                     "fontSize", "lineHeight", "color", "fontWeight", "letterSpacing",
+                     "whiteSpace", "overflowWrap", "wordBreak", "borderTopWidth", "textAlign"];
+
+function 몸(꼴) {
+  const host = document.createElement("div");
+  host.className = "st-translation st-translation--wide";
+  const 속 = document.createElement("div");
+  속.className = "st-몸";
+  속.textContent = "이 문장은 접혀야 한다 ".repeat(6);
+  if (꼴 === "섀도") return { host, 속: 섀도를단다(host) };
+  host.appendChild(속);       // ★ 페이지 안이다 — 안쪽 규칙이 그대로 맞고, 적수도 닿는다
+  return { host, 속 };
+}
+
+const 안뿌리 = document.getElementById("inner");
+window.__안쪽 = [];
+for (const 적수 of ["없음", "KILL"]) {
+  for (const 꼴 of ["대조", "섀도"]) {
+    const 칸 = document.createElement("div");
+    칸.className = "case";
+    const 제목 = document.createElement("h2");
+    제목.textContent = `안쪽 · 적수=${적수} · 꼴=${꼴}`;
+    const 바깥 = document.createElement("div");
+    바깥.className = 적수 === "KILL" ? "advK" : "";
+    const 그릇 = document.createElement("div");
+    그릇.className = "host";
+    const 원문 = document.createElement("p");
+    원문.textContent = "The original sentence.";
+    const { host, 속 } = 몸(꼴);
+    그릇.appendChild(원문);
+    그릇.appendChild(host);
+    바깥.appendChild(그릇);
+    칸.appendChild(제목);
+    칸.appendChild(바깥);
+    안뿌리.appendChild(칸);
+    window.__안쪽.push({ 적수, 꼴, 속 });
   }
 }
 

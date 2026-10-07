@@ -286,6 +286,52 @@
       }
     ]
   },
+  "코드스캐닝": {
+    "_왜": "열린 경보 둘이 이틀 떠 있는 동안 `doctor` 는 「CI 가 초록으로 봤다」 를 찍었다(§171). 이 관문이 안 물면 그 이틀이 그대로 돌아온다.",
+    "파일": "tools/code_scanning.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_code_scanning.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "경보가 있어도 조용하다",
+        "전": "            막을것.append(줄글)",
+        "후": "            pass"
+      },
+      {
+        "이름": "심각도가 낮으면 넘긴다",
+        "전": "        if 규칙 in 면제:",
+        "후": "        if 규칙 in 면제 or 심각 in (\"low\", \"medium\", \"note\", \"?\"):"
+      },
+      {
+        "이름": "나무가 더러우면 통째로 끈다",
+        "전": "        if 바뀜(최근.get(\"commit_sha\") or \"\", 위치.get(\"path\") or \"\") is True:",
+        "후": "        if 바뀜(최근.get(\"commit_sha\") or \"\", \"\") is not False:"
+      },
+      {
+        "이름": "못 쟀으면 넘긴다",
+        "전": "        if 바뀜(최근.get(\"commit_sha\") or \"\", 위치.get(\"path\") or \"\") is True:\n            바뀐것.append",
+        "후": "        if 바뀜(최근.get(\"commit_sha\") or \"\", 위치.get(\"path\") or \"\") is not False:\n            바뀐것.append"
+      },
+      {
+        "이름": "git 의 그 밖 종료코드를 안 바뀜으로 읽는다",
+        "전": "    return {0: False, 1: True}.get(r.returncode)",
+        "후": "    return r.returncode != 0"
+      },
+      {
+        "이름": "못 물어도 초록이다",
+        "전": "        return f\"`gh` 가 코드 스캐닝을 못 읽었다 — {말[-1] if 말 else '까닭 없음'}\"",
+        "후": "        return []"
+      },
+      {
+        "이름": "저장소 이름을 박는다",
+        "전": "    m = _원격.search(r.stdout.strip())\n    return f\"{m.group(1)}/{m.group(2)}\" if m else None",
+        "후": "    _버린다 = _원격.search(r.stdout.strip())\n    return \"CleverAIFox/thoth\""
+      }
+    ]
+  },
   "관문자신": {
     "_왜": "관문이 제 선언 안에 있다 — 하토르는 같은 도구를 가지고도 사슬 밖에 두었다. 검사하는 자를 검사하지 않으면 **거르기를 꺼도 조용하다**(§152).",
     "파일": "tools/mutate_gate.py",
@@ -316,9 +362,10 @@
         "후": "return True, "
       },
       {
-        "이름": "바닥을 느슨하게 둔다",
-        "전": "MIN_돌연변이 = 156",
-        "후": "MIN_돌연변이 = 1"
+        "이름": "바닥을 아예 안 본다",
+        "_왜": "전에는 `MIN_돌연변이 = 156` 을 글자로 겨눴다. 그러면 **톱니를 올릴 때마다 이 선언이 깨지고**, 같은 수가 두 곳에 산다(§132) — 실제로 §169 에서 깨졌다. 수가 맞는지는 `test_바닥이_실제_선언_수와_맞다` 가 보므로, 여기서는 **바닥을 보는 줄 자체**를 겨눈다.",
+        "전": "        if 전체 < MIN_돌연변이:",
+        "후": "        if False:"
       },
       {
         "이름": "주석 열쇠를 안 거른다",
@@ -908,6 +955,68 @@
       }
     ]
   },
+  "줄수": {
+    "_왜": "뼈대 높이를 104px 로 박아 스물두 자 토막도 백네 픽셀을 잡았다(§170). 줄 수 판정이 틀리면 목록이 다시 회색 슬래브 바둑판이 된다.",
+    "파일": "extension/src/cssaudit.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test --test-name-pattern='줄 수' tests/styles.test.js tests/node.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "폭을 안 본다",
+        "전": "  const 한줄 = Math.max(1, Math.floor(폭 / 자폭));",
+        "후": "  const 한줄 = Math.max(1, Math.floor(600 / 자폭));"
+      },
+      {
+        "이름": "못 재도 한 줄로 읽는다",
+        "전": "  if (!(폭 > 0)) return 3;",
+        "후": "  if (!(폭 > 0)) return 1;"
+      },
+      {
+        "이름": "상한을 치우고 길면 긴 대로 둔다",
+        "전": "  return Math.min(globalThis.ST.줄상한, Math.max(1, 줄));",
+        "후": "  return Math.max(1, 줄);"
+      },
+      {
+        "이름": "띠와 카드의 글자폭을 같게 둔다",
+        "전": "globalThis.ST.글자폭 = { 카드: 14, 띠: 12.4 };",
+        "후": "globalThis.ST.글자폭 = { 카드: 14, 띠: 14 };"
+      }
+    ]
+  },
+  "섀도경계": {
+    "_왜": "안쪽 열일곱이 넉 달 동안 무방비였고 계기가 그것을 안 봤다(§169). 경계가 새면 같은 일이 조용히 돌아온다.",
+    "파일": "extension/src/broker.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test --test-name-pattern='섀도|호스트는 비어|테마를 호스트|띠|카드' tests/node.test.js tests/broker.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "섀도에 스타일을 안 넣는다",
+        "전": "    if (ST.상자CSS) {\n      const s = document.createElement(\"style\");",
+        "후": "    if (false) {\n      const s = document.createElement(\"style\");"
+      },
+      {
+        "이름": "글자를 호스트에 쓴다",
+        "전": "    u.속.textContent = text;\n    appendLinks(u.속, u.urls);",
+        "후": "    u.node.textContent = text;\n    appendLinks(u.node, u.urls);"
+      },
+      {
+        "이름": "테마를 호스트에 안 붙인다",
+        "전": "      if (테마) u.node.dataset.stTheme = 테마;",
+        "후": "      if (false) u.node.dataset.stTheme = 테마;"
+      },
+      {
+        "이름": "꼴을 안 가르고 늘 카드다",
+        "전": "      if (띠) u.node.classList.add(`${CLS}--띠`);",
+        "후": "      if (false) u.node.classList.add(`${CLS}--띠`);"
+      }
+    ]
+  },
   "꽂을자리": {
     "_왜": "재는 자가 고자질만 하고 있었다(§165). 고르는 규칙이 틀리면 번역이 147px 세로 기둥으로 선다.",
     "파일": "extension/src/cssaudit.js",
@@ -934,8 +1043,8 @@
       },
       {
         "이름": "못 고를 때도 아무 데나 꽂는다",
-        "전": "  return null;\n};\n\n/** 실제 노드를 재서 `고른다` 에 넘긴다",
-        "후": "  return { 자리: 0, 꼴: \"형제\" };\n};\n\n/** 실제 노드를 재서 `고른다` 에 넘긴다"
+        "전": "    if (길[i].폭 >= globalThis.ST.최소폭) return { 자리: i, 꼴: \"형제\" };\n  }\n  return null;",
+        "후": "    if (길[i].폭 >= globalThis.ST.최소폭) return { 자리: i, 꼴: \"형제\" };\n  }\n  return { 자리: 0, 꼴: \"형제\" };"
       },
       {
         "이름": "li 를 행 경계에 넣는다",

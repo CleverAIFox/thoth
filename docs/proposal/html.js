@@ -18,7 +18,23 @@ const libPath = require.resolve("./lib");
 // ★ **그림을 못 구운 나무에서도 돌아야 한다**(DECISIONS §168). `--그림없이` 는 자리와
 //   설명만 내고 PNG 를 비운다 — `check_proposal` 이 `.build/fig` 가 없을 때 그렇게 부른다.
 const 그림없이 = process.argv.includes("--그림없이");
-const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// ★ **따옴표까지 바꾼다**(DECISIONS §171). 2026-10-05 에 `&` · `<` · `>` 셋만 바꿨고,
+//   그 값이 **속성 안에** 들어가는 자리가 둘 있었다 — `data-st-fig="…"` 와 `alt="…"`.
+//   본문 글자에서는 셋이면 되지만 **속성 안에서는 `"` 하나로 속성이 끝난다.** 그 뒤에
+//   오는 글자가 **새 속성으로 읽힌다**(`onerror=` 를 포함해서). CodeQL 이 이틀 동안
+//   경보 둘로 들고 있었고 `doctor` 는 그동안 「CI 가 초록으로 봤다」 를 찍었다.
+//
+// ★ **함수를 둘로 안 나눈다.** 「본문용」 과 「속성용」 을 나누면 **언젠가 틀린 쪽을 쓴다** —
+//   그리고 틀린 쪽을 쓴 것은 아무도 안 터지고 산출물만 깨진다. 다섯을 전부 바꾸는 한 함수면
+//   **고를 일이 없다.** 본문에서 `&quot;` 가 되는 것은 브라우저가 `"` 로 그리므로 같고,
+//   `check_proposal` 의 두 렌더러 대조는 `html.unescape` 를 거치므로 글자도 그대로다.
+//
+// ★ **빈말이 아니다.** `facts` 는 `.build/fig/*.facts.json` 에서 오고 그 글은
+//   DECISIONS 에서 나온다 — 거기 큰따옴표가 **993 개** 있다. 하나만 그림 선언에 들어오면
+//   `alt` 가 그 자리에서 끝나고, `docx_check` 의 `check_figures` 는 **깨진 글을 사실로 읽는다.**
+const esc = (s) => String(s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 
 // **굵게** · `코드` — `lib.js` 의 `runs` 와 **같은 가름**이다. 가름이 갈리면 두 산출물의
 // 글자가 달라지고, 그 차이는 **아무 검사도 안 본다** — 그래서 `check_proposal` 이 두 쪽의
