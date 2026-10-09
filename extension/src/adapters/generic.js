@@ -99,15 +99,31 @@ globalThis.ST.안이글인가 = function (node) {
  * ★ **`lang` 이 중요하다.** 이미 한국어인 토막을 다시 번역하는 일이 여기서 끊긴다 —
  *   종전에는 글자 비율(`alreadyKorean`)로만 걸렀고 그것은 **섞인 글에서 샌다.**
  */
-globalThis.ST.제외인가 = function (node, 대상 = "ko") {
+globalThis.ST.제외인가 = function (node) {
   if (node.nodeType !== 1) return false;
   if (globalThis.ST.제외태그.has(node.nodeName.toLowerCase())) return true;
-  const lang = node.getAttribute && node.getAttribute("lang");
-  if (lang && lang.toLowerCase().split("-")[0] === 대상) return true;
   if (node.getAttribute && node.getAttribute("translate") === "no") return true;
   if (node.classList && node.classList.contains("notranslate")) return true;
   if (node.hasAttribute && node.hasAttribute("contenteditable")) return true;
   return false;
+};
+
+/**
+ * **이미 대상 언어로 적힌 토막인가 — 단위에서만 묻는다**(DECISIONS §176).
+ *
+ * ★ **가지째 자르면 안 된다.** 2026-10-09 지메일에서 수집이 **0건**이었다. `<html lang="ko">`
+ *   (사용자 UI 가 한국어다) 하나에서 끊기고 **문서 전체가 제외**됐다. 영어 메일 본문은
+ *   제 `lang` 이 없어 앱 껍데기의 `ko` 를 뒤집어쓴다.
+ * ★ **모질라에서 베끼며 뜻을 뒤집었다.** 그쪽은 「**출발어와 다른** `lang` 을 제외」 이고
+ *   전체 페이지 번역이라 `html lang` 이 곧 출발어다. 이쪽은 「**대상어와 같은** `lang` 」
+ *   으로 적었는데, **앱 껍데기의 UI 언어가 대상어인 판**에서는 그것이 문서를 통째로 죽인다.
+ * ★ **`lang` 은 그 글의 언어를 말하지, 그 안에 든 남의 글의 언어를 말하지 않는다.**
+ *   그래서 **받으려는 그 노드에서만** 묻는다 — 내려가는 길에서는 묻지 않는다.
+ */
+globalThis.ST.대상어인가 = function (node, 대상 = "ko") {
+  if (!node.getAttribute) return false;
+  const lang = node.getAttribute("lang");
+  return !!lang && lang.toLowerCase().split("-")[0] === 대상;
 };
 
 /** 글이 번역할 만큼 있나. **단위 판정이 아니라 표시 정책이다** — 아래 주석을 본다. */
@@ -129,6 +145,8 @@ globalThis.ST.판정 = function (node) {
   if (ST.제외인가(node)) return ST.버리다;
   if (node.textContent.trim().length === 0) return ST.버리다;
   if (!ST.안이글인가(node)) return ST.파다;
+  // ★ **`lang` 은 여기서만 묻는다**(§176) — 위에서 물으면 `<html lang="ko">` 가 문서를 죽인다.
+  if (ST.대상어인가(node)) return ST.버리다;
   // ★ **짧으면 아래도 반드시 짧다.** `textContent` 는 자손을 합한 값이라 **여기서 짧은
   //   가지에 긴 글이 숨어 있을 수 없다** — 처음에 `파다` 로 적었는데 돌연변이가
   //   **그 줄이 아무 일도 안 한다**고 말해 줬다. 「더 판다」 는 **할 수 없는 약속**이었다.

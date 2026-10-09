@@ -454,3 +454,54 @@ test("품은 쪽이 먼저 와도 품은 쪽을 버린다", need, async () => {
   assert.ok(!units[0].text.includes("4:36 PM"),
             "먼저 왔다고 품은 쪽을 남겼다 — 순서에 기대고 있다");
 });
+
+// ── 재는 자리와 도는 자리 (DECISIONS §176) ──────────────────────────────────
+
+test("브로커처럼 document 에서 시작해도 같은 것을 모은다", need, async () => {
+  // ★ **이 시험들이 전부 `.body` 에서 시작하고 브로커는 `document` 에서 시작한다.**
+  //   그 한 칸 차이에 `<html>` 이 있고, 2026-10-09 지메일에서 **거기서 끊겨 0건**이었다.
+  //   재는 자리와 도는 자리가 다르면 **초록이 아무것도 보증하지 않는다**(§171 · §172 · §173
+  //   에 이어 **네 번째**다).
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  for (const [이름, html] of 메일꼴) {
+    const doc = makeDoc(html);
+    assert.equal(ST.genericCollect(doc).length,
+                 ST.genericCollect(makeDoc(html).body).length,
+                 `${이름} — document 와 body 가 다른 답을 준다`);
+  }
+});
+
+test("앱 껍데기의 lang 이 문서를 통째로 죽이지 않는다", need, async () => {
+  // ★ **2026-10-09 실물이다.** 지메일 UI 가 한국어라 `<html lang="ko">` 이고, 영어 메일
+  //   본문은 제 `lang` 이 없어 그것을 뒤집어쓴다. 가지째 자르니 **수집이 0건**이었다.
+  // ★ **모질라에서 베끼며 뜻을 뒤집었다** — 그쪽은 「출발어와 다른 lang 을 제외」 이고
+  //   전체 페이지 번역이라 `html lang` 이 곧 출발어다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`<div>${긴글}</div>`);
+  doc.documentElement.setAttribute("lang", "ko");
+  assert.equal(ST.genericCollect(doc).length, 1, "껍데기 lang 이 본문을 죽였다");
+
+  // ★ **그래도 단위의 `lang` 은 지킨다** — 이미 한국어인 토막은 안 모은다.
+  const doc2 = makeDoc(`<div lang="ko">이미 한국어로 적혀 있는 문단이라 번역할 까닭이 없습니다.</div>`);
+  doc2.documentElement.setAttribute("lang", "ko");
+  assert.equal(ST.genericCollect(doc2).length, 0, "단위의 lang 을 안 본다");
+
+  // ★ **음성 대조** — 껍데기 lang 이 없어도 답이 같아야 한다. 안 그러면 「언제나 1」 이다.
+  assert.equal(ST.genericCollect(makeDoc(`<div>${긴글}</div>`)).length, 1);
+});
+
+test("가지째 자르는 것과 단위에서만 묻는 것을 가른다", need, async () => {
+  // ★ **`translate=no` 와 `.notranslate` 는 가지째다** — 「이 안을 건드리지 말라」 는 말이다.
+  //   **`lang` 은 그 글 자신의 언어**라 자손에게 물려줄 수 없다. 둘을 같은 자리에 두면
+  //   §176 이 돌아온다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  assert.equal(ST.genericCollect(makeDoc(`<div translate="no"><div>${긴글}</div></div>`).body).length, 0,
+               "translate=no 가 가지째 안 막는다");
+  assert.equal(ST.genericCollect(makeDoc(`<div class="notranslate"><div>${긴글}</div></div>`).body).length, 0,
+               "notranslate 가 가지째 안 막는다");
+  assert.equal(ST.genericCollect(makeDoc(`<div lang="ko"><div>${긴글}</div></div>`).body).length, 1,
+               "lang 이 가지째 막는다 — 그것이 §176 의 병이다");
+});

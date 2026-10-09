@@ -322,8 +322,13 @@
       },
       {
         "이름": "lang 을 안 본다",
-        "전": "  if (lang && lang.toLowerCase().split(\"-\")[0] === 대상) return true;",
-        "후": "  if (false) return true;"
+        "전": "  return !!lang && lang.toLowerCase().split(\"-\")[0] === 대상;",
+        "후": "  return false;"
+      },
+      {
+        "이름": "lang 을 내려가는 길에서도 묻는다",
+        "전": "  if (node.classList && node.classList.contains(\"notranslate\")) return true;\n  if (node.hasAttribute && node.hasAttribute(\"contenteditable\")) return true;\n  return false;\n};",
+        "후": "  if (node.classList && node.classList.contains(\"notranslate\")) return true;\n  if (node.hasAttribute && node.hasAttribute(\"contenteditable\")) return true;\n  return globalThis.ST.대상어인가(node);\n};"
       },
       {
         "이름": "처리된 노드 아래를 안 판다",
