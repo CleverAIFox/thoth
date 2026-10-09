@@ -35,44 +35,141 @@ globalThis.ST.textBlocks = function (root) {
 
 // 상위 계층이 재사용한다. 어댑터가 배타 선택이므로, 상위 계층이 자기 몫만
 // 모으면 본문이 통째로 빠진다(DECISIONS §11).
+// ── 무엇이 한 단위인가 (DECISIONS §174) ──────────────────────────────────────
+//
+// ★ **정본은 모질라의 페이지 번역이다**(`mozilla/firefox-translations` 의
+//   `extension/view/js/InPageTranslation.js`). 파이어폭스에 실려 나간 코드이고, 이 물음을
+//   이미 풀어 두었다. **추측으로 짓지 않는다**(§294) — 받아서 읽고 옮겼다.
+//
+// ★ **묻는 것이 「무슨 태그인가」 도 「몇 글자인가」 도 아니다.** 직계 자식을 세어
+//   **「이게 문단인가, 문단을 담는 상자인가」** 를 묻는다. 그래서 태그 목록이 필요 없다 —
+//   §160 에서 `div` 가 후보에 없어 **본문이 통째로 사각**이었던 것은 고정 목록의 필연이다.
+//   목록을 늘리는 것은 그 다음 사이트까지만 맞다.
+
+/** 인라인으로 세는 태그. 글의 **안쪽 꾸밈**이지 새 덩이가 아니다. */
+globalThis.ST.인라인태그 = new Set([
+  "abbr", "b", "bdi", "bdo", "br", "cite", "code", "data", "del", "dfn", "em", "i",
+  "ins", "kbd", "mark", "q", "rp", "rt", "ruby", "s", "samp", "small", "strong",
+  "sub", "sup", "time", "u", "var", "wbr",
+]);
+
+/** **제 안을 보고 정하는** 태그. `<a>` 는 버튼일 때도 있고 글 속 링크일 때도 있다. */
+globalThis.ST.일반태그 = new Set(["a", "span"]);
+
+/** 통째로 안 보는 태그. 번역해도 뜻이 없거나 깨진다. */
+globalThis.ST.제외태그 = new Set([
+  "script", "style", "noscript", "template", "svg", "math", "canvas", "iframe",
+  "code", "kbd", "samp", "var", "pre", "textarea", "input", "select", "option",
+  "button", "nav", "header", "footer", "address", "form",
+]);
+
+/** 판정 셋. `TreeWalker` 의 `NodeFilter` 와 같은 뜻이고 **수로 두어 jsdom 없이 시험한다.** */
+globalThis.ST.받다 = 1;    // 이 서브트리 통째로 한 단위. 아래로 안 내려간다
+globalThis.ST.파다 = 2;    // 이건 단위가 아니다. 더 파고든다
+globalThis.ST.버리다 = 3;  // 이것도 아래도 전부 버린다
+
+/**
+ * **이 노드가 글의 그릇인가, 그릇들의 그릇인가.**
+ *
+ * ★ **직계 자식만 센다.** 손자까지 세면 문서 전체가 한 단위가 된다.
+ * ★ **같으면 글 쪽으로 본다**(`>=`). 모질라와 같다 — 글 하나에 블록 하나가 섞인
+ *   꼴(`<div>글<hr></div>`)은 문단으로 다루는 편이 덜 쪼갠다.
+ * @param {Node} node
+ * @returns {boolean}
+ */
+globalThis.ST.안이글인가 = function (node) {
+  if (node.nodeType === 3) return true;            // 글 노드
+  let 인라인 = 0, 블록 = 0;
+  for (const c of node.childNodes || []) {
+    if (c.nodeType === 3) { if (c.textContent.trim()) 인라인 += 1; continue; }
+    if (c.nodeType !== 1) continue;
+    const t = c.nodeName.toLowerCase();
+    if (globalThis.ST.인라인태그.has(t)) 인라인 += 1;
+    else if (globalThis.ST.일반태그.has(t) && globalThis.ST.안이글인가(c)) 인라인 += 1;
+    else 블록 += 1;
+  }
+  return 인라인 >= 블록;
+};
+
+/**
+ * **웹 표준이 「번역하지 말라」 고 말하는 자리.**
+ *
+ * ★ **이 셋이 공짜로 따라온다** — 구글 번역도 지키는 신호다.
+ *     `[translate=no]` · `.notranslate` · `[lang]` 이 대상 언어와 다를 때
+ * ★ **`lang` 이 중요하다.** 이미 한국어인 토막을 다시 번역하는 일이 여기서 끊긴다 —
+ *   종전에는 글자 비율(`alreadyKorean`)로만 걸렀고 그것은 **섞인 글에서 샌다.**
+ */
+globalThis.ST.제외인가 = function (node, 대상 = "ko") {
+  if (node.nodeType !== 1) return false;
+  if (globalThis.ST.제외태그.has(node.nodeName.toLowerCase())) return true;
+  const lang = node.getAttribute && node.getAttribute("lang");
+  if (lang && lang.toLowerCase().split("-")[0] === 대상) return true;
+  if (node.getAttribute && node.getAttribute("translate") === "no") return true;
+  if (node.classList && node.classList.contains("notranslate")) return true;
+  if (node.hasAttribute && node.hasAttribute("contenteditable")) return true;
+  return false;
+};
+
+/** 글이 번역할 만큼 있나. **단위 판정이 아니라 표시 정책이다** — 아래 주석을 본다. */
+globalThis.ST.최소글자 = 20;
+
+/**
+ * 한 노드의 판정. **DOM 을 읽지만 레이아웃은 안 읽는다** — jsdom 으로 전부 시험한다.
+ *
+ * ★ **`최소글자` 는 여기서만 쓴다.** 이것은 **「문단인가」 와 아무 상관이 없다** —
+ *   짧은 문단도 문단이다. 다만 이 확장은 **덧붙이는** 쪽이라 「확인」 같은 두 글자에
+ *   상자를 세우면 화면이 상자로 덮인다. **갈아끼우는 제품에는 이 줄이 없다**(모질라).
+ *   그래서 단위 고르기(`안이글인가`)와 **분리해서** 맨 끝에 둔다.
+ * ★ **못 받은 것을 버리지 않는다.** 짧아도 **그 아래는 더 판다** — 짧은 포장 안에
+ *   긴 글이 있는 꼴이 메일에 흔하다.
+ */
+globalThis.ST.판정 = function (node) {
+  const ST = globalThis.ST;
+  if (node.nodeType !== 1) return ST.버리다;
+  if (ST.제외인가(node)) return ST.버리다;
+  if (node.textContent.trim().length === 0) return ST.버리다;
+  if (!ST.안이글인가(node)) return ST.파다;
+  // ★ **짧으면 아래도 반드시 짧다.** `textContent` 는 자손을 합한 값이라 **여기서 짧은
+  //   가지에 긴 글이 숨어 있을 수 없다** — 처음에 `파다` 로 적었는데 돌연변이가
+  //   **그 줄이 아무 일도 안 한다**고 말해 줬다. 「더 판다」 는 **할 수 없는 약속**이었다.
+  if (node.textContent.trim().length < ST.최소글자) return ST.버리다;
+  return ST.받다;
+};
+
+// 상위 계층이 재사용한다. 어댑터가 배타 선택이므로, 상위 계층이 자기 몫만
+// 모으면 본문이 통째로 빠진다(DECISIONS §11).
 globalThis.ST.genericCollect = function (root, opts) {
+  const ST = globalThis.ST;
   const skipRoots = (opts && opts.skip) || [];
-  const SKIP = "script,style,noscript,nav,header,footer,pre,code,textarea,input,select,button";
-  // ★ **말단을 가르는 목록에 표가 있어야 한다**(DECISIONS §160). 2026-10-05 지메일에서
-  //   같은 문구가 **두 번** 떴다 — HTML 메일은 **표 안의 표**로 짜는 것이 표준인데
-  //   `td` 와 `table` 이 이 목록에 없어 **바깥 `td` 도 말단으로 세어졌다.** 그래서 같은
-  //   글이 두 번 모이고, 앵커가 둘 다 `td` 라 **셀 안에 상자가 겹쳐 꽂혔다.**
-  const BLOCK = "p,li,div,section,article,table,td,th";
   const out = [];
 
-  // ★ 이미 처리한 요소를 셀렉터 단계에서 뺀다. 매 순회마다 페이지 전체를
-  //   다시 훑으면 innerText 호출이 누적돼 강제 리플로가 난다(실측 125ms).
-  //   :not() 은 CSS 엔진이 처리하므로 JS 순회에 들어오지도 않는다.
-  //
-  // ★ **`div` 가 여기 없어서 본문이 통째로 사각이었다**(DECISIONS §160). 지메일은 메일
-  //   본문을 `div` 로 그리고, HTML 메일은 `td > div > 글` 로 싼다. 재 보니 아홉 꼴 중
-  //   **다섯이 0건**이었다 — `div > 글` · `div > div > 글` · `td > div > 글` ·
-  //   `td > div > span` 이 전부 안 잡혔다. 바깥 `td` 는 `BLOCK` 에 걸려 빠지고 안쪽
-  //   `div` 는 **후보가 아니어서**, 그 사이에 든 글이 아무에게도 안 보였다.
-  // ★ **딸려 오는 것이 없다.** 지메일 껍데기의 `div`(받은편지함 · 답장 …)는 20자 미만이라
-  //   길이 문턱이 거른다 — 실물 꼴로 재서 확인했다.
-  const TAGS = ["p", "li", "td", "dd", "div", "h1", "h2", "h3", "h4", "blockquote"];
-  const SEL = TAGS.map((t) => `${t}:not([data-st-done]):not([data-st-fail])`).join(",");
-
-  for (const el of root.querySelectorAll(SEL)) {
-    if (el.querySelector(BLOCK)) continue;          // 말단 노드만
-    if (el.closest(SKIP) || el.closest(".st-translation")) continue;
-    if (skipRoots.some((r) => r.contains(el))) continue;
-
-    // textContent 로 먼저 거른다. innerText 는 강제 리플로를 일으키므로
-    // 후보가 아닌 요소에까지 물으면 페이지 전체를 매 순회마다 다시 재게 된다.
-    if (el.textContent.trim().length < 20) continue;
-    const text = (el.innerText || "").trim();
-    if (text.length < 20) continue;
-
-    out.push({ id: "g" + out.length, text, el, anchor: el, group: null });
-  }
-  return globalThis.ST.행안의포함을_뺀다(out);
+  // ★ **`TreeWalker` 가 아니라 직접 판다.** `TreeWalker` 의 `FILTER_ACCEPT` 는 **자손으로
+  //   계속 내려간다** — 모질라가 `isParentQueued` 로 다시 막는 까닭이다. 직접 파면
+  //   **받은 자리에서 멈추는 것이 한 줄**이고, 멈췄다는 사실이 코드에 보인다.
+  const 판다 = (el) => {
+    for (const c of el.children) {
+      if (skipRoots.some((r) => r === c || r.contains(c))) continue;
+      if (c.dataset && (c.dataset.stDone || c.dataset.stFail)) {
+        // ★ **처리된 노드는 **그 자신만** 건너뛴다.** 종전에는 셀렉터에서 통째로
+        //   빼서 **그 아래가 영영 안 보였고**, 그래서 순회를 넘어선 판단이 불가능했다.
+        판다(c);
+        continue;
+      }
+      if (c.classList && c.classList.contains("st-translation")) continue;
+      const 몫 = ST.판정(c);
+      if (몫 === ST.버리다) continue;
+      if (몫 === ST.파다) { 판다(c); continue; }
+      const text = (c.innerText !== undefined ? c.innerText : c.textContent).trim();
+      if (!text) continue;
+      // ★ **받은 자리에서 멈춘다 — 여기서 `판다(c)` 를 안 부르는 것이 전부다.**
+      //   모질라는 `TreeWalker` 를 쓰는데 그쪽의 `FILTER_ACCEPT` 는 **자손으로 계속
+      //   내려가서** `isParentQueued` 로 다시 막아야 한다. 직접 파면 그 가드가 필요 없다 —
+      //   처음에 그 가드를 따라 적었다가 **돌연변이가 죽은 줄이라고 알려 줬다.**
+      out.push({ id: "g" + out.length, text, el: c, anchor: c, group: null });
+    }
+  };
+  판다(root);
+  return ST.한행에하나(ST.행안의포함을_뺀다(out));
 };
 
 // ★ **한 행 안에서 남의 글을 통째로 품은 것은 모으지 않는다**(DECISIONS §165).
@@ -98,6 +195,36 @@ globalThis.ST.행안의포함을_뺀다 = function (units) {
     }
   }
   return units.filter((_, i) => !버린다.has(i));
+};
+
+/**
+ * **한 목록 행에는 번역이 하나다**(DECISIONS §174).
+ *
+ * ★ **이것은 「중복인가」 를 묻는 규칙이 **아니다**.** 글자를 비교하지 않는다 —
+ *   **표시 정책**이다. 목록 행은 **훑는 자리**지 읽는 자리라서, 한 행이 번역을 둘 받으면
+ *   그 순간 격자가 깨진다. 어느 쪽이 더 나은가는 `행안의포함을_뺀다` 가 **한 순회 안에서**
+ *   정하고, 이 함수는 **순회를 넘어** 둘째가 서는 것을 막는다.
+ * ★ **수미상관을 안 건드린다.** 행이 없으면 아무 일도 안 한다. 같은 글이 두 번 나오는
+ *   것은 **버릴 일이 아니다** — 그 가름을 글자로 하려 했던 것이 틀린 길이었다.
+ * ★ **DOM 에 묻는다.** `data-st-done` 은 노드마다의 표식이라 **순회를 넘으면 짝이 안
+ *   보인다.** 행에 상자가 이미 섰는지는 **DOM 이 순회를 넘어 들고 있는 사실**이다.
+ */
+globalThis.ST.한행에하나 = function (units) {
+  const 행경계 = globalThis.ST.행경계 || "tr,[role=row]";
+  const 찬행 = new Set();
+  const out = [];
+  for (const u of units) {
+    const 행 = typeof u.el.closest === "function" ? u.el.closest(행경계) : null;
+    if (!행) { out.push(u); continue; }          // 행 밖 — 아무것도 안 한다
+    // 이미 이 행에 번역이 서 있나. 상자는 행 안에 있거나 **행 바로 다음 줄**에 있다(§165).
+    const 섰나 = 행.querySelector(".st-translation")
+      || (행.nextElementSibling && 행.nextElementSibling.classList
+          && 행.nextElementSibling.classList.contains("st-translation-row"));
+    if (섰나 || 찬행.has(행)) continue;
+    찬행.add(행);
+    out.push(u);
+  }
+  return out;
 };
 
 if (!globalThis.ST.adapters.some((a) => a.name === "generic"))

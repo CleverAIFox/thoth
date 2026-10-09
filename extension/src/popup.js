@@ -51,6 +51,11 @@ async function load() {
   $("show").checked = !s.stOff;
   $("endpoint").value = s.stEndpoint || "";
   $("token").value = s.stToken || "";
+  // ★ **빈 칸의 흐린 글자는 「아무것도 안 넣으면 여기로 간다」 는 말이다**(DECISIONS §173).
+  //   그런데 `127.0.0.1` 이 글자로 박혀 있어서, ext-build 처럼 기계 기본값이 파일에
+  //   있는 판에서는 **거짓말을 하고 있었다.** 실제로 쓰는 값을 그대로 보여 준다.
+  $("endpoint").placeholder = globalThis.ST.쓸주소("", false);
+  if (!s.stToken && globalThis.ST.쓸토큰("", false)) $("token").placeholder = "파일에 있다";
 }
 
 // ---------- 권한 요청 ----------
@@ -99,9 +104,14 @@ $("check").addEventListener("click", async () => {
   $("check").disabled = true;
 
   const s = await chrome.storage.local.get(["stEndpoint", "stToken"]);
-  const url = healthUrl(s.stEndpoint || "http://127.0.0.1:8000/translate");
+  // ★ **재는 자가 도는 자와 같은 것을 봐야 한다**(DECISIONS §173). 종전에는 여기가
+  //   제 사슬을 따로 들었고 **그 사슬이 한 칸 짧아서**(`config.local.js` 누락) 번역이
+  //   멀쩡한데 「워커에 닿지 못했다」 가 떴다. 값을 맞추는 규칙 대신 **함수를 같이 쓴다.**
+  const 주소 = globalThis.ST.쓸주소(s.stEndpoint, false);
+  const url = healthUrl(주소);
   const headers = {};
-  if (s.stToken) headers["X-Thoth-Token"] = s.stToken;
+  const 토큰 = globalThis.ST.쓸토큰(s.stToken, false);
+  if (토큰) headers["X-Thoth-Token"] = 토큰;
 
   let res = null;
   try {

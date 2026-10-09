@@ -299,3 +299,158 @@ test("다른 행이 품은 것은 안 버린다", need, async () => {
     </tbody></table>`);
   assert.equal(ST.genericCollect(doc.body).length, 2, "다른 행이면 품어도 안 버린다");
 });
+
+// ── 단위를 구조로 고른다 (DECISIONS §174) ───────────────────────────────────
+//
+// ★ **정본은 모질라의 페이지 번역이다.** 「무슨 태그인가」 도 「몇 글자인가」 도 아니고
+//   직계 자식을 세어 **「문단인가, 문단을 담는 상자인가」** 를 묻는다.
+
+test("안이글인가 — 수로만 가른다", need, async () => {
+  // ★ **순수 함수다.** 합성 노드를 먹여 본다 — 레이아웃도 사이트도 필요 없다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc("<div></div>");
+  const 만 = (html) => { const d = doc.createElement("div"); d.innerHTML = html; return d; };
+
+  assert.equal(ST.안이글인가(만("글")), true, "글 노드만 있으면 문단이다");
+  assert.equal(ST.안이글인가(만("<b>굵게</b> 그리고 글")), true, "인라인은 글이다");
+  assert.equal(ST.안이글인가(만("<a href='#'>링크</a> 와 글")), true, "글 속 링크는 인라인이다");
+  assert.equal(ST.안이글인가(만("<p>하나</p><p>둘</p>")), false, "문단 둘을 담은 상자다");
+  assert.equal(ST.안이글인가(만("<div><p>속</p></div>")), false, "블록 하나도 상자다");
+  // ★ 같으면 글 쪽으로 본다 — 덜 쪼갠다.
+  assert.equal(ST.안이글인가(만("글 그리고 <p>문단</p>")), true, "하나 대 하나면 문단이다");
+});
+
+test("태그 목록에 없던 꼴도 모은다 — §160 이 그 목록의 필연이었다", need, async () => {
+  // ★ **`div` 가 후보에 없어 본문이 통째로 사각이었다**(§160). 목록을 늘리는 것은
+  //   **다음 사이트까지만** 맞다. 구조로 물으면 목록이 없다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  for (const 꼴 of ["article", "section", "figcaption", "dt", "main", "summary", "label"]) {
+    const html = `<${꼴}>${긴글}</${꼴}>`;
+    const 것 = ST.genericCollect(makeDoc(html).body);
+    assert.equal(것.length, 1, `<${꼴}> 에서 ${것.length}건 — 옛 목록에 없던 꼴이다`);
+  }
+});
+
+test("웹 표준이 번역하지 말라는 자리를 지킨다", need, async () => {
+  // ★ **구글 번역도 지키는 신호다.** 공짜로 따라오고, 지금까지 하나도 안 보고 있었다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  for (const [이름, html] of [
+    ["translate=no", `<div translate="no">${긴글}</div>`],
+    ["notranslate", `<div class="notranslate">${긴글}</div>`],
+    ["lang=ko", `<div lang="ko">${긴글}</div>`],
+    ["lang=ko-KR", `<div lang="ko-KR">${긴글}</div>`],
+    ["contenteditable", `<div contenteditable>${긴글}</div>`],
+    ["pre", `<pre>${긴글}</pre>`],
+    ["button", `<button>${긴글}</button>`],
+  ]) assert.equal(ST.genericCollect(makeDoc(html).body).length, 0, `${이름} 를 모았다`);
+
+  // ★ **음성 대조** — 같은 글이 그냥 있으면 모은다. 안 그러면 「전부 0」 이 통과한다.
+  assert.equal(ST.genericCollect(makeDoc(`<div>${긴글}</div>`).body).length, 1);
+  // ★ **대상 언어가 아닌 `lang` 은 안 막는다.** 영어 표시가 붙은 글이 번역 대상이다.
+  assert.equal(ST.genericCollect(makeDoc(`<div lang="en">${긴글}</div>`).body).length, 1);
+});
+
+test("짧다고 버리지 않고 그 아래를 더 판다", need, async () => {
+  // ★ **길이는 「문단인가」 와 상관이 없다.** 짧은 포장 안에 긴 글이 든 꼴이 메일에 흔하다 —
+  //   짧으면 **버리는** 것이 아니라 **더 파는** 것이 맞다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const html = `<div>짧</div>`;
+  assert.equal(ST.genericCollect(makeDoc(html).body).length, 0, "짧은 토막은 안 모은다");
+  // 포장이 짧아 보여도(innerText 가 아니라 textContent 로 재므로 실제로는 길다) 안쪽을 찾는다
+  const 포장 = `<div><span>·</span><div><div>${긴글}</div></div></div>`;
+  assert.equal(ST.genericCollect(makeDoc(포장).body).length, 1, "포장 안의 글을 못 찾았다");
+});
+
+test("처리된 노드의 **아래**는 계속 본다", need, async () => {
+  // ★ **종전에는 셀렉터에서 통째로 뺐다**(`:not([data-st-done])`). 그래서 처리된 포장
+  //   **아래가 영영 안 보였고**, 순회를 넘어선 판단이 원천적으로 불가능했다 —
+  //   그것이 지메일 행 중복의 진짜 원인이다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const 둘째 = "If you have mechanisms that depend on these events, please update them now.";
+  const doc = makeDoc(`<div id="w"><div>${긴글}</div><div>${둘째}</div></div>`);
+  doc.getElementById("w").dataset.stDone = "1";     // 포장이 처리된 척
+  assert.equal(ST.genericCollect(doc.body).length, 2, "처리된 포장 아래를 못 본다");
+});
+
+// ── 한 행에 번역은 하나 (DECISIONS §174) ────────────────────────────────────
+
+test("행에 상자가 이미 서 있으면 그 행은 더 안 모은다", need, async () => {
+  // ★ **이것은 「중복인가」 를 묻는 규칙이 아니다** — 글자를 비교하지 않는다.
+  //   목록 행은 훑는 자리라 번역을 둘 받으면 격자가 깨진다. **표시 정책**이다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`
+    <table role="grid"><tbody>
+      <tr role="row">
+        <td><div class="st-translation">이미 선 번역</div></td>
+        <td><div>${긴글}</div></td>
+      </tr>
+    </tbody></table>`);
+  assert.equal(ST.genericCollect(doc.body).length, 0, "행에 둘째 상자를 세운다");
+});
+
+test("행 다음 줄에 선 상자도 센다", need, async () => {
+  // ★ §165 가 행 **다음 줄**에 꽂게 했다. 행 안만 보면 그것을 못 본다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`
+    <table role="grid"><tbody>
+      <tr role="row"><td><div>${긴글}</div></td></tr>
+      <tr class="st-translation-row"><td><div class="st-translation">이미 선 번역</div></td></tr>
+    </tbody></table>`);
+  assert.equal(ST.genericCollect(doc.body).length, 0, "다음 줄의 상자를 못 본다");
+});
+
+test("행이 없으면 한행에하나가 아무것도 안 한다 — 수미상관을 안 버린다", need, async () => {
+  // ★ **네가 물은 그 자리다.** 같은 글이 두 번 나오는 것은 **버릴 일이 아니다.**
+  //   행 밖에서는 이 규칙이 아무 일도 안 한다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`<section><p>${긴글}</p></section><section><p>${긴글}</p></section>`);
+  assert.equal(ST.genericCollect(doc.body).length, 2, "수미상관을 버렸다");
+});
+
+test("단위는 인라인이 아니라 그 포장이다 — 앵커가 span 이 되면 안 된다", need, async () => {
+  // ★ **개수만 보면 이 가름이 안 잡힌다.** `span` 을 블록으로 세면 단위가 `div` 에서
+  //   `span` 으로 바뀌는데 **개수는 그대로 1** 이다 — 돌연변이가 그 틈으로 살아 나왔다.
+  // ★ **왜 중요한가**(DECISIONS §168) : 인라인 요소는 **레이아웃이 멀쩡해도
+  //   `clientWidth` 가 0** 이다. 앵커가 `span` 이면 꽂을 자리를 고르는 자가 헛본다.
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const 것 = ST.genericCollect(
+    makeDoc(`<table><tr><td><div><span>${긴글}</span></div></td></tr></table>`).body);
+  assert.equal(것.length, 1);
+  assert.equal(것[0].el.tagName, "DIV", "앵커가 인라인이 됐다 — 폭을 못 잰다");
+
+  // ★ 글 속 링크도 같다 — `<a>` 가 단위가 되면 버튼 하나가 문단 행세를 한다.
+  const 링크 = ST.genericCollect(
+    makeDoc(`<div>Please <a href="#">read the full policy document</a> before Friday arrives.</div>`).body);
+  assert.equal(링크.length, 1);
+  assert.equal(링크[0].el.tagName, "DIV", "링크가 단위가 됐다");
+});
+
+test("품은 쪽이 먼저 와도 품은 쪽을 버린다", need, async () => {
+  // ★ **§174 가 §165 의 가드를 가렸다.** `한행에하나` 가 뒤에 돌면서 **문서 순서로 첫째**를
+  //   남긴다 — 기존 픽스처는 깨끗한 쪽이 먼저라, 포함 규칙을 **꺼도 우연히 맞는 답**이
+  //   나왔다. 돌연변이 `포함 관계를 안 뺀다` 가 그 틈으로 살아 나왔다.
+  // ★ **순서에 안 기대는 것이 그 규칙의 존재 이유다.** 지메일이 어느 칸을 먼저 그리는지는
+  //   우리가 정하지 않는다 — **뒤집은 꼴로 묻는다.**
+  const { loadAdapters, makeDoc } = harness;
+  const ST = await loadAdapters(["generic"]);
+  const doc = makeDoc(`
+    <table role="grid"><tbody>
+      <tr role="row">
+        <td role="gridcell"><div>health@aws.com, Action may be required CloudTrail event source change. 4:36 PM</div></td>
+        <td role="gridcell"><div>Action may be required CloudTrail event source change.</div></td>
+      </tr>
+    </tbody></table>`);
+  const units = ST.genericCollect(doc.body);
+  assert.equal(units.length, 1, "하나만 남아야 한다");
+  assert.ok(!units[0].text.includes("4:36 PM"),
+            "먼저 왔다고 품은 쪽을 남겼다 — 순서에 기대고 있다");
+});

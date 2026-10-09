@@ -1,6 +1,6 @@
 {
   "적는이": "docs/proposal/build.js",
-  "만든때": "2026-10-07T14:25:35.826Z",
+  "만든때": "2026-10-09T06:33:49.939Z",
   "생성기": {
     "build.js": "878d9d2aabee47e7",
     "html.js": "578817d3a0307983",
@@ -10,7 +10,7 @@
     "part2.js": "580485a6df5354cd",
     "part3.js": "eb88e185fd5ceca2",
     "figures/figlib.py": "2034ee4eca40671e",
-    "figures/charts.py": "1785ca90cb0b64ac",
+    "figures/charts.py": "7a5c00f04a20dcc1",
     "figures/diagrams.py": "d239c6ed57df93e3",
     "figures/shots.py": "941b6796274e308e"
   }

@@ -286,6 +286,93 @@
       }
     ]
   },
+  "단위고르기": {
+    "_왜": "태그 목록 + 길이 문턱으로 단위를 골라서 §160(본문이 통째로 사각) · UI 토막 · 언어 섞임이 한 원인에서 났다(§174). 정본은 모질라의 페이지 번역이다.",
+    "파일": "extension/src/adapters/generic.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/adapters.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "손자까지 세어 문서를 한 덩이로 만든다",
+        "전": "    if (globalThis.ST.인라인태그.has(t)) 인라인 += 1;",
+        "후": "    if (globalThis.ST.인라인태그.has(t) || globalThis.ST.안이글인가(c)) 인라인 += 1;"
+      },
+      {
+        "이름": "블록이 하나라도 있으면 상자로 본다",
+        "전": "  return 인라인 >= 블록;",
+        "후": "  return 블록 === 0;"
+      },
+      {
+        "이름": "짧은 것도 받는다",
+        "전": "  if (node.textContent.trim().length < ST.최소글자) return ST.버리다;",
+        "후": "  if (false) return ST.버리다;"
+      },
+      {
+        "이름": "받은 자리에서 더 내려간다",
+        "전": "      out.push({ id: \"g\" + out.length, text, el: c, anchor: c, group: null });",
+        "후": "      out.push({ id: \"g\" + out.length, text, el: c, anchor: c, group: null });\n      판다(c);"
+      },
+      {
+        "이름": "translate=no 를 안 본다",
+        "전": "  if (node.getAttribute && node.getAttribute(\"translate\") === \"no\") return true;",
+        "후": "  if (false) return true;"
+      },
+      {
+        "이름": "lang 을 안 본다",
+        "전": "  if (lang && lang.toLowerCase().split(\"-\")[0] === 대상) return true;",
+        "후": "  if (false) return true;"
+      },
+      {
+        "이름": "처리된 노드 아래를 안 판다",
+        "전": "        판다(c);\n        continue;\n      }",
+        "후": "        continue;\n      }"
+      },
+      {
+        "이름": "행 밖에서도 하나만 남긴다",
+        "전": "    if (!행) { out.push(u); continue; }          // 행 밖 — 아무것도 안 한다",
+        "후": "    if (!행) { if (!찬행.has(null)) { 찬행.add(null); out.push(u); } continue; }"
+      },
+      {
+        "이름": "행 다음 줄의 상자를 안 본다",
+        "전": "      || (행.nextElementSibling && 행.nextElementSibling.classList",
+        "후": "      || (false && 행.nextElementSibling && 행.nextElementSibling.classList"
+      }
+    ]
+  },
+  "팝업사슬": {
+    "_왜": "팝업이 제 사슬을 따로 들었고 한 칸 짧았다(§173). 번역은 람다로 가는데 팝업만 로컬을 두드리고 「닿지 못했다」 를 띄웠다 — 재는 자가 틀리면 고치는 사람이 엉뚱한 데를 판다.",
+    "파일": "extension/src/client.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/popup.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "파일 기본값을 안 본다",
+        "전": "  return fixture ? globalThis.ST.FIXTURE_ENDPOINT\n                 : (stEndpoint || globalThis.ST.DEFAULT_ENDPOINT);",
+        "후": "  return fixture ? globalThis.ST.FIXTURE_ENDPOINT\n                 : (stEndpoint || \"http://127.0.0.1:8000/translate\");"
+      },
+      {
+        "이름": "파일 토큰을 안 싣는다",
+        "전": "  return fixture ? \"\" : (stToken || globalThis.ST.CONFIG?.token || \"\");",
+        "후": "  return fixture ? \"\" : (stToken || \"\");"
+      },
+      {
+        "이름": "픽스처가 팝업 값에 진다",
+        "전": "  return fixture ? globalThis.ST.FIXTURE_ENDPOINT\n                 : (stEndpoint || globalThis.ST.DEFAULT_ENDPOINT);\n};",
+        "후": "  return stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;\n};"
+      },
+      {
+        "이름": "픽스처에도 토큰을 싣는다",
+        "전": "globalThis.ST.쓸토큰 = function (stToken, fixture) {",
+        "후": "globalThis.ST.쓸토큰 = function (stToken, _fixture) {\n  const fixture = false;"
+      }
+    ]
+  },
   "코드스캐닝": {
     "_왜": "열린 경보 둘이 이틀 떠 있는 동안 `doctor` 는 「CI 가 초록으로 봤다」 를 찍었다(§171). 이 관문이 안 물면 그 이틀이 그대로 돌아온다.",
     "파일": "tools/code_scanning.py",
@@ -840,17 +927,17 @@
     ],
     "돌연변이": [
       {
-        "이름": "div 를 후보에서 뺀다",
-        "전": "const TAGS = [\"p\", \"li\", \"td\", \"dd\", \"div\", \"h1\", \"h2\", \"h3\", \"h4\", \"blockquote\"];",
-        "후": "const TAGS = [\"p\", \"li\", \"td\", \"dd\", \"h1\", \"h2\", \"h3\", \"h4\", \"blockquote\"];"
+        "이름": "표를 통째로 제외한다",
+        "전": "  \"script\", \"style\", \"noscript\", \"template\", \"svg\", \"math\", \"canvas\", \"iframe\",",
+        "후": "  \"script\", \"style\", \"noscript\", \"template\", \"svg\", \"math\", \"canvas\", \"iframe\", \"table\", \"td\","
       },
       {
-        "이름": "표를 말단 가름에서 뺀다",
-        "전": "const BLOCK = \"p,li,div,section,article,table,td,th\";",
-        "후": "const BLOCK = \"p,li,div,section,article\";"
+        "이름": "span 을 블록으로 센다",
+        "전": "globalThis.ST.일반태그 = new Set([\"a\", \"span\"]);",
+        "후": "globalThis.ST.일반태그 = new Set([\"a\"]);"
       }
     ],
-    "_밖": "길이 문턱은 **한 줄 돌연변이가 닿을 수 없다**(§160). `textContent` 쪽이 리플로를 피하는 **싼 선거름**이고 `innerText` 쪽이 판정인데, **둘이 독립으로 거르므로** 한쪽만 뚫으면 다른 쪽이 막는다. 가드가 약한 것이 아니라 겨냥이 닿지 않는 자리다 — 둘을 하나로 합치면 선거름이 사라져 순회마다 페이지 전체에 `innerText` 를 묻게 된다(실측 125ms)."
+    "_밖": "길이 문턱은 **한 줄 돌연변이가 닿을 수 없다**(§160). `textContent` 쪽이 리플로를 피하는 **싼 선거름**이고 `innerText` 쪽이 판정인데, **둘이 독립으로 거르므로** 한쪽만 뚫으면 다른 쪽이 막는다. 가드가 약한 것이 아니라 겨냥이 닿지 않는 자리다. 겨냥 둘은 §174 로 옮겼다 — `TAGS` · `BLOCK` 이 사라졌고, **그 목록이 이 병의 원인이었다.**"
   },
   "한글비율": {
     "_왜": "번역 대상이 아닌 토막이 분모에 들면 한국어 줄이 번역으로 나간다. 실물에서 0.273 이었다(§160).",

@@ -51,13 +51,32 @@ globalThis.ST.sourceBody = function (source) {
 globalThis.ST.FIXTURE_ENDPOINT =
   globalThis.ST.CONFIG?.fixtureEndpoint || "http://127.0.0.1:8000/translate";
 
+// ── 어디로 보내고 무엇을 싣는가 (DECISIONS §173) ────────────────────────────
+//
+// ★ **이 두 줄이 두 곳에 살고 있었다.** 팝업의 「연결 확인」 이 제 사슬을 따로 들고
+//   있었고 **그 사슬이 한 칸 짧았다** — `config.local.js` 를 안 봤다. ext-build 에서는
+//   기계 기본값이 그 파일에 있으므로, **번역은 람다로 멀쩡히 가는데 팝업만
+//   `127.0.0.1` 을 두드리고 「워커에 닿지 못했다」 를 띄웠다.**
+// ★ **고친 길은 팝업에 한 칸을 더하는 것이 아니라 사슬을 하나로 만든 것이다.**
+//   값을 맞추는 규칙은 언젠가 한쪽만 고쳐진다(§91) — **함수를 같이 쓴다.**
+// ★ **순수 함수다.** 저장소도 DOM 도 안 읽는다 — 합성으로 전부 먹여 본다(§132).
+globalThis.ST.쓸주소 = function (stEndpoint, fixture) {
+  // ★ 픽스처가 팝업 값을 이긴다(§106). 그 밖에서는 팝업 값이 기계 기본값을 이긴다.
+  return fixture ? globalThis.ST.FIXTURE_ENDPOINT
+                 : (stEndpoint || globalThis.ST.DEFAULT_ENDPOINT);
+};
+
+globalThis.ST.쓸토큰 = function (stToken, fixture) {
+  // ★ 픽스처에는 토큰을 싣지 않는다 — 로컬 워커를 때리면서 비밀값을 보낼 까닭이 없다.
+  return fixture ? "" : (stToken || globalThis.ST.CONFIG?.token || "");
+};
+
 globalThis.ST.translate = async function (texts, source) {
   const { stEndpoint, stToken } = await chrome.storage.local.get(["stEndpoint", "stToken"]);
   const fixture = Boolean(globalThis.ST.fixtureUrl?.());
   // ★ 그 밖에서는 팝업에서 넣은 값이 언제나 이긴다. 기계 기본값은 출발점일 뿐이다.
-  const url = fixture ? globalThis.ST.FIXTURE_ENDPOINT
-                      : stEndpoint || globalThis.ST.DEFAULT_ENDPOINT;
-  const token = fixture ? "" : stToken || globalThis.ST.CONFIG?.token || "";
+  const url = globalThis.ST.쓸주소(stEndpoint, fixture);
+  const token = globalThis.ST.쓸토큰(stToken, fixture);
 
   // ★ **어느 쪽이 이겼는지 말한다**(DECISIONS §135). 2026-10-03 에 팝업에 남아 있던
   //   옛 토큰이 `ext-build` 의 파일을 이겨 401 이 났고, **콘솔에는 `401 unauthorized`

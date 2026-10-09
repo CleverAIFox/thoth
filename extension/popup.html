@@ -39,4 +39,13 @@
   </details>
 </main>
 
+<!-- ★ **팝업이 번역기와 같은 사슬을 쓴다**(DECISIONS §173). 종전에는 `popup.js` 만
+     싣고 기본 주소 글자를 **제가 따로 들고** 있었다 — `config.local.js` 를 안 보니
+     ext-build 에서 **번역은 람다로 가는데 팝업만 `127.0.0.1` 을 두드렸다.**
+     ★ **클래식 스크립트는 순서대로, 모듈은 그 뒤에 돈다.** 그래서 `ST.CONFIG` 와
+     `ST.쓸주소` 가 `popup.js` 가 돌 때 이미 서 있다.
+     ★ **`client.js` 는 최상위에 정의뿐이다** — 부수효과가 없어 팝업에서 실어도
+     아무 일도 안 일어난다. 그 자리는 `extension/tests/popup.test.js` 가 문다. -->
+<script src="src/config.local.js"></script>
+<script src="src/client.js"></script>
 <script type="module" src="src/popup.js"></script>
