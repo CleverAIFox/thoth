@@ -646,6 +646,26 @@ elif command -v gh >/dev/null 2>&1; then
   esac
 fi
 
+echo "== 과금 =="
+# ★ **이 저장소는 코드·문서·인프라·CI 를 다 재면서 돈만 안 쟀다**(DECISIONS §180).
+#   그 사각이 이미 한 번 물었다 — §177 전까지 **꺼 둔 줄 알고 Bedrock 요청이 계속 나갔고
+#   아무도 안 울었다.** 목표가 「무과금 개인용 확장」 이므로 **과금 의존이 곧 빚**이다.
+# ★ **이 자리는 네트워크를 안 쓴다.** Cost Explorer 는 **호출당 $0.01** 이라 `doctor` 가
+#   부르면 **재는 자가 재려는 것을 늘린다.** 재는 것은 사람이 `--재다` 로 하고, 여기서는
+#   그 선언과 `infra/*.tf` 를 맞댈 뿐이다(기준선 지문과 같은 꼴 — §179).
+# ★ 종료 코드 : 0 맞다 · 1 흠 · 2 **못 쟀다**(선언이 낡았거나 못 읽는다 — §59).
+COST_OUT="$(python3 tools/cost_check.py 2>&1)"; COST_RC=$?
+case "$COST_RC" in
+  0) ok "$(printf '%s' "$COST_OUT" | tail -1)"
+     printf '%s\n' "$COST_OUT" | grep '^    ·' || true ;;
+  1) no "과금 선언이 실물과 다르다"
+     printf '%s\n' "$COST_OUT" | sed 's/^/       /' ;;
+  2) skip "과금 선언이 낡았거나 못 읽는다 — python3 tools/cost_check.py --재다"
+     printf '%s\n' "$COST_OUT" | sed 's/^/       /' ;;
+  *) no "cost_check.py 가 죽었다 (exit $COST_RC)"
+     printf '%s\n' "$COST_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
+
 echo "== 잠금 =="
 # ★ **`uv run` 은 잠금이 어긋나면 조용히 다시 풀고 `uv.lock` 을 고쳐 쓴다**(DECISIONS §128).
 #   그러면 「이 커밋이 쓴 판」 이 커밋마다 달라질 수 있고, 그것을 말해 주는 것이 없다.
@@ -863,7 +883,13 @@ CNT_OUT="$(python3 tools/check_counts.py \
              "ext_tests=${EXT_N:-}" "worker_tests=${PY_N:-}" ${SKIP_TALLY} 2>&1)"; CNT_RC=$?
 case "$CNT_RC" in
   0) ok "문서가 적은 건수가 실측과 같다" ;;
-  1) no "문서 건수가 실측과 다르다"; printf '%s\n' "$CNT_OUT" | sed 's/^/    /' ;;
+  # ★ **잡는 것과 고치는 것은 다른 일이다**(DECISIONS §180). 여기까지 오면 `doctor` 는
+  #   실측을 손에 들고 있는데 문서는 사람이 옮겨 적었다 — 그래서 늙는다. 2026-10-10 하루에
+  #   `ext_tests` 와 `worker_tests` 가 **둘 다** 늙었다. 고치는 길을 **명령으로** 적는다.
+  1) no "문서 건수가 실측과 다르다 — 고치려면 아래 줄을 그대로 친다"
+     printf '%s\n' "$CNT_OUT" | sed 's/^/    /'
+     printf '       python3 tools/check_counts.py --fix "ext_tests=%s" "worker_tests=%s" %s\n' \
+            "${EXT_N:-}" "${PY_N:-}" "${SKIP_TALLY}" ;;
   3) printf '%s\n' "$CNT_OUT" | sed 's/^    //' | while IFS= read -r l; do skip "$l"; done ;;
   *) no "check_counts.py 가 죽었다 (exit $CNT_RC)"
      printf '%s\n' "$CNT_OUT" | tail -5 | sed 's/^/       /' ;;

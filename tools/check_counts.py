@@ -100,6 +100,38 @@ def parse_args(argv: list[str]) -> dict[str, int]:
 
 
 
+def 고친다(root: Path, measured: dict[str, int]) -> list[str]:
+    """표시된 수를 실측으로 **갈아 쓴다**. 고친 자리를 돌려준다.
+
+    ★ **doctor 는 실측을 아는데 문서는 사람이 고쳤다**(DECISIONS §180). 그래서 늙는다 —
+      2026-10-10 하루에 `ext_tests` 와 `worker_tests` 가 **둘 다** 늙었고, 이 관문이 둘 다
+      잡았다. **잡는 것과 고치는 것은 다른 일**이고, 잡기만 하면 사람이 손으로 옮겨 적는다.
+
+    ★ **모르는 이름은 안 고친다.** 오타를 조용히 박제하면 그 주장은 영영 안 읽힌다.
+    ★ **못 잰 이름도 안 고친다** — 「못 쟀다」 를 값으로 바꾸면 거짓이 된다(§59).
+    """
+    고침: list[str] = []
+    files = [root / "README.md"] + sorted((root / "docs").glob("*.md"))
+    for f in files:
+        try:
+            글 = f.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        def 바꾼다(m: re.Match) -> str:
+            이름, 적힌 = m.group(1), int(m.group(2))
+            if 이름 not in KNOWN or 이름 not in measured:
+                return m.group(0)
+            잰것 = measured[이름]
+            if 적힌 == 잰것:
+                return m.group(0)
+            고침.append(f"{f.name} {이름} {적힌} → {잰것}")
+            return m.group(0).replace(str(적힌), str(잰것), 1)
+        새 = MARK.sub(바꾼다, 글)
+        if 새 != 글:
+            f.write_text(새, encoding="utf-8")
+    return 고침
+
+
 def _canary() -> None:
     """★ **판별식이 사나.** 표시를 못 읽으면 **주장이 0 건**이 되고, 그러면 **아무것도 대조
     안 하고 초록**이 된다 — 0 이 목표인 검사의 가장 흔한 죽음이다."""
@@ -114,7 +146,12 @@ def main(argv: list[str] | None = None) -> int:
     if "--selftest" in (sys.argv[1:] if argv is None else argv):
         print("  프로브 살아 있다 — 표시를 읽고, 표시 없는 수는 안 센다")
         return 0
-    measured = parse_args(sys.argv[1:] if argv is None else argv)
+    args = sys.argv[1:] if argv is None else argv
+    measured = parse_args(args)
+    if "--fix" in args:
+        # ★ **고치고 나서 다시 센다.** 고쳤다고 말만 하고 안 보면, 안 고쳐진 자리가 남는다.
+        for x in 고친다(ROOT, measured):
+            print(f"    고쳤다 — {x}")
     code, lines = compare(claims(ROOT), measured)
     for line in lines:
         print(f"    {line}")

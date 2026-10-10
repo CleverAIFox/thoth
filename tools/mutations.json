@@ -777,9 +777,7 @@
       }
     ]
   },
-  "미선언": [
-    "tools/cascade_check.py"
-  ],
+  "미선언": [],
   "_안무는자리": {
     "glossary.restore 의 is_keep 거르개": "restore.json 에 항등 용어만 열쇠가 있어 **빼도 아무 일이 안 난다**. 관문이 아니라 독립성이다 — 없으면 restore 가 표의 내용에 말없이 기대게 된다. 선언하지 않는다(§152)."
   },
@@ -1511,6 +1509,151 @@
         "이름": "엔진 블록이 없어도 맞다고 한다",
         "전": "    if not engines:\n        return [], \"기준선에 엔진 블록이 없다\"",
         "후": "    if not engines:\n        return [], \"\""
+      }
+    ]
+  },
+  "과금선언": {
+    "파일": "tools/cost_check.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cost_check.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "선언 밖 자원을 안 센다",
+        "전": "    for svc in sorted(세우는것 - set(서비스)):",
+        "후": "    for svc in sorted(set()):"
+      },
+      {
+        "이름": "이름 못 붙인 자원 종류를 흘린다",
+        "전": "    for 종류 in 모름:",
+        "후": "    for 종류 in []:"
+      },
+      {
+        "이름": "부르는 서비스와 세우는 서비스를 안 가른다",
+        "전": "        if 갈 == \"세운다\" and float(s.get(\"월\") or 0) > 0 and 이름 not in 세우는것:",
+        "후": "        if float(s.get(\"월\") or 0) > 0 and 이름 not in 세우는것:"
+      },
+      {
+        "이름": "자원 칸이 없어도 넘어간다",
+        "전": "        if 갈 not in (\"세운다\", \"부른다\"):",
+        "후": "        if False:"
+      },
+      {
+        "이름": "낡은 선언을 맞다고 한다",
+        "전": "        if 지남 > 낡음:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "잰날이 없어도 쓴다",
+        "전": "    if not 잰날:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "막음선을 안 본다",
+        "전": "    if 막음 and 합 > 막음:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "지난 유예를 안 막는다",
+        "전": "        if 남 < 0:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "낡아도 0 으로 끝낸다",
+        "전": "    return 2 if 낡음 else 0",
+        "후": "    return 0"
+      },
+      {
+        "이름": "선언을 못 읽어도 통과로 센다",
+        "전": "        print(f\"{_보일(선언파일)} 를 못 읽었다 — **못 쟀다는 뜻이지 통과가 아니다**\")\n        return 2",
+        "후": "        print(f\"{_보일(선언파일)} 를 못 읽었다 — **못 쟀다는 뜻이지 통과가 아니다**\")\n        return 0"
+      },
+      {
+        "이름": "재다가 크레딧을 안 뺀다",
+        "전": "               \"--filter\", '{\"Not\":{\"Dimensions\":{\"Key\":\"RECORD_TYPE\",'\n                           '\"Values\":[\"Credit\",\"Refund\"]}}}',",
+        "후": "               \"--output\", \"json\","
+      }
+    ]
+  },
+  "명시도판정": {
+    "파일": "tools/cascade_check.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cascade_check.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "이길 자리에서 진 것을 안 센다",
+        "전": "        if 이김 != want:",
+        "후": "        if 이김 and not want:"
+      },
+      {
+        "이름": "선언 없는 비상구를 흘린다",
+        "전": "        if e not in 비상구쓸모:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "사라진 비상구를 안 센다",
+        "전": "        if got is None:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "비상구 쓸모가 줄어도 안 운다",
+        "전": "        elif got != want:",
+        "후": "        elif got > want:"
+      },
+      {
+        "이름": "구해 내지 못한 비상구를 0 으로 안 적는다",
+        "전": "        else:\n            out.setdefault(e, 0)",
+        "후": "        else:\n            pass"
+      },
+      {
+        "이름": "원래 이기던 자리도 구했다고 센다",
+        "전": "        if 졌었나 and not r[\"어긋남\"]:",
+        "후": "        if not r[\"어긋남\"]:"
+      },
+      {
+        "이름": "적수가 약해진 것을 안 본다",
+        "전": "        if 키 in 안쪽적수세기 and n != 안쪽적수세기[키]:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "섀도가 새도 안 본다",
+        "전": "        if 키 in 안쪽기대 and n != 안쪽기대[키]:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "빠진 안쪽 칸을 안 센다",
+        "전": "    for 키 in {*안쪽기대, *안쪽적수세기} - 본것:",
+        "후": "    for 키 in set():"
+      }
+    ]
+  },
+  "건수고치기": {
+    "파일": "tools/check_counts.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_check_counts.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "모르는 이름도 고친다",
+        "전": "            if 이름 not in KNOWN or 이름 not in measured:\n                return m.group(0)",
+        "후": "            if False:\n                return m.group(0)"
+      },
+      {
+        "이름": "같은 수도 고쳤다고 센다",
+        "전": "            if 적힌 == 잰것:\n                return m.group(0)",
+        "후": "            if False:\n                return m.group(0)"
+      },
+      {
+        "이름": "고치고 다시 안 센다",
+        "전": "        for x in 고친다(ROOT, measured):\n            print(f\"    고쳤다 — {x}\")",
+        "후": "        return 0"
       }
     ]
   }

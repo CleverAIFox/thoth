@@ -134,4 +134,10 @@ const TOC = (항목) => [BR(),
     children: [t(x, { size: l ? 21 : 23, bold: !l, color: l ? "000000" : NAVY })],
     spacing: { before: l ? 0 : 160, after: 80 }, indent: { left: l ? 500 : 100 } }))];
 
-module.exports = { ROOT, RNG, secs, D, t, runs, P, GAP, BR, PART, H1, H2, H3, B, NOTE, CODE, TBL, KV, FIGURE, COVER, TOC, W, NAVY, RED, GRAY, FONT };
+// ★ **본문이 자료를 직접 안 부른다**(DECISIONS §167 · §180). `check_proposal` 이
+//   「본문은 `./lib` 만 부른다」 를 지키므로 산출물에서 읽는 수도 여기를 거친다. 다만
+//   **값은 `./수` 가 들고 있다** — `html.js` 가 이 파일을 가짜로 갈아 끼우기 때문이다(§166).
+const 수 = require("./수");
+
+module.exports = {
+  ...수, ROOT, RNG, secs, D, t, runs, P, GAP, BR, PART, H1, H2, H3, B, NOTE, CODE, TBL, KV, FIGURE, COVER, TOC, W, NAVY, RED, GRAY, FONT };

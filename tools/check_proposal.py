@@ -48,9 +48,14 @@ ROOT = Path(__file__).resolve().parent.parent
 PROP = ROOT / "docs/proposal"
 장부파일 = PROP / "numbers.json"
 
-# 본문이 가져가도 되는 것 — **블록과 색뿐이다.** `D` · `t` · `runs` · `W` · `FONT` 는 렌더러의 것이다
+# 본문이 가져가도 되는 것 — **블록과 색, 그리고 산출물에서 읽는 수**다.
+# `D` · `t` · `runs` · `W` · `FONT` 는 렌더러의 것이라 그대로 막는다.
+# ★ **`기준선` · `문턱` · `체감` 을 연다**(DECISIONS §167 · §180). 산문이 수를 글자로
+#   안 박으려면 **읽을 것을 가져가야** 하고, 값의 정본은 `docs/proposal/수.js` 하나다 —
+#   세 렌더러(docx · html · extract)가 전부 거기를 읽는다(§166).
 허용 = {"P", "GAP", "BR", "PART", "H1", "H2", "H3", "B", "NOTE", "CODE", "TBL", "KV",
-       "FIGURE", "COVER", "TOC", "NAVY", "RED", "GRAY", "secs", "ROOT", "RNG"}
+       "FIGURE", "COVER", "TOC", "NAVY", "RED", "GRAY", "secs", "ROOT", "RNG",
+       "기준선", "문턱", "체감"}
 본문 = ("part1.js", "part2.js", "part3.js")
 _구조분해 = re.compile(r"const\s*\{([^}]*)\}\s*=\s*require\(\"([^\"]+)\"\)")
 _require = re.compile(r"require\(\"([^\"]+)\"\)")
@@ -220,8 +225,8 @@ def 두렌더러(t: dict, html: str) -> list[str]:
 #   재 봤더니 **스무 개가 걸렸고 전부 거짓**이었다(`5` 가 어딘가에 있으면 `5초` 가 걸린다).
 # ★ **양방향 톱니다.** 박은 수는 **늘면 막고**, `치환예정` 은 **줄기만 한다** — 치환하지 않고
 #   `밖` 으로 옮겨 적으면 그것은 갚은 것이 아니다.
-MAX_박은수 = 28
-MAX_치환예정 = 5
+MAX_박은수 = 23
+MAX_치환예정 = 0
 본문파일 = ("part1.js", "part2.js", "part3.js")
 
 

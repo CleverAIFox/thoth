@@ -132,8 +132,14 @@ def _가짜_생성기(tmp_path: pathlib.Path, part1: str) -> pathlib.Path:
     import shutil
     d = tmp_path / "proposal"
     d.mkdir()
-    for f in ("lib.js", "extract.js"):
+    # ★ **`수.js` 도 같이 옮긴다**(DECISIONS §180). `extract.js` 가 **자료만은 가짜로 안
+    #   만들고 정본을 넘기므로**(§166 — 세 렌더러가 같은 자리를 읽는다) 이 모래밭에도
+    #   그 자리가 있어야 한다. 빠지면 `extract` 가 통째로 죽고, 화면에는 **「본문이 끝까지
+    #   안 돈다」** 로만 보인다 — 까닭이 본문인 줄 알게 된다(§70).
+    for f in ("lib.js", "extract.js", "수.js", "targets.json"):
         shutil.copy(ROOT / "docs/proposal" / f, d / f)
+    (d.parent / "bench").mkdir(exist_ok=True)
+    shutil.copy(ROOT / "docs/bench/baseline.json", d.parent / "bench" / "baseline.json")
     (d / "part1.js").write_text(part1, encoding="utf-8")
     for f in ("part2.js", "part3.js"):
         (d / f).write_text(f'const {{ P }} = require("./lib");\n'

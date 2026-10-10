@@ -109,6 +109,9 @@ const 가짜 = {
   TOC: (항목) => [`<nav class="toc"><h2>목차</h2>${항목.map(([x, l]) =>
     `<p class="l${l ? 1 : 0}">${esc(x)}</p>`).join("")}</nav>`],
 };
+// ★ **자료는 가짜가 아니라 정본을 그대로 넘긴다**(DECISIONS §180). 여기서 다시 적으면
+//   같은 수가 두 렌더러에 따로 살고 **두 산출물이 갈린 채 둘 다 만들어진다**(§91 · §166).
+Object.assign(가짜, require("./수"));
 require.cache[libPath] = { id: libPath, filename: libPath, loaded: true, exports: 가짜 };
 
 const { cover, toc, s1, s2 } = require("./part1");

@@ -20,6 +20,10 @@ Object.assign(가짜, { ROOT: "", RNG: {}, secs: () => "§0–§0", W: 0,
   NAVY: "", RED: "", GRAY: "", FONT: "",
   // ★ `D` 를 **프록시로 둔다** — 본문이 만지면 기록되고, 그 기록이 관문의 증거다
   D: new Proxy({}, { get: () => { 블록.push({ n: ++번, 종류: "DOCX직접", 글: [] }); return function () { return {}; }; } }) });
+// ★ **자료는 가짜로 안 만든다 — 정본을 그대로 넘긴다**(DECISIONS §180). 본문이 산문에
+//   박지 않고 **읽어 가는 수**라, 여기서 빈 값을 주면 **블록이 안 돌고** 「본문이 끝까지
+//   안 돈다」 로만 보인다. 세 번째 렌더러도 같은 자리를 읽어야 한다(§166).
+Object.assign(가짜, require("./수"));
 require.cache[libPath] = { id: libPath, filename: libPath, loaded: true, exports: 가짜 };
 
 const 난것 = [];
