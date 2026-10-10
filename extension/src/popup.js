@@ -48,7 +48,10 @@ async function load() {
   paint();
 
   const s = await chrome.storage.local.get(["stOff", "stEndpoint", "stToken"]);
-  $("show").checked = !s.stOff;
+  // ★ **칸이 비면 꺼진 쪽이다**(DECISIONS §177). 브로커의 기본값과 **같은 글자로**
+  //   적는다 — 한쪽만 `!s.stOff` 면 팝업은 「번역 켬」 을 보여 주고 브로커는 수집만
+  //   돈다. 그 어긋남은 **아무것도 안 터지고 거짓말만 한다**(§173).
+  $("show").checked = s.stOff === undefined ? false : !s.stOff;
   $("endpoint").value = s.stEndpoint || "";
   $("token").value = s.stToken || "";
   // ★ **빈 칸의 흐린 글자는 「아무것도 안 넣으면 여기로 간다」 는 말이다**(DECISIONS §173).
@@ -77,22 +80,15 @@ $("enable").addEventListener("click", () => {
   });
 });
 
-// ---------- 표시 토글 ----------
+// ---------- 번역 토글 ----------
 //
-// ★ `Alt+K` 와 같은 경로를 탄다. 브로커가 `stOff` 를 보고 `html.st-off` 를
-//   전환하므로 여기서는 저장만 하고 열린 탭에도 같은 변화를 알린다.
+// ★ **저장만 한다**(DECISIONS §177). 종전에는 여기서 `executeScript` 로 열린 탭의
+//   `html.st-off` 를 **직접 뒤집었다** — 저장소와 DOM 두 길로 쓴 것이고, 끄기가
+//   「상자 숨김」 이었던 동안은 그것으로 충분했다. 이제 끊는 자리가 **수집 바로
+//   뒤**라 클래스만 뒤집으면 **워커를 계속 때린다.** 브로커가 `storage.onChanged`
+//   를 듣고 제가 적용한다 — `Alt+K` 와 **같은 한 길**이다.
 $("show").addEventListener("change", async () => {
-  const off = !$("show").checked;
-  await chrome.storage.local.set({ stOff: off });
-  if (tab && site.kind === ORIGIN_GRANTED) {
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        args: [off],
-        func: (v) => document.documentElement.classList.toggle("st-off", v),
-      });
-    } catch { /* 주입되지 않은 탭이면 다음 방문에 반영된다 */ }
-  }
+  await chrome.storage.local.set({ stOff: !$("show").checked });
 });
 
 // ---------- 연결 확인 ----------

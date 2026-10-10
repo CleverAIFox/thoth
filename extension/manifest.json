@@ -8,7 +8,7 @@
     "scripting",
     "activeTab"
   ],
-  "optional_host_permissions": [
+  "host_permissions": [
     "<all_urls>"
   ],
   "icons": {

@@ -30,7 +30,10 @@ async function 한바퀴(html, 응답 = [{ ok: true, body: { translations: "echo
   const { loadAdapters, makeDoc, loadBroker, fakeChrome, fakeFetch } = harness;
   await loadAdapters(어댑터);
   const doc = makeDoc(html);
-  globalThis.chrome = fakeChrome().api;
+// ★ **모드를 밝혀 적는다**(DECISIONS §177). 기본값은 **수집만**이라 `fakeChrome()`
+//   으로 두면 브로커가 **워커를 아예 안 부른다** — 여기서 보려는 것은 번역이 꽂히는
+//   자리이므로 번역을 켠 저장소를 준다. 「무엇을 재는 중인가」 가 호출부에 보인다.
+  globalThis.chrome = fakeChrome({ stOff: false }).api;
   const f = fakeFetch(응답);
   globalThis.fetch = f;
   // ★ **손질은 `loadBroker` 가 `broker.js` 를 올리기 **직전**에 부른다.** 브로커는
@@ -94,7 +97,10 @@ test("기다리는 동안에는 기다림 표시가 서 있다", need, async () 
   const { loadAdapters, makeDoc, loadBroker, fakeChrome } = harness;
   await loadAdapters(["generic"]);
   const doc = makeDoc(`<p>${긴글("Waiting")}</p>`);
-  globalThis.chrome = fakeChrome().api;
+// ★ **모드를 밝혀 적는다**(DECISIONS §177). 기본값은 **수집만**이라 `fakeChrome()`
+//   으로 두면 브로커가 **워커를 아예 안 부른다** — 여기서 보려는 것은 번역이 꽂히는
+//   자리이므로 번역을 켠 저장소를 준다. 「무엇을 재는 중인가」 가 호출부에 보인다.
+  globalThis.chrome = fakeChrome({ stOff: false }).api;
   // ★ **안 풀리는 promise 를 두지 않는다.** `client.js` 가 `TIMEOUT_MS`(200초)
   //   짜리 중단 타이머를 걸어 두므로, 끝까지 안 풀면 **검사 러너가 그만큼 기다린다.**
   //   늦게 오는 응답을 손으로 풀어 준다.

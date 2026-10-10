@@ -17,8 +17,16 @@ import { fileURLToPath } from "node:url";
 
 const 뿌리 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const 읽 = (rel) => fs.readFileSync(path.join(뿌리, rel), "utf8");
-/** 주석을 지운다. **글을 코드로 읽으면 제 주석이 증거가 된다.** */
-const 벗긴다 = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+// ★ **이 가드가 2,747 자 동안 눈이 멀어 있었다**(DECISIONS §178). 종전의 주석 걷기는
+//   `/\/\*[\s\S]*?\*\//` 였고, `popup.js` 의
+//
+//       ? new URL(origin).origin + "/*" : "";
+//
+//   에서 **문자열** `"/*"` 를 블록 주석의 시작으로 읽어 다음 `*/` 까지 지웠다.
+//   그 구간에 `쓸주소` · `쓸토큰` · `healthUrl` · `fetch(` · **`127.0.0.1`** 이 전부
+//   있었다 — 아래 「주소를 제 글자로 안 들고 있다」 는 **지키려던 바로 그 자리를
+//   안 보고** 초록이었다. 걷기를 `strip.js` 로 옮기고 줄 단위로 가른다.
+import { 코드벗긴다 as 벗긴다 } from "./strip.js";
 
 /** `config.local.js` 와 `client.js` 를 팝업과 **같은 순서로** 올린다. */
 function 올린다(config = { endpoint: "", token: "" }) {

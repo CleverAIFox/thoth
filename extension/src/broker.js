@@ -425,6 +425,53 @@
     if (SETTLE_MS > 0) setTimeout(() => ST.observe("settle"), SETTLE_MS);
   };
 
+  // ── 끊는 자리 (DECISIONS §177) ─────────────────────────────
+  //
+  // ★ **끄는 자리가 맨 끝에 있었다.** `stOff` 가 켜는 것은 `html.st-off` 라는
+  //   **CSS 한 줄**이었다 — `display: none`. 수집도, 자리 선점도, **워커 호출도
+  //   그대로 돌았다.** 콘솔은 「번역 표시 끔」 이라 정직했지만 사람은 「번역 끔」
+  //   으로 읽는다. 그 사이 2026-10-09 까지 Bedrock 요청이 계속 나갔다.
+  //
+  // ★ **순회는 세 토막이다** — 수집 → ① → 워커 → ② → 꽂기 → ③.
+  //   ③에서 끊으면 **돈이 나가고 안 보인다.** ①에서 끊으면 **네트워크 0 ·
+  //   DOM 수정 0 · 과금 0** 이고 수집은 산다. 그 자리가 「수집만」 이다.
+  //
+  // ★ **기본값이 수집이다.** `host_permissions` 가 모든 사이트를 먹으므로 기본이
+  //   「번역」 이면 은행·사내 시스템 본문까지 **첫 순회에** 워커로 나간다.
+  //   그리고 저장소 읽기는 비동기인데 `run()` 은 **올라가는 줄에서** 돈다 —
+  //   기본이 안전한 쪽이라야 그 경주가 무해하다. **순서로 막지 않고 기본값으로
+  //   막는다**(§59 와 같은 처방 : 못 쟀으면 하지 않는다).
+  let 번역끔 = true;
+
+  // ★ **쌓는 자리는 아직 정하지 않았다.** 무엇을 쌓을지는 「HTML 패턴이 몇 갈래로
+  //   수렴하나」 에 답이 나온 뒤에 안다 — 조사 설비를 조사보다 먼저 지으면 안 쓰는
+  //   칸을 영구히 들고 간다. 지금 세는 것은 **수집 경로가 살아 있다는 것**뿐이고,
+  //   **네트워크로는 한 바이트도 안 나간다.**
+  const 수집최대 = 20;
+  ST.수집 = [];
+  let 수집키 = "";
+  const 수집만한다 = (units, ad) => {
+    const 경계 = ST.행경계 || "tr,[role=row]";
+    const rec = {
+      k: "col",
+      v: 1,
+      site: location.hostname,
+      adapter: ad.name,
+      단위: units.length,
+      글자: units.reduce((n, u) => n + u.text.length, 0),
+      행안: units.filter((u) => typeof u.el.closest === "function"
+                                && u.el.closest(경계)).length,
+    };
+    // 같은 페이지 · 같은 수면 다시 싣지 않는다. 순회는 수십 번 돈다(§102 와 같은 꼴).
+    const key = [ST.pageUrl(), rec.단위, rec.글자].join("|");
+    if (key === 수집키) return null;
+    수집키 = key;
+    ST.수집.push(rec);
+    if (ST.수집.length > 수집최대) ST.수집.shift();
+    console.info("[st] 수집만", rec);
+    return rec;
+  };
+
   let idle = 0;            // 연속으로 아무것도 못 찾은 순회 수
   let relaxed = false;     // 주기를 이미 늘렸는가
   const halt = (why) => {
@@ -473,6 +520,10 @@
     }
     if (!units.length) { idle++; return; }
     idle = 0;
+
+    // ★ **①. 여기가 끊는 자리다**(DECISIONS §177). 아래 한 줄을 지우면 수집 모드가
+    //   **아무것도 안 끈 채 조용히 통과한다** — 그것이 §177 을 만든 모양 그대로다.
+    if (번역끔) { 수집만한다(units, ad); return; }
 
     // await 이전에 동기적으로 자리를 선점한다.
     const live = [];
@@ -579,18 +630,38 @@
 
   // 토글은 DOM 요소를 두지 않는다. 고정 위치 버튼은 사이트마다 남의 UI 를 가린다.
   const KEY = "stOff";
+
+  const 적용 = (off) => {
+    번역끔 = !!off;
+    // ★ **이미 선 상자는 숨겨야 한다.** ①에서 끊으면 새 상자가 안 서지만, 켠 뒤에
+    //   끄면 **먼저 선 것들이 남는다.** `html.st-off` 는 그 한 줄로 남는다 —
+    //   종전에는 이것이 끄기의 **전부**였다.
+    document.documentElement.classList.toggle("st-off", 번역끔);
+  };
+
+  // ★ **칸이 비면 번역을 안 켠다.** 첫 설치가 모든 사이트를 번역하면서 시작하지
+  //   않는다. `!!stOff` 였다면 `undefined` 가 「번역 켬」 이 된다.
   chrome.storage.local.get([KEY, "stBatch"]).then(({ stOff, stBatch }) => {
-    document.documentElement.classList.toggle("st-off", !!stOff);
+    적용(stOff === undefined ? true : stOff);
     const n = Number(stBatch);
     if (Number.isInteger(n) && n >= 1) MAX_BATCH = Math.min(n, MAX_BATCH_CAP);
+  });
+
+  // ★ **사슬을 하나로 둔다**(DECISIONS §173). 종전에는 팝업이 `executeScript` 로
+  //   **직접 클래스를 뒤집고** 저장소에도 썼다 — 길이 둘이었다. ①에서 끊는 지금
+  //   그 길은 **번역을 안 끈다**(클래스만 뒤집으니 워커는 계속 맞는다). 저장소가
+  //   정본이고 브로커는 그것만 본다. **값을 맞추는 규칙 대신 길을 하나로 만든다.**
+  chrome.storage.onChanged?.addListener((c, area) => {
+    if (area !== "local" || !c[KEY]) return;
+    적용(c[KEY].newValue);
+    console.log("[st] 번역", 번역끔 ? "끔 — 수집만 돈다" : "켬");
   });
 
   document.addEventListener("keydown", (e) => {
     // e.key 는 레이아웃과 데드키에 흔들린다. 물리 키로 본다.
     if (!e.altKey || e.ctrlKey || e.metaKey || e.code !== "KeyK") return;
-    const off = document.documentElement.classList.toggle("st-off");
-    chrome.storage.local.set({ [KEY]: off });
-    console.log("[st] 번역 표시", off ? "끔" : "켬");
+    // ★ **쓰기만 한다.** 적용은 `onChanged` 가 한다 — 팝업에서 눌러도 같은 길이다.
+    chrome.storage.local.set({ [KEY]: !번역끔 });
   });
 
   const debounce = (fn, ms) => {
@@ -613,5 +684,6 @@
   poll = setInterval(run, POLL_MS);
   run();
 
-  console.log("[st] 브로커 시작 —", pickAdapter()?.name, "· Alt+K 로 표시 전환");
+  console.log("[st] 브로커 시작 —", pickAdapter()?.name,
+              "· 기본은 수집만(워커를 안 부른다) · Alt+K 로 번역 전환");
 })();

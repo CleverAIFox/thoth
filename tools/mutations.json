@@ -1273,5 +1273,75 @@
         "후": "    if False:"
       }
     ]
+  },
+  "번역모드": {
+    "파일": "extension/src/broker.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/mode.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "기본을 번역으로 돌린다",
+        "전": "  let 번역끔 = true;",
+        "후": "  let 번역끔 = false;"
+      },
+      {
+        "이름": "①에서 안 끊는다 — 수집만인데 워커로 간다",
+        "전": "    if (번역끔) { 수집만한다(units, ad); return; }",
+        "후": "    if (false) { 수집만한다(units, ad); return; }"
+      },
+      {
+        "이름": "빈 칸을 번역 켬으로 읽는다",
+        "전": "    적용(stOff === undefined ? true : stOff);",
+        "후": "    적용(!!stOff);"
+      },
+      {
+        "이름": "저장소 변화를 안 받는다",
+        "전": "    if (area !== \"local\" || !c[KEY]) return;",
+        "후": "    if (true) return;"
+      },
+      {
+        "이름": "끈 뒤 이미 선 상자를 안 숨긴다",
+        "전": "    document.documentElement.classList.toggle(\"st-off\", 번역끔);",
+        "후": "    document.documentElement.classList.toggle(\"st-off\", false);"
+      },
+      {
+        "이름": "Alt+K 가 저장소를 안 거치고 제 손으로 뒤집는다",
+        "전": "    chrome.storage.local.set({ [KEY]: !번역끔 });",
+        "후": "    적용(!번역끔);"
+      },
+      {
+        "이름": "수집을 세지 않는다",
+        "전": "    ST.수집.push(rec);",
+        "후": "    void rec;"
+      }
+    ]
+  },
+  "주석걷기": {
+    "파일": "extension/tests/strip.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/mode.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "짝 맞추기로 돌아간다 — 문자열 안의 /* 를 주석으로 읽는다",
+        "전": "  return src\n    .split(\"\\n\")",
+        "후": "  return src.replace(/\\/\\*[\\s\\S]*?\\*\\//g, \"\")\n    .split(\"\\n\")"
+      },
+      {
+        "이름": "줄 주석을 안 걷는다",
+        "전": "      return !(t.startsWith(\"//\") || t.startsWith(\"/*\")",
+        "후": "      return !(t.startsWith(\"/*\")"
+      },
+      {
+        "이름": "HTML 주석을 안 걷는다",
+        "전": "  return html.replace(/<!--[\\s\\S]*?-->/g, \"\");",
+        "후": "  return html;"
+      }
+    ]
   }
 }

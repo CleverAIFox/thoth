@@ -115,10 +115,19 @@ export function groupSizes(units) {
 /** `chrome.storage.local` 최소 구현. 계약이 단순해 어긋날 여지가 작다. */
 export function fakeChrome(initial = {}) {
   const store = { ...initial };
+  // ★ **`onChanged` 도 흉내낸다**(DECISIONS §177). 브로커가 끄기를 이걸로 받는다 —
+  //   빠뜨리면 `Alt+K` 와 팝업 토글이 **검사에서 한 번도 적용되지 않고**, 그러면
+  //   「껐다」 는 단언이 **아무 일도 안 하는 호출**을 보고 초록을 낸다.
+  // ★ 크롬은 `set` 을 부른 **그 문맥에도** 발화한다. 그 점이 지금 설계의 핵이라
+  //   (브로커가 제 쓰기를 제가 받아 적용한다) 여기서도 같게 둔다.
+  const 듣는이 = [];
   return {
     store,
     api: {
       storage: {
+        onChanged: {
+          addListener(fn) { 듣는이.push(fn); },
+        },
         local: {
           async get(keys) {
             const ks = typeof keys === "string" ? [keys] : keys;
@@ -126,7 +135,12 @@ export function fakeChrome(initial = {}) {
             for (const k of ks) if (k in store) out[k] = store[k];
             return out;
           },
-          async set(obj) { Object.assign(store, obj); },
+          async set(obj) {
+            const c = {};
+            for (const [k, v] of Object.entries(obj)) c[k] = { oldValue: store[k], newValue: v };
+            Object.assign(store, obj);
+            for (const fn of 듣는이) fn(c, "local");
+          },
         },
       },
       // ★ **§169 로 브로커가 `getURL` 로 `content.css` 를 받는다.** 흉내를 안 두면
