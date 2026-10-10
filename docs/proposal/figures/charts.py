@@ -32,8 +32,12 @@ for ax, (k, title, f) in zip(axs, keys):
     ax.spines[["top", "right"]].set_visible(False)
     ax.set_ylim(0, max(v) * 1.22)
     ax.tick_params(labelsize=7.5)
-facts += [f"{J}golden.units={B['golden']['units']}", f"{J}engines.local.stale=True"]
-axs[2].text(0.5, -0.42, "local 은 옛 프롬프트 값(stale) — 위반은 같은 조건 비교가 아니다", transform=axs[2].transAxes, ha="center", fontsize=6.8, color=RED)
+# ★ **`stale` 플래그를 읽지 않는다**(DECISIONS §179). 그 손 플래그는 지웠고, 낡음은
+#   **지문 둘을 맞대 계산한다** — 그림의 근거도 계산된 사실을 든다.
+facts += [f"{J}golden.units={B['golden']['units']}",
+          f"{J}engines.local.prompt_fingerprint={loc['prompt_fingerprint']}",
+          f"{J}engines.bedrock.prompt_fingerprint={B['engines']['bedrock']['prompt_fingerprint']}"]
+axs[2].text(0.5, -0.42, "local 은 옛 프롬프트 값(지문이 다르다) — 위반은 같은 조건 비교가 아니다", transform=axs[2].transAxes, ha="center", fontsize=6.8, color=RED)
 fig.tight_layout()
 save(fig, "f_engine", facts)
 
@@ -158,6 +162,7 @@ LABEL = {
     "2026-10-07": "참말인 초록이 숨겼다 — 코드 스캐닝이 사슬 밖이었다",
     "2026-10-08": "단위를 태그 목록으로 골랐다 — 구조로 묻는다",
     "2026-10-09": "새 규칙이 옛 가드를 가렸다 — 시험이 순서에 기댔다",
+    "2026-10-10": "인터프리터만 안 고정돼 있었다 — 낡음은 계산이다",
 }
 START = "2026-07-18"
 rng = decisions_ranges()

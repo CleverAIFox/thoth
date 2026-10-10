@@ -321,3 +321,75 @@ def test_무시_안_되는_없는_자리는_든다(tmp_path, monkeypatch):
     monkeypatch.setattr(cs, "ROOT", tmp_path)
     assert not cs._무시된다("tools/build/pkg.zip")
     assert any("tools/build/pkg.zip" in x for x in cs.check_workflow_paths())
+
+
+# ── 인터프리터 고정 (DECISIONS §179) ───────────────────────────────────────
+#
+# ★ **고정 목록에 파이썬만 빠져 있었다.** 러너도 액션도 SHA 로 못 박으면서
+#   인터프리터는 `uv` 가 그날 가장 새것을 집게 뒀다. 2026-10-10 **CPython 3.15.0 이
+#   나오자** `smoke` 가 그것을 받아 갔고 3.15 휠이 없어 `pydantic-core` · `uvloop` ·
+#   `httptools` 를 **소스에서 빌드**하다 30초 기동 창을 넘겼다. **이쪽은 한 줄도 안
+#   바뀌었는데 초록이 빨개졌다** — 그것이 고정이 막는 사고다.
+
+_UV작업 = ("name: x\non:\n  push:\njobs:\n  smoke:\n    steps:\n"
+           "      - run: uv run uvicorn app.main:app\n")
+
+
+def test_핀이_없으면_문다():
+    난것 = cs.python_pin_faults(_UV작업, None)
+    assert len(난것) == 1 and "python-version" in 난것[0]
+
+
+def test_핀이_있으면_조용하다():
+    assert cs.python_pin_faults(_UV작업, "3.13") == []
+
+
+def test_uv_를_안_부르는_작업은_안_본다():
+    글 = "name: x\non:\n  push:\njobs:\n  lint:\n    steps:\n      - run: ls\n"
+    assert cs.python_pin_faults(글, None) == []
+
+
+def test_setup_python_이_핀과_다르면_문다():
+    """★ **작업 안에서 묻지 않는다.** `verify` 는 `setup-python` 으로 깔면서 `uv` 를
+    `doctor.sh` **안에서** 부른다 — 작업 몸에 `uv` 글자가 없다. 둘이 한 작업에서
+    만나야만 묻는 규칙은 **한 번도 안 문다**(DECISIONS §21)."""
+    글 = ("name: x\non:\n  push:\njobs:\n"
+          "  verify:\n    steps:\n      - uses: a/b\n        with: { python-version: \"3.14\" }\n"
+          "  smoke:\n    steps:\n      - run: uv run x\n")
+    난것 = cs.python_pin_faults(글, "3.13")
+    assert len(난것) == 1 and "두 파이썬이 돈다" in 난것[0]
+
+
+def test_지금_저장소가_고정돼_있다():
+    assert cs.적힌파이썬() == "3.13", "worker/.python-version 이 없거나 값이 다르다"
+    assert cs.check_python_pin() == []
+
+
+def test_핀_파일이_커밋된다():
+    """★ `.` 으로 시작하는 파일이라 **무시되면 CI 에만 없다** — 그러면 고친 것이
+    아니라 고친 척이다."""
+    import subprocess
+    r = subprocess.run(["git", "check-ignore", "worker/.python-version"],
+                       cwd=cs.ROOT, capture_output=True, text=True)
+    assert r.returncode != 0, "worker/.python-version 이 gitignore 에 걸린다"
+
+
+def test_핀_파일이_없으면_없다고_한다(tmp_path, monkeypatch):
+    """★ **「못 읽었다」 를 「3.13 이다」 로 읽으면 안 된다**(DECISIONS §59). 기본값을
+    돌려주면 핀 파일을 지운 날 **검사가 제 손으로 통과를 만든다.**"""
+    monkeypatch.setattr(cs, "ROOT", tmp_path)
+    assert cs.적힌파이썬() is None
+    (tmp_path / "worker").mkdir()
+    (tmp_path / "worker/.python-version").write_text("  \n", encoding="utf-8")
+    assert cs.적힌파이썬() is None, "빈 파일을 값으로 읽는다"
+    (tmp_path / "worker/.python-version").write_text("3.13\n", encoding="utf-8")
+    assert cs.적힌파이썬() == "3.13"
+
+
+def test_main_이_핀_검사를_부른다():
+    """★ **함수가 있어도 `main` 이 안 부르면 `doctor` 는 아무것도 못 본다**(§21).
+    `test_fails_가_갈래_검사를_부른다` 와 같은 자리다."""
+    src = (cs.ROOT / "tools/check_static.py").read_text(encoding="utf-8")
+    몸 = src[src.index("def main() -> int:"):]
+    본문 = "\n".join(l for l in 몸.split("\n") if not l.lstrip().startswith("#"))
+    assert "check_python_pin()" in 본문, "main 이 인터프리터 고정을 안 본다"

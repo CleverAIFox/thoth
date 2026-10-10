@@ -218,6 +218,50 @@ def baseline_condition(engine: str) -> str:
     return baseline_engine(engine).get("violations", {}).get("condition", "")
 
 
+def 지문대조(기준: dict | None = None, 지문=None) -> tuple[list[str], str]:
+    """기준선이 **지금 코드의 프롬프트**로 잰 값인가. `(낡은 것들, 못 잰 까닭)`.
+
+    ★ **손으로 적은 `stale` 플래그를 지우고 계산으로 바꿨다**(DECISIONS §179).
+      종전에는 `baseline.json` 의 엔진 블록에 `"stale": true` 를 **사람이 적었고**,
+      `doctor` 는 그 글자만 읽었다. 그러면 **프롬프트를 고친 사람이 플래그를 안
+      적는 순간 「기준선이 현재 코드와 맞는다」 가 거짓 초록으로 뜬다.** §171 의
+      「참말인 초록」 보다 나쁘다 — 그건 참말이었고 이것은 거짓말이다.
+
+    ★ **대조할 것이 이미 손에 있었다.** `engine.prompt_fingerprint` 가 프롬프트 ·
+      용어집 · 배치를 묶어 지문을 내고, 기준선은 잴 때 그 지문을 같이 적는다.
+      **적어 두고 안 읽고 있었다** — 사람 손에 맡길 이유가 없다.
+
+    ★ **낡는 것은 빚이 아니다.** 빚은 갚으면 사라지고 조건은 재발한다. 엔진이
+      바뀔 때마다 기준선이 낡는 것은 **재발하는 조건**이라 장부의 「빚」 칸에
+      적으면 그 장부가 영영 안 닫힌다(`tools/check_skips.py` 의 갈래 정의).
+
+    ★ **「못 쟀다」 를 「맞다」 로 안 읽는다**(DECISIONS §59). 지문을 계산하지
+      못하면 빈 목록이 아니라 **까닭**을 돌려준다 — 워커 모듈이 없는 기계에서
+      조용히 초록이 되면 안 된다.
+    """
+    d = baseline() if 기준 is None else 기준
+    engines = d.get("engines") or {}
+    if not engines:
+        return [], "기준선에 엔진 블록이 없다"
+    재다 = 지문 or prompt_fingerprint
+    낡은: list[str] = []
+    for 이름, b in sorted(engines.items()):
+        적힌 = (b or {}).get("prompt_fingerprint") or ""
+        if not 적힌:
+            낡은.append(f"{이름} — 지문이 안 적혀 있다")
+            continue
+        배치 = (b or {}).get("batch")
+        try:
+            지금 = 재다(int(배치) if 배치 else None)
+        except Exception as e:                       # 넓게 받는다 — 못 잰 것이 답이다
+            return [], f"지금 지문을 계산 못 했다 — {type(e).__name__}: {e}"[:160]
+        if not 지금:
+            return [], f"{이름} 의 지금 지문이 비었다"
+        if 적힌 != 지금:
+            낡은.append(f"{이름} — 적힌 {적힌[:8]} ≠ 지금 {지금[:8]}")
+    return 낡은, ""
+
+
 def env_snapshot() -> dict:
     """측정 **중**의 환경. 배치마다 찍어 결과와 함께 남긴다.
 
@@ -495,7 +539,29 @@ def main() -> int:
                     help="케이스 파일. 기본은 골든셋이다")
     ap.add_argument("--no-warmup", action="store_true",
                     help="웜업을 건너뛴다. 콜드 로딩 비용을 재려는 경우에만 쓴다")
+    # ★ **워커를 안 때리고 끝낸다**(DECISIONS §179). `doctor` 가 매번 부르는 자리라
+    #   네트워크가 들어가면 그 검사는 기계 사정으로 흔들린다. 지문은 **코드에서만**
+    #   나오므로 여기서 답이 난다.
+    ap.add_argument("--지문대조", action="store_true",
+                    help="기준선이 지금 코드의 프롬프트로 잰 값인지만 보고 끝낸다")
     a = ap.parse_args()
+
+    if getattr(a, "지문대조", False):
+        낡은, 까닭 = 지문대조()
+        if 까닭:
+            # ★ 2 다. **못 잰 것은 통과가 아니다**(DECISIONS §59 · §127).
+            print(까닭)
+            return 2
+        if 낡은:
+            print(f"기준선이 지금 코드의 것이 아니다 — {len(낡은)}건")
+            for x in 낡은:
+                print(f"    {x}")
+            return 1
+        적힌것 = " · ".join(
+            f"{n}:{(b or {}).get('prompt_fingerprint', '')[:8]}"
+            for n, b in sorted((baseline().get("engines") or {}).items()))
+        print(f"기준선이 현재 코드와 맞는다 — {적힌것}")
+        return 0
 
     eng = worker_engine(a.url, a.timeout)
     print(f"  엔진 {eng or '(모름 — /health 에 닿지 못했다)'}")

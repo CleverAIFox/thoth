@@ -473,6 +473,59 @@ def _canary() -> None:
         print("    ★ 카나리아가 죽었다 — 남의 저장소 것을 든다"); sys.exit(2)
 
 
+# ★ **고정 목록에 인터프리터만 빠져 있었다**(DECISIONS §179). 러너도 액션도 SHA 로
+#   못 박으면서 **파이썬은 `uv` 가 그날 가장 새것을 집게** 뒀다. 2026-10-10 에
+#   **CPython 3.15.0 이 나오자** `smoke` 작업이 그것을 받아 갔고, 3.15 용 휠이 아직
+#   없어 `pydantic-core` · `uvloop` · `httptools` 를 **소스에서 빌드**하다 30초 기동
+#   창을 넘겨 빨개졌다. **이쪽 코드는 한 줄도 안 바뀌었다** — 바깥이 바뀌어 초록이
+#   빨개진 것이고, 그것이 고정이 막는 바로 그 사고다.
+#
+# ★ **족 가드다.** 「`smoke` 에 핀이 있나」 가 아니라 「`uv` 를 부르는 작업 중 핀 없는
+#   것이 있나」 를 묻는다 — 새 작업이 생기면 자동으로 물린다.
+#
+# ★ **두 자리가 갈리는 것도 본다**(§91). `setup-python` 이 깔아 주는 값과
+#   `worker/.python-version` 이 다르면 **CI 와 손이 다른 파이썬으로 돈다.**
+_UV = re.compile(r"\buv\s+(run|sync|pip|export|lock)\b")
+_PYVER_IN_WF = re.compile(r'python-version:\s*"?([0-9]+\.[0-9]+)')
+
+
+def python_pin_faults(text: str, 적힌: str | None) -> list[str]:
+    """인터프리터가 고정됐나. `적힌` 은 `worker/.python-version` 의 값(없으면 None)."""
+    fails = []
+    for 이름, 줄들 in jobs(text).items():
+        몸 = "\n".join(줄들)
+        if not _UV.search(몸):
+            continue
+        if not 적힌:
+            fails.append(f"작업 {이름} 이 uv 를 부르는데 `worker/.python-version` 이 없다 — "
+                         "uv 가 그날 가장 새 CPython 을 집는다")
+    # ★ **갈림은 작업 안에서 안 본다.** `verify` 는 `setup-python` 으로 3.13 을 깔면서
+    #   `uv` 를 **`doctor.sh` 안에서** 부른다 — 작업 몸에 `uv` 라는 글자가 없다. 둘을
+    #   한 작업 안에서 만나야만 묻는 규칙은 **그래서 한 번도 안 물었다.** 파일 전체에서
+    #   묻는다 : **이 저장소가 쓰는 파이썬은 하나**다(§91).
+    for m in _PYVER_IN_WF.finditer(text):
+        if 적힌 and m.group(1) != 적힌:
+            fails.append(f"`setup-python` 이 {m.group(1)} 인데 "
+                         f"`worker/.python-version` 은 {적힌} 이다 — 두 파이썬이 돈다")
+    return fails
+
+
+def 적힌파이썬(root: pathlib.Path | None = None) -> str | None:
+    """`worker/.python-version` 의 값. 없으면 None."""
+    f = (root or ROOT) / "worker/.python-version"
+    try:
+        return f.read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+def check_python_pin() -> list[str]:
+    적힌 = 적힌파이썬()
+    return [f"{p.relative_to(ROOT)}: {x}"
+            for p in sorted(ROOT.glob(".github/workflows/*.yml"))
+            for x in python_pin_faults(p.read_text(encoding="utf-8"), 적힌)]
+
+
 def main() -> int:
     _canary()
     if "--selftest" in sys.argv[1:]:
@@ -480,7 +533,8 @@ def main() -> int:
         return 0
     fails = (check_tf() + check_node20() + check_runner() + check_python()
              + check_pinned() + check_cache_rm() + check_timeouts()
-             + check_scope_declared() + check_workflow_paths())
+             + check_scope_declared() + check_workflow_paths()
+             + check_python_pin())
     wf, skip = check_workflows()
     fails += wf
     for f in fails:
@@ -491,6 +545,7 @@ def main() -> int:
         print("  인용 문자열이 ASCII 다 · Node 20 액션 없음 · 러너 고정 · 파이썬 컴파일 경고 없음"
               " · 액션이 SHA 로 고정됐다 · 작업마다 시간 상한 · 캐시 삭제 지시 없음"
               " · CI 밖이 전부 선언됐다 · 워크플로가 드는 경로가 실재한다"
+              " · 파이썬 인터프리터가 고정됐다"
               + ("" if skip else " · 워크플로가 YAML 이다"))
     return 1 if fails else 0
 

@@ -287,28 +287,25 @@ fi
 fi   # SCOPE
 
 echo "== 기준선 =="
-# ★ stale 은 재측정 대기다. FAIL 로 올리지 않는다 — 코드를 고친 커밋과
+# ★ 낡음은 재측정 대기다. FAIL 로 올리지 않는다 — 코드를 고친 커밋과
 #   재측정 커밋은 나뉠 수밖에 없고, 그 사이 커밋을 막을 이유가 없다.
-#   다만 조용히 지나가면 플래그가 영영 남는다(DECISIONS §21).
-# ★ **엔진 블록 안의 `stale` 을 못 보고 있었다.** 기준선이 엔진별로 갈린 뒤에도
-#   최상위 키만 읽어서, 두 엔진이 모두 stale 인데 화면에는 `OK 기준선이 현재
-#   코드와 맞는다` 가 떴다. **검사가 조용히 아무것도 하지 않았다**(DECISIONS §21
-#   · §67). pytest 는 잡고 있었으므로 커밋은 막혔을 것이나, doctor 화면은
-#   거짓이었다.
-STALE="$(python3 - <<'EOF' 2>/dev/null
-import json
-d = json.load(open("docs/bench/baseline.json"))
-names = [n for n, b in (d.get("engines") or {}).items() if b.get("stale")]
-if d.get("stale"):
-    names.append("전체")
-print(" · ".join(names))
-EOF
-)"
-if [ -n "$STALE" ]; then
-  skip "기준선이 stale 이다 ($STALE) — 재측정 후 값을 채우고 플래그를 지운다"
-else
-  ok "기준선이 현재 코드와 맞는다"
-fi
+#   다만 조용히 지나가면 그 상태가 영영 남는다(DECISIONS §21).
+# ★ **종전에는 `baseline.json` 의 손으로 적은 `stale` 플래그를 읽었다**(DECISIONS
+#   §179). 그 플래그는 **같은 사실의 두 번째 사본**이었다 — pytest 는 이미 지문을
+#   맞대고 있었고 이쪽만 글자를 읽었다. 사본은 한쪽만 늙는다(§91) : 재측정을 끝내고
+#   플래그를 안 지우면 **영영 SKIP** 이고, 영영 SKIP 인 줄은 아무도 안 읽는다(§41).
+# ★ **이제 두 자리가 같은 함수를 부른다**(§173 과 같은 처방). 그리고 화면에
+#   **지문 둘**이 나온다 — 「낡았다」 라는 상태가 아니라 **무엇을 보고 그렇게
+#   말했는가**가 나온다.
+# ★ 종료 코드가 상태를 든다 : 0 맞다 · 1 낡았다 · 2 **못 쟀다**(DECISIONS §59 · §127).
+BASE_OUT="$(python3 tools/bench_golden.py --지문대조 2>&1)"; BASE_RC=$?
+case "$BASE_RC" in
+  0) ok "$BASE_OUT" ;;
+  1) skip "기준선이 지금 코드의 것이 아니다 — 재측정은 PLAN #59 가 연다"
+     printf '%s\n' "$BASE_OUT" | sed 's/^/       /' ;;
+  *) skip "기준선 지문을 재지 못했다"
+     printf '%s\n' "$BASE_OUT" | tail -3 | sed 's/^/       /' ;;
+esac
 
 echo "== 위생 =="
 # ★ FAIL 로 올리지 않는다. 잔재가 쌓인 것은 커밋을 막을 일이 아니고, 막으면

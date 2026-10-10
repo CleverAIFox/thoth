@@ -112,3 +112,48 @@ def test_도장_자리는_캐시_안이다(tmp_path):
         ["bash", "-c", f'. "{LIB}"; infra_stamp "$1"', "_", "/x"],
         capture_output=True, text=True)
     assert r.stdout.strip() == "/x/.cache/infra-applied"
+
+
+def test_파일을_만든_차례가_달라도_같은_지문이다(tmp_path):
+    """★ **`find` 는 디렉터리 항목 차례로 낸다** — 그 차례는 파일을 만든 순서와
+    파일시스템에 달렸다. 정렬을 빼면 **같은 나무가 기계마다 다른 지문**을 내고,
+    그러면 도장이 늘 어긋나 「인프라가 뒤처졌다」 가 **아무 이유 없이** 뜬다.
+
+    ★ 돌연변이 `차례를 안 맞춘다` 가 이 자리를 문다(DECISIONS §179). 처음 판에는
+      이 검사가 없어서 **`| LC_ALL=C sort -z` 를 `| cat` 으로 바꿔도 시험이 전부
+      통과했다** — 정렬이 있다는 것을 아무도 안 보고 있었다.
+    """
+    def 짓는다(뿌리: pathlib.Path, 차례: list[str]) -> pathlib.Path:
+        i = 뿌리 / "infra"
+        i.mkdir(parents=True)
+        for 이름 in 차례:
+            (i / 이름).write_text(f"# {이름}\n", encoding="utf-8")
+        return 뿌리
+
+    이름들 = [f"z{n:02d}.tf" for n in range(40)]
+    가 = 짓는다(tmp_path / "가", 이름들)
+    나 = 짓는다(tmp_path / "나", list(reversed(이름들)))
+    assert 지문(가) == 지문(나) != "", "만든 차례가 지문을 바꾼다 — 정렬이 빠졌다"
+
+
+def test_해싱_앞에_정렬이_있다():
+    """★ **이 기계에서는 그 성질을 못 잰다.** 위 검사는 만든 차례를 뒤집어도
+    통과하고, **정렬을 빼도 통과한다** — 이 파일시스템의 `find` 가 이미 이름
+    차례로 내주기 때문이다. 그래서 「같은 나무면 같은 지문」 은 **여기서는
+    정렬 없이도 참**이다.
+
+    ★ **못 재는 자리를 좁히고 그 자리를 적는다**(DECISIONS §73 · §179). 성질을
+      못 재면 **기전을 잰다** — 해싱 앞에 정렬이 있는가. 정렬은 이 기계를 위한
+      것이 아니라 **`find` 차례가 다른 기계**를 위한 것이고, 그 기계는 여기 없다.
+
+    ★ **`LC_ALL=C` 까지 본다.** 로캘이 섞이면 같은 이름 집합이 기계마다 다른
+      차례로 서고, 그러면 정렬을 넣고도 지문이 갈린다.
+    """
+    글 = LIB.read_text(encoding="utf-8")
+    몸 = 글[글.index("infra_hash()"):글.index("infra_stamp()")]
+    본문 = "\n".join(l for l in 몸.split("\n") if not l.lstrip().startswith("#"))
+    정렬 = 본문.find("LC_ALL=C sort -z")
+    해싱 = 본문.find("sha256sum")
+    assert 정렬 >= 0, "해싱 앞에 `LC_ALL=C sort -z` 가 없다 — 기계마다 지문이 갈린다"
+    assert 정렬 < 해싱, "정렬이 해싱 뒤에 있다"
+    assert "-print0" in 본문 and "sort -z" in 본문, "널 구분자가 한쪽에만 있다"

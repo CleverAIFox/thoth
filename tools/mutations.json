@@ -533,6 +533,16 @@
         "이름": "node 에서 통과가 섞여도 건너뜀으로 센다",
         "전": "        return int(노드건너.group(1)) > 0 and int(노드통과.group(1)) == 0",
         "후": "        return int(노드건너.group(1)) > 0"
+      },
+      {
+        "이름": "미선언이 늘어도 안 운다",
+        "전": "        if len(미선언) > MAX_미선언:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "이미 덮인 파일이 미선언에 남아도 안 운다",
+        "전": "        덮인것 = sorted({g[\"파일\"] for g in 가드.values()} & set(미선언))",
+        "후": "        덮인것 = []"
       }
     ]
   },
@@ -768,11 +778,6 @@
     ]
   },
   "미선언": [
-    "tools/check_infra.py",
-    "tools/bench_golden.py",
-    "tools/mask_probe.py",
-    "extension/src/cssaudit.js",
-    "tools/lib/infra.sh",
     "tools/cascade_check.py"
   ],
   "_안무는자리": {
@@ -1044,6 +1049,31 @@
         "이름": "무시되는 자리도 흠으로 센다",
         "전": "    try:\n        return any(subprocess.run([\"git\", \"-C\", str(ROOT), \"check-ignore\", \"-q\", x],\n                                  capture_output=True).returncode == 0\n                   for x in (q, q.rstrip(\"/\") + \"/\"))",
         "후": "    try:\n        return False"
+      },
+      {
+        "이름": "uv 를 부르는데 핀이 없어도 안 문다",
+        "전": "        if not _UV.search(몸):\n            continue",
+        "후": "        if True:\n            continue"
+      },
+      {
+        "이름": "핀이 없는 것을 안 적는다",
+        "전": "            fails.append(f\"작업 {이름} 이 uv 를 부르는데 `worker/.python-version` 이 없다 — \"\n                         \"uv 가 그날 가장 새 CPython 을 집는다\")",
+        "후": "            pass"
+      },
+      {
+        "이름": "setup-python 이 핀과 갈려도 안 문다",
+        "전": "    for m in _PYVER_IN_WF.finditer(text):\n        if 적힌 and m.group(1) != 적힌:",
+        "후": "    for m in _PYVER_IN_WF.finditer(text):\n        if False:"
+      },
+      {
+        "이름": "핀 파일이 없어도 있다고 한다",
+        "전": "        return f.read_text(encoding=\"utf-8\").strip() or None",
+        "후": "        return f.read_text(encoding=\"utf-8\").strip() or \"3.13\""
+      },
+      {
+        "이름": "doctor 가 이 검사를 안 부른다",
+        "전": "             + check_scope_declared() + check_workflow_paths()\n             + check_python_pin())",
+        "후": "             + check_scope_declared() + check_workflow_paths())"
       }
     ]
   },
@@ -1339,8 +1369,148 @@
       },
       {
         "이름": "HTML 주석을 안 걷는다",
-        "전": "  return html.replace(/<!--[\\s\\S]*?-->/g, \"\");",
-        "후": "  return html;"
+        "전": "    const b = html.indexOf(닫고, a + 열고.length);",
+        "후": "    const b = -1;"
+      },
+      {
+        "이름": "안 닫힌 주석이 뒤를 통째로 먹는다",
+        "전": "      const 줄끝 = html.indexOf(\"\\n\", a);\n      out += html.slice(i, a);\n      if (줄끝 < 0) return out;",
+        "후": "      const 줄끝 = html.indexOf(\"\\n\", a);\n      out += html.slice(i, a);\n      if (줄끝 < 0 || true) return out;"
+      },
+      {
+        "이름": "여는 표 앞을 안 남긴다",
+        "전": "    out += html.slice(i, a);\n    i = b + 닫고.length;",
+        "후": "    i = b + 닫고.length;"
+      },
+      {
+        "이름": "주석 뒤를 안 남긴다",
+        "전": "    if (a < 0) return out + html.slice(i);",
+        "후": "    if (a < 0) return out;"
+      }
+    ]
+  },
+  "인프라겹침": {
+    "파일": "tools/check_infra.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_check_infra.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "주석 속 예시를 코드로 읽는다",
+        "전": "    return \"\\n\".join(줄.split(\"#\", 1)[0] for 줄 in 몸.split(\"\\n\"))",
+        "후": "    return 몸"
+      },
+      {
+        "이름": "같은 부모가 둘이어도 안 센다",
+        "전": "        if len(것들) < 2 or all(허용 for _, _, 허용 in 것들):",
+        "후": "        if True:"
+      },
+      {
+        "이름": "부모를 못 읽은 자원을 아예 안 본다",
+        "전": "            elif 붙는다:",
+        "후": "            elif False:"
+      },
+      {
+        "이름": "겹침 허용 선언을 안 읽는다",
+        "전": "               bool(_겹침허용.search(몸)),",
+        "후": "               False,"
+      }
+    ]
+  },
+  "마스크탐침": {
+    "파일": "tools/mask_probe.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_mask_probe.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "치환 안 하는 팔에서도 치환한다",
+        "전": "    if not 열고:\n        return text, {}",
+        "후": "    if False:\n        return text, {}"
+      },
+      {
+        "이름": "항등 용어가 아닌 것까지 가린다",
+        "전": "    keep = [정규 for en, 정규 in terms.items() if glossary.is_keep(en, 정규)]",
+        "후": "    keep = list(terms.values())"
+      },
+      {
+        "이름": "원문에 없는 용어도 표에 넣는다",
+        "전": "        if 정규 not in text:\n            continue",
+        "후": "        if False:\n            continue"
+      },
+      {
+        "이름": "안 돌아온 자리표시를 안 센다",
+        "전": "            잃음.append(자리)",
+        "후": "            pass"
+      }
+    ]
+  },
+  "인프라지문": {
+    "파일": "tools/lib/infra.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_infra_stamp.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "받아 둔 프로바이더까지 해싱한다",
+        "전": "      ! -path './.terraform/*' \\",
+        "후": "      ! -path './.terraform-없는이름/*' \\"
+      },
+      {
+        "이름": "plan 산출물까지 해싱한다",
+        "전": "      ! -name 'tfplan' ! -name '*.tfplan' \\",
+        "후": "      ! -name 'tfplan-없는이름' \\"
+      },
+      {
+        "이름": "차례를 안 맞춘다 — 같은 나무가 다른 지문을 낸다",
+        "전": "    | LC_ALL=C sort -z \\",
+        "후": "    | cat \\"
+      },
+      {
+        "이름": "infra 가 없어도 성공으로 끝난다",
+        "전": "  [ -d \"$root/infra\" ] || return 1",
+        "후": "  [ -d \"$root/infra\" ] || return 0"
+      }
+    ]
+  },
+  "기준선지문": {
+    "파일": "tools/bench_golden.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_bench_checks.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "못 쟀는데 맞다고 한다",
+        "전": "            return [], f\"지금 지문을 계산 못 했다 — {type(e).__name__}: {e}\"[:160]",
+        "후": "            return [], \"\""
+      },
+      {
+        "이름": "지금 지문이 비어도 맞다고 한다",
+        "전": "        if not 지금:\n            return [], f\"{이름} 의 지금 지문이 비었다\"",
+        "후": "        if False:\n            return [], \"\""
+      },
+      {
+        "이름": "지문이 안 적힌 엔진을 맞다고 본다",
+        "전": "            낡은.append(f\"{이름} — 지문이 안 적혀 있다\")\n            continue",
+        "후": "            continue"
+      },
+      {
+        "이름": "엔진마다 다른 배치를 안 넘긴다",
+        "전": "            지금 = 재다(int(배치) if 배치 else None)",
+        "후": "            지금 = 재다(None)"
+      },
+      {
+        "이름": "엔진 블록이 없어도 맞다고 한다",
+        "전": "    if not engines:\n        return [], \"기준선에 엔진 블록이 없다\"",
+        "후": "    if not engines:\n        return [], \"\""
       }
     ]
   }

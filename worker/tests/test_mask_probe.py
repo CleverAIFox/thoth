@@ -187,3 +187,27 @@ def test_뜻을_들고_가면_용어집이_그대로_붙는다():
     units = mp.유닛들()
     붙음 = sum(1 for u in units if g.match([mp.mask(u["text"], "term_u")[0]])[0])
     assert 붙음 == len(units), f"뜻 갈래에서도 용어집이 떨어졌다 {붙음}/{len(units)}"
+
+
+def test_번역되는_용어는_안_가린다(monkeypatch):
+    """★ **가리는 것은 「번역하지 말라」 는 용어뿐이다.** 번역되는 용어까지 가리면
+    모델이 그 자리를 영어로 받고, 되돌릴 때 **영어가 그대로 남는다** — 그리고 왕복
+    검사는 통과한다(원문으로 돌아오니까). **소실률도 안 늘어난다.** 즉 이 흠은
+    「번역이 덜 됐다」 로만 나타나고 어느 검사도 안 문다.
+
+    ★ 돌연변이 `항등 용어가 아닌 것까지 가린다` 가 이 자리를 문다(DECISIONS §179).
+      이 검사가 없을 때 `is_keep` 거르개를 통째로 빼도 **시험 열여섯이 전부 통과**했다.
+
+    ★ **첫 판은 안 물었다.** `bucket → 버킷` 으로 지었는데, 번역말 「버킷」 은
+      영어 원문에 없으니 **`if 정규 not in text` 가 먼저 걸러 준다** — 거르개를
+      빼도 표가 그대로였다. **물리려면 번역말이 원문에 있어야 한다** : `amazon s3
+      → S3` 는 항등이 아니면서 `S3` 가 원문에 산다.
+    """
+    import app.glossary as g
+    monkeypatch.setattr(g, "_books", {"t": {
+        "data catalog": "Data Catalog",      # 항등 — 가린다
+        "amazon s3": "S3"}})                 # 번역된다(표기가 줄었다) — 안 가린다
+    src = "The Data Catalog lists every Amazon S3 bucket in the pipeline tonight."
+    바뀐것, 표 = mp.mask(src, "num_a")
+    assert list(표.values()) == ["Data Catalog"], f"항등 아닌 용어까지 가렸다 — {표}"
+    assert "S3" in 바뀐것, "번역돼야 할 말이 자리표시 뒤로 숨었다"

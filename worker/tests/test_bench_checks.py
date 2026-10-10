@@ -243,21 +243,84 @@ def test_복수형은_보고_동사꼴은_안_본다():
         == ["term:record→레코드"]
 
 
-def test_프롬프트가_바뀌면_기준선이_stale_이어야_한다():
-    """★ 앞 검사는 사람이 `stale` 을 세워야만 돈다. 세우지 않은 날은 아무도
-    모르고, 그때 검사는 조용히 아무것도 하지 않는다(DECISIONS §21).
-
-    ★ 프롬프트와 용어집의 해시를 기준선에 박아 두면 코드가 스스로 늙었다고
-      말한다. 사람의 성실성에 기대지 않는 유일한 방법이다.
-    """
-    base = _json.loads(
+def _기준선() -> dict:
+    return _json.loads(
         (_pathlib.Path(bench.__file__).resolve().parents[1]
          / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+
+
+# ── 낡음은 플래그가 아니라 계산이다 (DECISIONS §179) ──────────────────────
+#
+# ★ **종전에는 `stale: true` 를 사람이 적고 두 자리가 그것을 달리 읽었다.**
+#   pytest 는 지문을 맞대 **플래그를 요구**했고 `doctor` 는 **플래그만** 읽었다.
+#   그러면 재측정을 끝내고 플래그를 안 지웠을 때 doctor 가 **영영 SKIP** 이고,
+#   영영 SKIP 인 줄은 아무도 안 읽는다(§41). **같은 사실의 두 번째 사본**이다(§91).
+# ★ **플래그를 지우고 두 자리가 같은 함수를 부른다**(§173 과 같은 처방).
+
+def test_지문대조가_낡은_것만_센다():
+    낡은, 까닭 = bench.지문대조(
+        {"engines": {"a": {"batch": 3, "prompt_fingerprint": "같다"},
+                     "b": {"batch": 3, "prompt_fingerprint": "다르다"}}},
+        lambda _b: "같다")
+    assert 까닭 == ""
+    assert [x.split(" —")[0] for x in 낡은] == ["b"]
+
+
+def test_지문이_안_적혀_있으면_맞다고_안_한다():
+    """★ 칸이 비어 있는 것과 같은 것은 다른 말이다(DECISIONS §59)."""
+    낡은, 까닭 = bench.지문대조({"engines": {"a": {"batch": 3}}}, lambda _b: "x")
+    assert 까닭 == ""
+    assert len(낡은) == 1 and "안 적혀" in 낡은[0]
+
+
+def test_못_재면_빈_목록이_아니라_까닭이다():
+    """★ **「빈 목록 · 빈 까닭」 이 「전부 맞다」 다.** 못 잰 것이 그 꼴이 되면
+    워커 모듈이 없는 기계에서 **조용히 초록**이 된다(DECISIONS §59 · §127)."""
+    def 터진다(_b):
+        raise RuntimeError("worker 를 못 읽는다")
+
+    블록 = {"engines": {"a": {"batch": 3, "prompt_fingerprint": "x"}}}
+    낡은, 까닭 = bench.지문대조(블록, 터진다)
+    assert 낡은 == [] and "못 했다" in 까닭
+
+    # 지문이 **빈 문자열**로 와도 맞다고 하면 안 된다 — `"" == ""` 로 지나간다.
+    assert bench.지문대조(블록, lambda _b: "")[1], "지금 지문이 비었는데 맞다고 한다"
+    assert bench.지문대조({}, lambda _b: "x")[1], "엔진 블록이 없는데 맞다고 한다"
+
+
+def test_배치를_엔진마다_따로_넘긴다():
+    """★ 지문은 배치를 먹는다. 한 엔진의 배치로 다 재면 **다른 엔진이 거짓으로
+    낡는다** — 그리고 그 거짓은 「재측정하라」 로 보여서 아무도 안 의심한다."""
+    본것: list = []
+
+    def 적는다(b):
+        본것.append(b)
+        return "x"
+
+    bench.지문대조({"engines": {"a": {"batch": 3, "prompt_fingerprint": "x"},
+                                "b": {"batch": 9, "prompt_fingerprint": "x"}}}, 적는다)
+    assert 본것 == [3, 9], 본것
+
+
+def test_실물_기준선도_같은_답을_낸다():
+    """★ **합성만 보면 실물 파일 꼴이 바뀌어도 모른다**(§132 와 같은 처방)."""
+    base = _기준선()
+    낡은, 까닭 = bench.지문대조()
+    assert 까닭 == "", 까닭
+    직접 = [n for n, b in base["engines"].items()
+            if b.get("prompt_fingerprint") != bench.prompt_fingerprint(b["batch"])]
+    assert sorted(x.split(" —")[0] for x in 낡은) == sorted(직접)
+
+
+def test_손으로_적는_플래그가_돌아오지_않았다():
+    """★ **사본이 돌아오면 두 자리가 다시 갈린다**(DECISIONS §91 · §179)."""
+    base = _기준선()
+    assert "stale" not in base, "최상위에 stale 이 돌아왔다"
     for name, blk in base["engines"].items():
-        if blk.get("prompt_fingerprint") != bench.prompt_fingerprint(blk["batch"]):
-            assert blk.get("stale") or base.get("stale"), (
-                f"engines.{name} 의 프롬프트·용어집이 기준선을 뜬 때와 다르다. "
-                "재측정하고 값을 채우거나 stale 로 표시한다")
+        assert "stale" not in blk, f"engines.{name} 에 stale 이 돌아왔다"
+    sh = (_pathlib.Path(bench.__file__).resolve().parents[1]
+          / "tools/doctor.sh").read_text(encoding="utf-8")
+    assert "--지문대조" in sh, "doctor 가 지문을 안 묻는다"
 
 
 def test_지문은_모델이_보는_것만_담는다(monkeypatch):

@@ -266,3 +266,35 @@ def test_모르는_러너는_건너뜀으로_안_센다(tmp_path, monkeypatch):
     # ★ **못 읽는 말투를 「건너뜀」 으로 단정하지 않는다.** 단정하면 멀쩡한 판이 멈춘다.
     물었나, 까닭 = _한건(tmp_path, monkeypatch, "everything is fine")
     assert not 물었나 and "안 붙들고" in 까닭, 까닭
+
+
+# ── 미선언은 천장이다 (DECISIONS §179) ────────────────────────────────────
+#
+# ★ **머리말이 「그 수가 늘면 운다」 고 단정하는데 우는 자가 없었다.** 세는 곳이
+#   어디에도 없었고, `test_미선언_가드가_실제로_있는_파일이다` 는 「적힌 파일이
+#   있나」 만 봤다. **문서가 약속한 관문이 실재하지 않았다**(§21).
+
+def test_미선언_천장이_실제와_맞다():
+    """★ **이 수는 손으로 못 올린다.** 지금 미선언 수와 같거나 커야 하고, 작으면
+    관문이 이미 울고 있어야 한다."""
+    미선언 = mg.읽기().get("미선언", [])
+    assert len(미선언) <= mg.MAX_미선언, (
+        f"미선언 {len(미선언)}개가 천장 {mg.MAX_미선언} 위다")
+
+
+def test_미선언에_이미_덮인_파일이_없다():
+    """★ `extension/src/cssaudit.js` 가 `줄수` · `꽂을자리` 에 물리면서도 여기
+    적혀 있었다 — **손으로 지우는 목록은 손으로 안 지워진다**(DECISIONS §123)."""
+    선언 = mg.읽기()
+    가드파일 = {g["파일"] for k, g in 선언.items()
+                if isinstance(g, dict) and "돌연변이" in g}
+    겹친것 = sorted(가드파일 & set(선언.get("미선언", [])))
+    assert 겹친것 == [], f"이미 가드가 무는 파일이 미선언에 있다 : {겹친것}"
+
+
+def test_천장이_코드에_실제로_걸려_있다():
+    """★ **상수만 있고 아무도 안 읽으면 그 톱니는 없는 것이다**(§21)."""
+    src = (ROOT / "tools/mutate_gate.py").read_text(encoding="utf-8")
+    몸 = src[src.index("def main("):]
+    본문 = "\n".join(l for l in 몸.split("\n") if not l.lstrip().startswith("#"))
+    assert "MAX_미선언" in 본문, "main 이 천장을 안 본다"
