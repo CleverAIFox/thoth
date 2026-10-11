@@ -1552,18 +1552,13 @@
       },
       {
         "이름": "막음선을 안 본다",
-        "전": "    if 막음 and 합 > 막음:",
+        "전": "    if 막음 and 끝까지 > 막음:",
         "후": "    if False:"
       },
       {
         "이름": "지난 유예를 안 막는다",
         "전": "        if 남 < 0:",
         "후": "        if False:"
-      },
-      {
-        "이름": "낡아도 0 으로 끝낸다",
-        "전": "    return 2 if 낡음 else 0",
-        "후": "    return 0"
       },
       {
         "이름": "선언을 못 읽어도 통과로 센다",
@@ -1574,6 +1569,76 @@
         "이름": "재다가 크레딧을 안 뺀다",
         "전": "               \"--filter\", '{\"Not\":{\"Dimensions\":{\"Key\":\"RECORD_TYPE\",'\n                           '\"Values\":[\"Credit\",\"Refund\"]}}}',",
         "후": "               \"--output\", \"json\","
+      },
+      {
+        "이름": "못 쟀는데 0 으로 끝낸다",
+        "전": "    if 못:\n        print(f\"과금을 다 못 쟀다 {len(못)}건 — {꼬리}\")",
+        "후": "    if False:\n        print(f\"과금을 다 못 쟀다 {len(못)}건 — {꼬리}\")"
+      },
+      {
+        "이름": "청구 지표를 안 재 봤어도 넘어간다",
+        "전": "    if \"서비스\" not in 지표:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "청구 지표의 모르는 이름을 흘린다",
+        "전": "            if 짧은 not in 청구별칭:",
+        "후": "            if False:"
+      },
+      {
+        "이름": "청구 지표에 뜨는데 선언에 없는 것을 흘린다",
+        "전": "            if 긴 and 긴 not in 서비스:",
+        "후": "            if False:"
+      },
+      {
+        "이름": "크레딧이 걷힌 것을 안 본다",
+        "전": "    elif float(덮임.get(\"값\") or 0) > 0:",
+        "후": "    elif False:"
+      },
+      {
+        "이름": "덮임을 안 재 봤어도 넘어간다",
+        "전": "    if \"값\" not in 덮임:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "크레딧 바닥을 안 본다",
+        "전": "    elif float(크레딧[\"남은것\"]) <= 0:",
+        "후": "    elif False:"
+      },
+      {
+        "이름": "크레딧을 안 재 봤어도 넘어간다",
+        "전": "    if 크레딧.get(\"남은것\") is None:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "안 잰 달러를 0 으로 읽는다",
+        "전": "        if s.get(\"월\") is None:\n            못.append(f\"`{이름}` 의 달러를 못 쟀다",
+        "후": "        if False:\n            못.append(f\"`{이름}` 의 달러를 못 쟀다"
+      },
+      {
+        "이름": "잰 달 없는 수를 받는다",
+        "전": "        if float(s.get(\"월\") or 0) > 0 and not s.get(\"잰달\"):",
+        "후": "        if False:"
+      },
+      {
+        "이름": "만료일을 크레딧에서 안 읽는다",
+        "전": "    if 크레딧.get(\"만료\"):\n        유예[\"크레딧만료\"] = 크레딧[\"만료\"]",
+        "후": "    if False:\n        유예[\"크레딧만료\"] = 크레딧[\"만료\"]"
+      },
+      {
+        "이름": "용량을 아예 안 본다",
+        "전": "    막 += 용량흠(블록들)",
+        "후": "    막 += []"
+      },
+      {
+        "이름": "계정 번호를 아예 안 훑는다",
+        "전": "        막 += 계정흠(글들)",
+        "후": "        막 += []"
+      },
+      {
+        "이름": "안 정한 갈래를 달러 못 쟀다로 뭉갠다",
+        "전": "        if s.get(\"갈래\") == \"모름\":\n            못.append(f\"`{이름}` 의 갈래를 안 정했다",
+        "후": "        if False:\n            못.append(f\"`{이름}` 의 갈래를 안 정했다"
       }
     ]
   },
@@ -1654,6 +1719,289 @@
         "이름": "고치고 다시 안 센다",
         "전": "        for x in 고친다(ROOT, measured):\n            print(f\"    고쳤다 — {x}\")",
         "후": "        return 0"
+      }
+    ]
+  },
+  "무료용량": {
+    "_왜": "DynamoDB 가 **구조적으로** 0원인가(DECISIONS §181). 「거의 0」 은 0 이 아니다 — 온디맨드에는 요청 무료분이 아예 없어 실측 월 $0.001 이 영구히 깔린다.",
+    "파일": "tools/cost_check.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cost_check.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "온디맨드를 그냥 둔다",
+        "전": "        if m.group(1) != \"PROVISIONED\":",
+        "후": "        if False:"
+      },
+      {
+        "이름": "모드가 없어도 넘어간다",
+        "전": "        if not m:\n            fails.append(f\"테이블 `{이름}` 에 `billing_mode` 가 안 적혀 있다 — \"",
+        "후": "        if False:\n            fails.append(f\"테이블 `{이름}` 에 `billing_mode` 가 안 적혀 있다 — \""
+      },
+      {
+        "이름": "용량이 없어도 넘어간다",
+        "전": "        if not 것:\n            fails.append(f\"테이블 `{이름}` 이 `PROVISIONED` 인데 용량이 안 적혀 있다\")",
+        "후": "        if False:\n            fails.append(f\"테이블 `{이름}` 이 `PROVISIONED` 인데 용량이 안 적혀 있다\")"
+      },
+      {
+        "이름": "테이블마다 따로 보고 합을 안 센다",
+        "전": "        if 합[갈] > 무료용량:",
+        "후": "        if False:"
+      },
+      {
+        "이름": "표 수준만 보고 인덱스 용량을 뺀다",
+        "전": "        for 갈, 값 in 것:\n            합[갈] += int(값)",
+        "후": "        for 갈, 값 in 것[:2]:\n            합[갈] += int(값)"
+      },
+      {
+        "이름": "자동 확장을 흘린다",
+        "전": "        if 종류 in 금지자원:",
+        "후": "        if False:"
+      }
+    ]
+  },
+  "계정번호": {
+    "_왜": "§131 — 계정 번호는 저장소에 안 들어온다. `billing get-credits` 가 그것을 **요구하므로**(botocore 서비스 모델) 쥐는 손 옆에 관문을 둔다.",
+    "파일": "tools/cost_check.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cost_check.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "문서 예시가 아닌 번호도 넘긴다",
+        "전": "            if 번호 in 문서계정:\n                continue",
+        "후": "            if True:\n                continue"
+      },
+      {
+        "이름": "양쪽을 안 묶어 16진수까지 문다",
+        "전": "_계정 = re.compile(r\"(?<![0-9A-Za-z])[0-9]{12}(?![0-9A-Za-z])\")",
+        "후": "_계정 = re.compile(r\"[0-9]{12}\")"
+      },
+      {
+        "이름": "못 읽은 것을 통과로 센다",
+        "전": "        못.append(\"`git ls-files` 를 못 읽어 계정 번호를 못 훑었다(§131)\")",
+        "후": "        pass"
+      },
+      {
+        "이름": "무는 말에 번호를 다시 적는다",
+        "전": "            fails.append(f\"{경로} 에 12자리 번호가 있다 — 계정 번호는 저장소에 안 들어온다\"",
+        "후": "            fails.append(f\"{경로} 에 {번호} 가 있다 — 계정 번호는 저장소에 안 들어온다\""
+      }
+    ]
+  },
+  "크레딧파싱": {
+    "_왜": "`billing get-credits` 의 꼴을 **짐작하지 않았다** — botocore 서비스 모델에서 읽었다. 못 알아본 꼴을 0 으로 쓰면 「없다」 와 「못 쟀다」 가 같은 말이 된다(§59).",
+    "파일": "tools/cost_check.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cost_check.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "꺼진 크레딧까지 센다",
+        "전": "        if (c.get(\"creditStatus\") or \"ENABLED\").upper() == \"DISABLED\":",
+        "후": "        if False:"
+      },
+      {
+        "이름": "가장 늦은 만료를 적는다",
+        "전": "        if d and (끝 is None or d < 끝):",
+        "후": "        if d and (끝 is None or d > 끝):"
+      },
+      {
+        "이름": "하나도 못 셌는데 0 을 돌려준다",
+        "전": "    if not 센것:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "모르는 꼴을 0 으로 읽는다",
+        "전": "    if not isinstance(목록, list):\n        return None, \"`credits` 배열이 없다 — API 꼴이 바뀌었거나 권한이 없다\"",
+        "후": "    if not isinstance(목록, list):\n        return {\"남은것\": 0.0, \"만료\": None, \"센것\": 0}, \"\""
+      },
+      {
+        "이름": "ISO 를 못 읽고 넘긴다",
+        "전": "        try:\n            return _d.datetime.fromisoformat(s).date()\n        except ValueError:\n            pass",
+        "후": "        try:\n            return None\n        except ValueError:\n            pass"
+      }
+    ]
+  },
+  "캐시조름": {
+    "_왜": "`PROVISIONED` 25/25 로 내리면서 **조름이 정상 상태**가 됐다(DECISIONS §181). 180 전까지 `UnprocessedKeys` 를 **횟수도 사이도 없이** 되던졌다 — Lambda 는 벽시계로 과금되므로 제자리 회전은 무료 몫을 아끼려고 다른 무료 몫을 태우는 짓이다.",
+    "파일": "worker/app/cache.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cache_ddb.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "읽기를 안 묶고 영원히 던진다",
+        "전": "        for 번 in range(재시도 + 1):\n            r = res.batch_get_item(RequestItems=pending)",
+        "후": "        while True:\n            번 = 0\n            r = res.batch_get_item(RequestItems=pending)"
+      },
+      {
+        "이름": "읽기에서 사이를 안 둔다",
+        "전": "            if 번 < 재시도:\n                _사이두기(번)\n        if pending:\n            남 = len((pending.get(TABLE) or {}).get(\"Keys\") or [])",
+        "후": "            if False:\n                _사이두기(번)\n        if pending:\n            남 = len((pending.get(TABLE) or {}).get(\"Keys\") or [])"
+      },
+      {
+        "이름": "사이를 배로 안 늘린다",
+        "전": "    time.sleep(사이 * (2 ** 번))",
+        "후": "    time.sleep(사이)"
+      },
+      {
+        "이름": "쓰기를 25 가 아니라 100 으로 묶는다",
+        "전": "쓰기묶음 = 25",
+        "후": "쓰기묶음 = 100"
+      },
+      {
+        "이름": "쓰기에서 같은 해시를 안 합친다",
+        "전": "    묶음 = {key(k): v for k, v in pairs.items()}",
+        "후": "    묶음 = [(key(k), v) for k, v in pairs.items()]"
+      },
+      {
+        "이름": "쓰기를 안 묶고 영원히 던진다",
+        "전": "        for 번 in range(재시도 + 1):\n            r = res.batch_write_item(RequestItems=pending)",
+        "후": "        while True:\n            번 = 0\n            r = res.batch_write_item(RequestItems=pending)"
+      },
+      {
+        "이름": "쓰기에서 사이를 안 둔다",
+        "전": "            if 번 < 재시도:\n                _사이두기(번)\n        if pending:\n            못넣음 += len(pending.get(TABLE) or [])",
+        "후": "            if False:\n                _사이두기(번)\n        if pending:\n            못넣음 += len(pending.get(TABLE) or [])"
+      }
+    ]
+  },
+  "과금달": {
+    "_왜": "**달이 섞인 합은 거짓이다**(DECISIONS §182). 181 은 `잰달` 로 섞임을 *보이게* 만들었고 섞임 자체는 안 고쳤다 — 2026-10-11 에 `Amazon Athena` 가 9월 $0.0003 을 들고 10월 합계에 섞였고, 그 꼬리가 합 $0.0737 의 마지막 자리였다.",
+    "파일": "tools/cost_check.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cost_check.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "달이 섞여도 넘어간다",
+        "전": "    if len(달들) > 1:",
+        "후": "    if False:"
+      },
+      {
+        "이름": "많은 쪽을 짚는다",
+        "전": "        적은쪽 = min(어느, key=lambda m: len(어느[m]))",
+        "후": "        적은쪽 = max(어느, key=lambda m: len(어느[m]))"
+      },
+      {
+        "이름": "잰달 없는 칸까지 달로 센다",
+        "전": "    달들 = {s.get(\"잰달\") for s in 서비스.values() if s.get(\"잰달\")}",
+        "후": "    달들 = {s.get(\"잰달\") for s in 서비스.values()}"
+      },
+      {
+        "이름": "진행 중인 달을 늘리지 않고 묻는다",
+        "전": "    끝까지 = 합 / 오늘.day * 30 if 진행중 else 합",
+        "후": "    끝까지 = 합"
+      },
+      {
+        "이름": "끝난 달도 늘려서 묻는다",
+        "전": "    진행중 = 달들 == {오늘.strftime(\"%Y-%m\")} and 오늘.day > 0",
+        "후": "    진행중 = 오늘.day > 0"
+      },
+      {
+        "이름": "늘려 쟀다는 것을 안 적는다",
+        "전": "    꼬리 = (f\" (잰 달이 진행 중이라 {오늘.day}일째 ${합:.4f} 를 달 끝까지 늘렸다)\"\n            if 진행중 else \"\")",
+        "후": "    꼬리 = \"\""
+      },
+      {
+        "이름": "진행 중이면 임계 아래에서도 짖는다",
+        "전": "    elif 경고 and 끝까지 > 경고:",
+        "후": "    elif 경고 and (진행중 or 끝까지 > 경고):"
+      }
+    ]
+  },
+  "서비스별전수": {
+    "_왜": "**CE 가 안 돌려준 것도 0 으로 적는다**(DECISIONS §182). CE 는 그 달에 쓴 적이 있으면 $0.0000 이라도 레코드를 주므로(실측 여덟), 아예 안 오는 것은 **그 달에 쓴 적이 없다**는 뜻이다. 181 은 돌려준 것만 갱신해서 생략된 칸이 옛 달 값을 들고 남았다.",
+    "파일": "tools/cost_check.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_cost_check.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "CE 가 생략한 것을 그냥 둔다",
+        "전": "    빠진것 = [이름 for 이름 in 서비스 if 이름 not in 잰것]",
+        "후": "    빠진것 = []"
+      },
+      {
+        "이름": "0 은 적고 잰 달은 안 적는다",
+        "전": "        서비스[이름][\"잰달\"] = 잰달\n        서비스[이름][\"_빠짐\"] = (f\"{잰달} CE 응답에 레코드가 없다",
+        "후": "        서비스[이름][\"_빠짐\"] = (f\"{잰달} CE 응답에 레코드가 없다"
+      },
+      {
+        "이름": "왜 0 인지를 안 적는다",
+        "전": "        서비스[이름][\"_빠짐\"] = (f\"{잰달} CE 응답에 레코드가 없다 — 그 달에 쓴 적이 \"\n                                 \"없다는 뜻이고, 그래서 0 이다(§182)\")",
+        "후": "        pass"
+      },
+      {
+        "이름": "0 이 아니라 그 달 값으로 덮는다",
+        "전": "        서비스[이름][\"월\"] = 0.0\n        서비스[이름][\"잰달\"] = 잰달",
+        "후": "        서비스[이름][\"잰달\"] = 잰달"
+      }
+    ]
+  },
+  "쉘스타일": {
+    "_왜": "**「style 은 취향이다」 가 한 번 틀렸다**(DECISIONS §182). `doctor.sh:381` 이 마크다운 백틱을 쌍따옴표 안에 써서 쉘이 명령 치환으로 읽었고, 그 코드 `SC2006` 이 **style 등급**이라 `-S warning` 이 통째로 넘겼다. 등급을 내리는 대신 고른 코드만 따로 묻는다 — 내리면 65건이 쏟아진다(실측).",
+    "파일": "tools/doctor.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_shell_gate.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "고른 style 코드를 비운다",
+        "전": "  STYLE_CODES=\"SC2006\"",
+        "후": "  STYLE_CODES=\"\""
+      },
+      {
+        "이름": "고른 판을 아예 안 돈다",
+        "전": "    SC_STYLE=\"$(shellcheck -i \"$STYLE_CODES\" -f gcc \"${SH_FILES[@]}\" 2>&1)\"; SC_SRC=$?",
+        "후": "    SC_STYLE=\"\"; SC_SRC=0"
+      },
+      {
+        "이름": "둘 중 하나만 보고 초록을 낸다",
+        "전": "    if [ \"$SC_RC\" = 0 ] && [ \"$SC_SRC\" = 0 ]; then",
+        "후": "    if [ \"$SC_RC\" = 0 ]; then"
+      },
+      {
+        "이름": "백틱을 다시 쌍따옴표 안에 적는다",
+        "전": "       warn \"기획서가 생성기보다 낡았다 — 미는 날 '기획서 배포' 가 멈춘다\"",
+        "후": "       warn \"기획서가 생성기보다 낡았다 — 미는 날 `기획서 배포` 가 멈춘다\""
+      }
+    ]
+  },
+  "패치안내": {
+    "_왜": "**도구가 말해 줄 수 있는 것을 사람이 기억하게 두지 않는다**(§152 · §182). 기획서 산출물은 패치에 안 들어오므로 받는 쪽이 굽는다 — 2026-10-11 에 그 한 줄을 안 알려 줘서 `doctor` 가 WARN 했다.",
+    "파일": "tools/apply_patch.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_shell_gate.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "기획서를 굽게 알려 주지 않는다",
+        "전": "  echo \"      bash tools/build_proposal.sh\"",
+        "후": "  echo \"      (없음)\""
+      },
+      {
+        "이름": "생성기가 바뀐 것을 안 본다",
+        "전": "   && git status --short -- docs/proposal 2>/dev/null | grep -q .; then",
+        "후": "   && false; then"
       }
     ]
   }

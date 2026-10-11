@@ -378,7 +378,10 @@ case "$DOCX_RC" in
   3) if [ "${CI:-}" = "true" ]; then
        no "기획서가 생성기보다 낡았다 — CI 는 넘어가지 않는다"
      else
-       warn "기획서가 생성기보다 낡았다 — 미는 날 `기획서 배포` 가 멈춘다"
+       # ★ **마크다운 백틱을 쌍따옴표 안에 쓰면 쉘이 명령으로 읽는다**(DECISIONS §182).
+       #   이 줄이 그랬다 — `기획서 배포` 를 실행하고 `command not found` 를 뱉고,
+       #   메시지에는 **빈칸**이 박혔다. 글을 적으려면 **작은따옴표**를 쓴다.
+       warn "기획서가 생성기보다 낡았다 — 미는 날 '기획서 배포' 가 멈춘다"
      fi
      printf '%s\n' "$DOCX_OUT" | sed 's/^/       /' ;;
   *) no "docx_check.py 가 죽었다 (exit $DOCX_RC)"
@@ -429,14 +432,27 @@ else
   #
   # ★ 로컬에 없으면 SKIP 이다. CI 러너에는 있고 거기서는 넘어갈 수 없다 —
   #   정본이 하나인 것과 모든 자리에서 똑같이 구는 것은 다르다(DECISIONS §54).
+  # ★ **「style 은 취향이다」 가 한 번 틀렸다**(DECISIONS §182). 2026-10-11 에
+  #   `doctor.sh:381` 이 **마크다운 백틱을 쌍따옴표 안에 써서** 쉘이 그것을 명령 치환으로
+  #   읽었다 — `기획서 배포` 를 실행하고 메시지에는 빈칸이 박혔다. 그 코드가 `SC2006` 이고
+  #   **style 등급**이라 `-S warning` 이 통째로 넘겼다.
+  # ★ **등급을 내리지 않는다.** `-S style` 로 내리면 65건이 같이 쏟아진다(실측 :
+  #   SC2015 33 · SC1091 18 …) — 넓은 검사는 끄는 방법부터 찾게 된다(§46). 대신
+  #   **「우리에게 중요한 style 코드」 를 선언**하고 그것만 따로 묻는다. 목록은
+  #   무언가 물 때 늘린다. 실측 : 이 목록으로 전 저장소 **1건**(그 줄)이 걸렸다.
+  STYLE_CODES="SC2006"
   if command -v shellcheck >/dev/null 2>&1; then
     SC_OUT="$(shellcheck -S warning -f gcc "${SH_FILES[@]}" 2>&1)"; SC_RC=$?
-    case "$SC_RC" in
-      0) ok "shellcheck (-S warning)" ;;
-      1) no "shellcheck 위반"; printf '%s\n' "$SC_OUT" | head -15 | sed 's/^/       /' ;;
-      *) no "shellcheck 가 죽었다 (exit $SC_RC)"
-         printf '%s\n' "$SC_OUT" | tail -5 | sed 's/^/       /' ;;
-    esac
+    SC_STYLE="$(shellcheck -i "$STYLE_CODES" -f gcc "${SH_FILES[@]}" 2>&1)"; SC_SRC=$?
+    if [ "$SC_RC" = 0 ] && [ "$SC_SRC" = 0 ]; then
+      ok "shellcheck (-S warning · 고른 style $STYLE_CODES)"
+    elif [ "$SC_RC" -gt 1 ] || [ "$SC_SRC" -gt 1 ]; then
+      no "shellcheck 가 죽었다 (exit $SC_RC / $SC_SRC)"
+      printf '%s\n' "$SC_OUT" "$SC_STYLE" | tail -5 | sed 's/^/       /'
+    else
+      no "shellcheck 위반"
+      printf '%s\n' "$SC_OUT" "$SC_STYLE" | grep -v '^$' | head -15 | sed 's/^/       /'
+    fi
   else
     skip "shellcheck 가 없어 보지 못한다 (CI 에서는 돈다)"
   fi

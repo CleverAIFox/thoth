@@ -193,5 +193,17 @@ else
 fi
 
 echo
+# ★ **기획서 산출물은 패치에 안 들어온다**(DECISIONS §182). `docs/proposal.docx` ·
+#   `build.lock.json` · `site/proposal.html` 은 바이너리이거나 3MB 짜리라 패치를
+#   통째로 삼킨다. 그래서 **생성기만** 패치로 오고 산출물은 받는 쪽이 굽는다.
+# ★ 2026-10-11 에 그 한 줄을 안 알려 줬고, `doctor` 가 「기획서가 생성기보다 낡았다」 로
+#   WARN 했다 — **도구가 말해 줄 수 있는 것을 사람이 기억하게 뒀다**(§152).
+if git rev-parse --git-dir >/dev/null 2>&1 \
+   && git status --short -- docs/proposal 2>/dev/null | grep -q .; then
+  echo "== 기획서 =="
+  echo "  생성기가 바뀌었다 — 산출물은 패치에 안 들어온다. 먼저 굽는다 :"
+  echo "      bash tools/build_proposal.sh"
+  echo
+fi
 echo "다음 : bash tools/doctor.sh"
 echo "       그 뒤 : bash tools/ship.sh \"메시지\""

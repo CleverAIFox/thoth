@@ -7,9 +7,25 @@
 #   테이블이 둘이면 IAM 도 둘, 백업 판단도 둘이 되기 때문이다.
 
 resource "aws_dynamodb_table" "translations" {
-  name         = "${local.name}-translations"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "h"
+  name = "${local.name}-translations"
+
+  # ★ **온디맨드에는 요청 무료분이 아예 없다**(DECISIONS §181). 저장 25GB 는 어느
+  #   모드에서나 공짜지만 **요청 무료분 25 WCU/RCU 는 `PROVISIONED` 에만** 붙는다.
+  #   179 는 월 $0.001 이라 「전환의 값어치가 측정 아래다」 라고 적었는데, 그 $0.001 은
+  #   **영구히 깔린 바닥**이었다 — 「거의 0」 은 0 이 아니다.
+  #
+  # ★ **자동 확장을 안 붙인다.** 붙이면 25 를 넘겨 과금되고, 안 붙이면 넘칠 때
+  #   **조른다**. 조름은 시간이고 과금은 돈이다 — 이 저장소는 시간 쪽으로 진다.
+  #   `tools/cost_check.py` 의 `금지자원` 이 `aws_appautoscaling_*` 을 막는다.
+  #
+  # ★ **25 는 계정·리전 몫이고 테이블들이 나눠 쓴다.** 그래서 `용량흠` 은 테이블
+  #   하나씩이 아니라 **합**을 센다 — 수집 적재지로 두 번째 테이블이 붙을 때
+  #   여기서 갈라 줘야 한다(PLAN #70).
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 25
+  write_capacity = 25
+
+  hash_key = "h"
 
   attribute {
     name = "h"
