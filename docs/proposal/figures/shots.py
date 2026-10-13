@@ -63,6 +63,23 @@ def facts(name, items):
     (OUT / f"{name}.facts.json").write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
 
 
+# ★ **이 그림이 무엇을 찍었는지 지문으로 남긴다**(DECISIONS §185). 사실 선언
+#   (`*.facts.json`)은 「이 글자가 그 파일에 있나」 라서 **더해진 것을 못 잡는다** —
+#   183 이 `popup.html` 에 버튼을 달았을 때 선언은 그대로 참이었고, 크로미움 없는
+#   기계는 **버튼 없는 옛 그림**을 그대로 실었다. 목록의 정본은 `tools/shot_stale.py`
+#   이고 여기서 **읽어 쓴다** — 두 곳에 적으면 한쪽만 늙는다(§91).
+import importlib.util as _il
+
+_몫 = _il.spec_from_file_location("shot_stale", ROOT / "tools" / "shot_stale.py")
+_stale = _il.module_from_spec(_몫)
+_몫.loader.exec_module(_stale)
+
+
+def 원본지문(name):
+    (OUT / f"{name}.원본.json").write_text(
+        json.dumps(_stale.지금()[name], ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 try:
     asyncio.run(shoot())
 except Exception as e:  # 도구가 없으면 옛 그림을 쓴다
@@ -70,8 +87,10 @@ except Exception as e:  # 도구가 없으면 옛 그림을 쓴다
 a, b = trim(OUT / "shot_popup_on.png"), trim(OUT / "shot_popup_off.png")
 s = Image.new("RGB", (a.width + b.width + 60, max(a.height, b.height)), "white")
 s.paste(a, (0, 0)); s.paste(b, (a.width + 60, 0)); s.save(OUT / "f_popup.png")
+원본지문("f_popup")
 facts("f_popup", ["file:extension/popup.html~이 사이트에서 켜기", "file:extension/src/popup.js~아직 권한이 없다"])
 p = Image.open(OUT / "shot_preview.png")
 p.crop((0, 0, p.width, min(p.height, 2050))).save(OUT / "f_preview_a.png")
+원본지문("f_preview_a")
 facts("f_preview_a", ["file:extension/preview.html~content.css", "file:extension/content.css~st"])
 print("shots ok")

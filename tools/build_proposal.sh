@@ -59,7 +59,16 @@ else
     echo "  깔고 다시 돌린다 : uv run --with playwright python -m playwright install chromium"
     exit 1
   fi
-  echo "  건너뛴다 — 크로미움이 없다. **이 그림만 옛것이 남는다**(사실 파일 둘 확인했다)"
+  # ★ **여기가 §185 다.** 위까지는 「옛 그림이 **있나**」 만 봤다 — 2026-10-12 에
+  #   183 이 `popup.html` 에 버튼을 달았는데 이 가지가 **버튼 없는 옛 그림**을 그대로
+  #   통과시켰고 `doctor` 는 「기획서가 정본과 맞다」 로 초록이었다. 있는 것과
+  #   **지금 화면인 것**은 다른 말이다(§126 과 같은 족속).
+  python3 "$ROOT/tools/shot_stale.py"; SRC=$?
+  if [ "$SRC" != 0 ]; then
+    echo "  멈춘다 — 건너뛸 수 없다 (shot_stale rc=$SRC · 1 다르다 · 2 못 쟀다)"
+    exit 1
+  fi
+  echo "  건너뛴다 — 크로미움이 없다. **이 그림만 옛것이 남는다**(원본 지문까지 확인했다)"
 fi
 
 say "docx + 자물쇠"

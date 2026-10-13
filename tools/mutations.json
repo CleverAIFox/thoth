@@ -2182,5 +2182,51 @@
         "후": "      for (const o of []) { try { o.disconnect(); } catch { /* 이미 죽었다 */ } }"
       }
     ]
+  },
+  "옛그림": {
+    "_왜": "건너뛰기가 「옛 그림이 **있나**」 만 봤다. 183 이 `popup.html` 에 버튼을 달았는데 버튼 없는 옛 그림이 그대로 실리고 `doctor` 는 초록이었다 — 참말인 초록이다(DECISIONS §185).",
+    "파일": "tools/shot_stale.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_shot_stale.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "원본이 바뀐 것을 안 본다",
+        "전": "            elif 그때[f] != h:",
+        "후": "            elif False:"
+      },
+      {
+        "이름": "안 적힌 그림을 통과로 센다",
+        "전": "        if not 그때:\n            못.append(f\"`{이름}` 이 무엇을 찍었는지 안 적혀 있다\")",
+        "후": "        if False:\n            못.append(f\"`{이름}` 이 무엇을 찍었는지 안 적혀 있다\")"
+      },
+      {
+        "이름": "목록이 늘어난 것을 흘린다",
+        "전": "            if f not in 그때:",
+        "후": "            if False:"
+      },
+      {
+        "이름": "목록에서 빠진 것을 흘린다",
+        "전": "        for f in 그때:\n            if f not in 이제것:",
+        "후": "        for f in []:\n            if f not in 이제것:"
+      },
+      {
+        "이름": "못 잰 것을 다르다로 뭉갠다",
+        "전": "    if 못:\n        print(\"  **못 쟀다** — 그림과 원본 목록이 어긋난다\")",
+        "후": "    if False:\n        print(\"  **못 쟀다** — 그림과 원본 목록이 어긋난다\")"
+      },
+      {
+        "이름": "곁파일이 없어도 통과로 끝낸다",
+        "전": "        print(\"  그림을 다시 찍는다 : uv run --with playwright python -m playwright install chromium\")\n        return 2",
+        "후": "        print(\"  그림을 다시 찍는다 : uv run --with playwright python -m playwright install chromium\")\n        return 0"
+      },
+      {
+        "이름": "팝업 그림이 꼴을 안 본다",
+        "전": "        \"extension/popup.css\",",
+        "후": ""
+      }
+    ]
   }
 }
