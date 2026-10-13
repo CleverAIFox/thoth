@@ -393,3 +393,52 @@ def test_main_이_핀_검사를_부른다():
     몸 = src[src.index("def main() -> int:"):]
     본문 = "\n".join(l for l in 몸.split("\n") if not l.lstrip().startswith("#"))
     assert "check_python_pin()" in 본문, "main 이 인터프리터 고정을 안 본다"
+
+
+# ── `--repo` 가지는 건너뛰거나 **판정**한다(DECISIONS §186) ──────────────────
+
+_건너뜀 = '''if [ "$SCOPE" = "--repo" ]; then
+  skip "무엇무엇 (기계 설정이다)"
+else
+  :
+fi
+'''
+_판정 = '''if [ "$SCOPE" = "--repo" ]; then
+  ok "올린 뒤로 안 바뀌었다"
+  echo "       이 눈 밖 : terraform.tfvars · 콘솔 실물 표류"
+else
+  :
+fi
+'''
+_판정인데눈밖없음 = '''if [ "$SCOPE" = "--repo" ]; then
+  ok "올린 뒤로 안 바뀌었다"
+else
+  :
+fi
+'''
+_아무것도 = '''if [ "$SCOPE" = "--repo" ]; then
+  echo "그냥 지나간다"
+else
+  :
+fi
+'''
+
+
+def test_사유_딸린_skip_은_통과다():
+    assert cs.check_scope_declared(_건너뜀) == []
+
+
+def test_판정하면서_눈_밖을_적으면_통과다():
+    # ★ **CI 가 보는 가지가 있어도 된다.** 종전 규칙은 `skip` 만 받아서 §186 을 막았다.
+    assert cs.check_scope_declared(_판정) == []
+
+
+def test_판정하면서_눈_밖을_안_적으면_막는다():
+    # ★ 「통과」 를 「맞다」 로 읽지 않게, **못 보는 것**을 초록 옆에 같이 찍는다(§59).
+    난것 = cs.check_scope_declared(_판정인데눈밖없음)
+    assert len(난것) == 1 and "못 보는 것" in 난것[0]
+
+
+def test_건너뛰지도_판정하지도_않으면_막는다():
+    난것 = cs.check_scope_declared(_아무것도)
+    assert len(난것) == 1 and "판정도 안 한다" in 난것[0]

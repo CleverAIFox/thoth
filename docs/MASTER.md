@@ -267,12 +267,12 @@ bash tools/build_proposal.sh     # 잠금 · 그림 셋 · docx · 자물쇠 · 
 | 갈래 | 자리 | 보나 |
 |---|---|---|
 | 도구 <!--count:skip_tool-->11곳 | 그 칸에서 `command -v <도구>` 를 묻는다 | **본다** |
-| 범위 <!--count:skip_scope-->8곳 | `$SCOPE` 로 갈린다 | **본다** |
-| 조건 <!--count:skip_cond-->20곳 | 모양이 여섯 가지 | **안 본다** — 하나를 고르면 맞는 코드를 비틀게 된다 |
+| 범위 <!--count:skip_scope-->7곳 | `$SCOPE` 로 갈린다 | **본다** |
+| 조건 <!--count:skip_cond-->22곳 | 모양이 여섯 가지 | **안 본다** — 하나를 고르면 맞는 코드를 비틀게 된다 |
 | 빚 <!--count:skip_debt-->1곳 | 감싼 것이 없다(무조건이 맞다) | PLAN·DECISIONS 인용을 이미 본다 |
 
-★ **<!--count:skip_seen-->19곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
-「<!--count:skip_all-->40곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
+★ **<!--count:skip_seen-->18곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
+「<!--count:skip_all-->41곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
 자리를 좁히고 그 자리를 적는다).
 
 ★ **이 수들은 글자가 아니라 주장이다**(DECISIONS §152). 2026-10-04 에 skip 하나를
@@ -1682,7 +1682,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->976건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->990건을 함께 돌린다.
 
 **등급이 셋이다.**
 
@@ -2320,7 +2320,8 @@ bash tools/tf.sh apply
 
 ★ **CI 는 이 시차를 못 본다.** 도장은 `.cache/` 에 있고 CI 는 clone 이라 언제나
 없다. CI 가 보려면 `terraform plan` 이 필요하고 그것은 §131 이 거둬들인 읽기 권한을
-되돌려 준다 — **표류를 보려고 비밀을 읽는 길을 다시 여는 것**이라 열지 않았다(PLAN #68).
+되돌려 준다 — **표류를 보려고 비밀을 읽는 길을 다시 여는 것**이라 열지 않았다.
+그 대신 **적용한 쪽이 적어 두는** 길로 갔다(DECISIONS §186 · §11-N).
 
 ★ **`doctor` 가 `fmt` 를 항상 보고 `validate` 는 `infra/.terraform` 이 있을 때만
 본다.** `validate` 는 `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다
@@ -2636,6 +2637,34 @@ bash tools/pairs_check.sh 2026-09-16
 
 봉인 — `tools/doctor.sh` · `tools/check_static.py` · `tools/bench_golden.py` · `infra/compute.tf` · `infra/analytics.tf`
   ★ 점검과 벤치, 그리고 그것이 보는 인프라.
+
+### 11-N. 인프라 적용 기록 — 도장이 **둘**이다
+
+| | 어디 | 무엇을 재나 | 누가 본다 |
+|---|---|---|---|
+| 로컬 도장 | `.cache/infra-applied` | `infra/` **전부**(`tfvars` · `backend.hcl` 포함) | `doctor`(기계) |
+| **커밋되는 도장** | `tools/infra_applied.json` | **git 이 추적하는 것만** | `doctor --repo` = **CI** |
+
+★ **CI 는 전체 지문을 재현할 수 없다**(DECISIONS §186). `terraform.tfvars` 가
+gitignore 라 clone 에 없고, 그 파일이 지문에 든다. 실측 : tfvars 없음 `a058eb6f…` ·
+있음 `48ff5f8f…`. 그래서 추적분만 따로 재어 **커밋한다** — CI 는 AWS 를 한 번도 안
+부르고 「올린 뒤로 `.tf` 가 바뀌었나」 를 본다.
+
+★ **`terraform plan` 으로 안 간 까닭이 셋이고 다 쟀다** — ① `-refresh=false` 는 실물을
+안 읽어 콘솔 표류를 못 본다 ② 실물을 읽으려면 `lambda:GetFunction` 이 들고 거기
+`WORKER_TOKEN` 이 평문이다(§131) ③ `tfvars` 가 없는 CI 의 plan 은 **없는 변경**이 떠서
+거짓 빨강이 된다.
+
+★ **이 눈의 사각을 초록 옆에 같이 찍는다** — `terraform.tfvars` · `backend.hcl` ·
+콘솔 실물 표류. 「이 눈이 통과했다」 와 「인프라가 실물과 같다」 는 다른 말이다(§59).
+
+★ **올린 뒤에는 `tools/infra_applied.json` 을 같이 커밋한다.** 안 하면 CI 가
+「안 올렸다」 로 본다 — 그 어긋남은 로컬 `doctor` 가 WARN 으로 **먼저** 말한다.
+
+---
+
+봉인 — `tools/lib/infra.sh` · `tools/tf.sh` · `tools/infra_applied.json` · `worker/tests/test_infra_stamp.py`
+  ★ 두 도장과 그 둘이 보는 것의 차이.
 
 ## 12. 접근 토큰
 

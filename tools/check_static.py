@@ -269,21 +269,39 @@ def scope_branches(text: str) -> list[int]:
             if re.search(r'"\$\{?SCOPE\}?"\s*(?:=|!=)\s*"--repo"', line.split("#", 1)[0])]
 
 
-def check_scope_declared() -> list[str]:
-    글 = (ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
+def check_scope_declared(글: str | None = None) -> list[str]:
+    """★ **글을 받을 수 있게 둔다**(DECISIONS §186). 실물 `doctor.sh` 만 읽으면
+    합성으로 먹일 수가 없고, 그러면 **이 검사의 가지를 아무도 안 민다** — 돌연변이
+    둘이 그 자리에서 살아남았다. 기본값은 그대로 실물이다."""
+    합성 = 글 is not None
+    글 = 글 if 합성 else (ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
     줄들 = 글.split("\n")
     자리 = scope_branches(글)
     fails = []
-    if len(자리) != SCOPE_BRANCHES:
+    if not 합성 and len(자리) != SCOPE_BRANCHES:
         fails.append(f"tools/doctor.sh 의 `--repo` 가지가 {len(자리)}개다 — 선언은 "
                      f"{SCOPE_BRANCHES}개다. **CI 밖이 늘었거나 줄었다.** "
                      f"사유를 적고 `check_static.py` 의 `SCOPE_BRANCHES` 를 같이 고친다")
-    # 각 가지가 세 줄 안에 사유 딸린 `skip` 을 내는가.
+    # 각 가지가 **둘 중 하나**를 하는가 — 사유 딸린 `skip` 이거나, **판정**이거나.
+    #
+    # ★ **처음엔 `skip` 만 받았다.** `--repo` 는 「CI 밖」 을 가르는 자리였으니 그
+    #   가지는 늘 건너뛰는 쪽이었다. 그런데 §186 이 **CI 가 보는 가지**를 하나
+    #   만들었다 — 인프라 적용 기록은 clone 만으로 판정할 수 있다. 규칙이 그것을
+    #   막고 있었고, **규칙이 늙은 것이지 코드가 틀린 것이 아니었다.**
+    # ★ **판정하는 가지에는 「이 눈 밖」 을 요구한다.** 「통과」 를 「맞다」 로 읽지
+    #   않게 **못 보는 것**을 같이 찍어야 한다(DECISIONS §59 · §186).
     for n in 자리:
         창 = "\n".join(줄들[n - 1:n + 3])
-        if not re.search(r'skip "[^"]*\(', 창):
-            fails.append(f"tools/doctor.sh:{n} `--repo` 가지가 사유 딸린 `skip` 을 안 낸다 — "
-                         f"CI 가 왜 이것을 안 보는지 아무 데도 안 적힌다")
+        넓은창 = "\n".join(줄들[n - 1:n + 30])
+        if re.search(r'skip "[^"]*\(', 창):
+            continue
+        if re.search(r'\b(ok|fail) "', 넓은창):
+            if "이 눈 밖" not in 넓은창:
+                fails.append(f"tools/doctor.sh:{n} `--repo` 가지가 판정은 하는데 **못 보는 것**을 "
+                             f"안 적는다 — 「이 눈 밖 : …」 을 초록 옆에 같이 찍는다")
+            continue
+        fails.append(f"tools/doctor.sh:{n} `--repo` 가지가 사유 딸린 `skip` 도 판정도 안 한다 — "
+                     f"CI 가 왜 이것을 안 보는지 아무 데도 안 적힌다")
     return fails
 
 

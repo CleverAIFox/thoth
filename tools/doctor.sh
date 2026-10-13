@@ -608,9 +608,37 @@ fi
 # ★ **CI 는 이것을 못 본다.** 도장은 `.cache/` 에 있고 CI 는 clone 이라 언제나
 #   없다. 올라갔는지를 CI 가 보려면 `terraform plan` 이 필요하고, 그러면 §131 이
 #   방금 거둬들인 읽기 권한을 되돌려 줘야 한다 — **표류를 보려고 비밀을 읽는 길을
-#   다시 여는 것**이라 열지 않았다(PLAN #68).
-if [ "$SCOPE" = "--repo" ]; then
-  skip "인프라 적용 시차 (기계 상태다)"
+#   다시 여는 것**이라 열지 않았다 — 그래서 열지 않고 **적용한 쪽이 적어 두는**
+#   길로 갔다(DECISIONS §186).
+if [ ! -d infra ]; then
+  : # 아래에서 말한다
+elif [ "$SCOPE" = "--repo" ]; then
+  # ★ **CI 도 이제 본다**(DECISIONS §186). 종전에는 통째로 SKIP 이었다 —
+  #   전체 지문은 `terraform.tfvars` 를 포함해서 **clone 이 재현할 수 없고**, 도장은
+  #   `.cache/` 라 clone 에 없다. 그래서 **추적분 지문**을 따로 내어 커밋해 둔다.
+  INFRA_TRACKED="$(infra_hash_tracked . 2>/dev/null)"
+  INFRA_PUB="$(infra_public_stamp .)"
+  if [ -z "$INFRA_TRACKED" ]; then
+    skip "infra/ 추적분 지문을 뜨지 못했다"
+  elif [ ! -f "$INFRA_PUB" ]; then
+    fail "인프라를 언제 올렸는지 적힌 것이 없다 — ${INFRA_PUB#./}"
+    echo "       bash tools/tf.sh apply   (바뀐 게 없으면 No changes 로 끝나고 도장만 찍힌다)"
+  else
+    INFRA_PUB_WAS="$(grep -o '"추적지문"[^"]*"[0-9a-f]*"' "$INFRA_PUB" | grep -o '[0-9a-f]\{16,\}')"
+    INFRA_PUB_WHEN="$(grep -o '"올린때"[^"]*"[^"]*"' "$INFRA_PUB" | sed 's/.*"\([^"]*\)"$/\1/')"
+    if [ -z "$INFRA_PUB_WAS" ]; then
+      skip "적용 기록을 읽지 못했다 — ${INFRA_PUB#./} 가 깨졌다"
+    elif [ "$INFRA_TRACKED" = "$INFRA_PUB_WAS" ]; then
+      ok "올린 뒤로 infra/ 의 추적 파일이 안 바뀌었다 ($INFRA_PUB_WHEN)"
+      # ★ **못 보는 것을 말한다**(§59). 이 눈은 추적 파일만 본다 — 변수 값이 바뀐 것도,
+      #   콘솔에서 손으로 바꾼 실물도 **안 보인다.** 「통과」 가 「맞다」 가 아니다.
+      echo "       이 눈 밖 : terraform.tfvars · backend.hcl (추적 안 됨) · 콘솔 실물 표류"
+    else
+      fail "infra/ 가 마지막 적용 기록 뒤로 바뀌었다 — 올린 것은 $INFRA_PUB_WHEN 것이다"
+      echo "       올렸으면 bash tools/tf.sh apply 를 돌리고 ${INFRA_PUB#./} 를 **같이 커밋한다**"
+      echo "       올린 지문 ${INFRA_PUB_WAS:0:12} · 지금 지문 ${INFRA_TRACKED:0:12}"
+    fi
+  fi
 elif [ ! -d infra ]; then
   : # 위에서 이미 말했다
 else
@@ -626,6 +654,16 @@ else
     INFRA_WHEN="$(cut -f2 < "$INFRA_STAMP")"
     if [ "$INFRA_NOW" = "$INFRA_WAS" ]; then
       ok "올라간 것이 지금 코드다 ($INFRA_WHEN)"
+      # ★ **커밋되는 도장이 따로 있다**(§186). 로컬 도장만 맞고 그것이 뒤처지면
+      #   **CI 에서만 빨개진다** — 그 어긋남을 여기서 먼저 말한다.
+      INFRA_PUB="$(infra_public_stamp .)"
+      INFRA_TRACKED="$(infra_hash_tracked . 2>/dev/null)"
+      if [ ! -f "$INFRA_PUB" ]; then
+        warn "커밋되는 적용 기록이 없다 — ${INFRA_PUB#./} (CI 는 이것만 본다)"
+      elif ! grep -q "$INFRA_TRACKED" "$INFRA_PUB"; then
+        warn "커밋되는 적용 기록이 뒤처졌다 — ${INFRA_PUB#./} 를 커밋했나"
+        echo "       bash tools/tf.sh apply   (No changes 로 끝나고 도장만 다시 찍힌다)"
+      fi
     else
       warn "infra/ 가 마지막 apply 뒤로 바뀌었다 — 올라간 것은 $INFRA_WHEN 것이다"
       echo "       bash tools/tf.sh plan   (비어 있으면 도장만 낡은 것이다)"

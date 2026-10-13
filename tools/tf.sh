@@ -80,9 +80,22 @@ terraform -chdir="$ROOT/infra" "$@" || RC=$?
 #   그때 도장을 찍으면 **올라가지 않은 것을 올라갔다고 적는다.** 도장이 없는 쪽이
 #   틀린 도장보다 낫다 — 없으면 `doctor` 가 "모른다" 고 말한다.
 if [ "$RC" = 0 ]; then
+  WHEN="$(date -Iseconds)"
   STAMP="$(infra_stamp "$ROOT")"
   mkdir -p "$(dirname "$STAMP")"
-  printf '%s\t%s\n' "$(infra_hash "$ROOT")" "$(date -Iseconds)" > "$STAMP"
+  printf '%s\t%s\n' "$(infra_hash "$ROOT")" "$WHEN" > "$STAMP"
   echo "적용 도장 : $(cut -c1-12 < "$STAMP") — doctor 가 이것을 지금 코드와 맞춰 본다" >&2
+
+  # ★ **커밋되는 도장을 같이 찍는다**(DECISIONS §186). 위 도장은
+  #   `.cache/` 라 **clone 에 없다** — 그래서 CI 는 이 눈을 못 가졌고, #126 의
+  #   인프라가 며칠 안 올라간 채 전부 초록이었다(§133). 추적분 지문만 적으면
+  #   CI 가 clone 만으로 다시 잴 수 있다.
+  # ★ **비밀이 아니다.** 추적 파일들의 해시 하나와 올린 때뿐이다 — tfvars 는
+  #   추적분에 안 들어가고, 전체 지문은 여기 **안 적는다**.
+  PUB="$(infra_public_stamp "$ROOT")"
+  printf '{\n  "_왜": "%s",\n  "추적지문": "%s",\n  "올린때": "%s"\n}\n' \
+    "tf.sh apply 가 찍는다. CI 는 clone 에서 infra_hash_tracked 를 다시 재어 맞춰 본다 — tfvars 와 실물 표류는 이 눈으로 못 본다(DECISIONS §186)" \
+    "$(infra_hash_tracked "$ROOT")" "$WHEN" > "$PUB"
+  echo "커밋할 도장 : ${PUB#"$ROOT"/} — **같이 커밋한다.** 안 하면 CI 가 「안 올렸다」 로 본다" >&2
 fi
 exit "$RC"

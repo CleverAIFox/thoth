@@ -7,6 +7,7 @@
   스스로 쓰는 파일마다 경고를 내고, 그 경고는 곧 안 읽힌다 — 음성 대조가 없으면
   "짖는가" 만 보고 넘어간다(DECISIONS §133).
 """
+import json
 import pathlib
 import subprocess
 
@@ -157,3 +158,136 @@ def test_해싱_앞에_정렬이_있다():
     assert 정렬 >= 0, "해싱 앞에 `LC_ALL=C sort -z` 가 없다 — 기계마다 지문이 갈린다"
     assert 정렬 < 해싱, "정렬이 해싱 뒤에 있다"
     assert "-print0" in 본문 and "sort -z" in 본문, "널 구분자가 한쪽에만 있다"
+
+# ── 186 : 커밋되는 적용 기록 ────────────────────────────────────────────────
+#
+# ★ **그 눈이 적용하는 기계에만 있었다.** 도장이 `.cache/` 라 clone 에 없고,
+#   전체 지문은 `terraform.tfvars` 를 포함해 **CI 가 재현할 수 없다**(§186).
+#   그래서 추적분 지문을 따로 내어 `tools/infra_applied.json` 으로 커밋한다.
+#
+# ★ **`plan` 으로 안 간 까닭 셋을 다 쟀다** — ① `-refresh=false` 는 실물을 안 읽어
+#   콘솔 표류를 못 본다 ② 읽으려면 `lambda:GetFunction` 이 들고 거기
+#   `WORKER_TOKEN` 이 평문이다(§131) ③ `tfvars` 없는 CI 의 plan 은 **없는 변경**이
+#   떠서 거짓 빨강이 된다.
+
+도장 = ROOT / "tools/infra_applied.json"
+
+
+def _쉘(명령: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["bash", "-c", f". {LIB}; {명령}"],
+                          cwd=ROOT, capture_output=True, text=True)
+
+
+def test_추적분_지문이_난다():
+    r = _쉘(f'infra_hash_tracked "{ROOT}"')
+    assert r.returncode == 0, r.stderr
+    assert len(r.stdout.strip()) == 64, r.stdout
+
+
+def test_추적_안_되는_파일은_추적분_지문에_안_든다(tmp_path):
+    # ★ **이것이 CI 가 잴 수 있다는 말의 전부다.** `terraform.tfvars` 가 들면
+    #   clone 에서는 영원히 다른 값이 나온다 — 그러면 커밋해 둘 수가 없다.
+    tf = ROOT / "infra/terraform.tfvars"
+    있었나 = tf.exists()
+    옛 = tf.read_bytes() if 있었나 else None
+    전 = _쉘(f'infra_hash_tracked "{ROOT}"').stdout.strip()
+    try:
+        tf.write_text('engine = "echo"\n', encoding="utf-8")
+        중 = _쉘(f'infra_hash_tracked "{ROOT}"').stdout.strip()
+        전체 = _쉘(f'infra_hash "{ROOT}"').stdout.strip()
+        tf.write_text('engine = "http"\n', encoding="utf-8")
+        후 = _쉘(f'infra_hash_tracked "{ROOT}"').stdout.strip()
+        전체2 = _쉘(f'infra_hash "{ROOT}"').stdout.strip()
+    finally:
+        if 있었나:
+            tf.write_bytes(옛)
+        else:
+            tf.unlink(missing_ok=True)
+    assert 전 == 중 == 후, "추적분 지문이 gitignore 된 파일을 보고 있다"
+    # ★ **전체 지문은 여전히 본다** — 그 눈을 약하게 만든 것이 아니다.
+    assert 전체 != 전체2, "전체 지문이 tfvars 변화를 못 본다 — 로컬 눈이 죽었다"
+
+
+def test_전체_지문과_추적분_지문은_다른_값이다():
+    a = _쉘(f'infra_hash "{ROOT}"').stdout.strip()
+    b = _쉘(f'infra_hash_tracked "{ROOT}"').stdout.strip()
+    assert a and b and a != b, "둘이 같으면 하나는 쓸모가 없다"
+
+
+def test_커밋되는_도장이_있고_지금_추적분과_같다():
+    assert 도장.is_file(), "커밋되는 적용 기록이 없다"
+    d = json.loads(도장.read_text(encoding="utf-8"))
+    지금 = _쉘(f'infra_hash_tracked "{ROOT}"').stdout.strip()
+    assert d["추적지문"] == 지금, (
+        "infra/ 의 추적 파일이 마지막 적용 기록과 다르다 — "
+        "올렸으면 tools/tf.sh apply 를 돌리고 이 파일을 같이 커밋한다")
+
+
+def test_도장이_못_보는_것을_적어_둔다():
+    # ★ **「통과」 가 「맞다」 가 아니다**(§59). 한계가 안 적혀 있으면 다음 사람이
+    #   이 초록을 「인프라가 실물과 같다」 로 읽는다.
+    글 = 도장.read_text(encoding="utf-8")
+    for 낱말 in ("tfvars", "표류", "못"):
+        assert 낱말 in 글, f"도장이 한계를 안 적는다 — `{낱말}` 이 없다"
+
+
+def test_도장에_비밀이_안_담긴다():
+    # ★ 담기는 것은 **해시 하나와 때**뿐이다. 전체 지문조차 안 적는다 — tfvars 가
+    #   바뀌었다는 사실까지 밖으로 낼 까닭이 없다.
+    d = json.loads(도장.read_text(encoding="utf-8"))
+    칸 = {k for k in d if not k.startswith("_")}
+    assert 칸 == {"추적지문", "올린때"}, f"적는 칸이 늘었다 : {칸}"
+    전체 = _쉘(f'infra_hash "{ROOT}"').stdout.strip()
+    assert 전체 not in 도장.read_text(encoding="utf-8"), "전체 지문을 적어 뒀다"
+
+
+def test_tf_가_두_도장을_다_찍는다():
+    글 = (ROOT / "tools/tf.sh").read_text(encoding="utf-8")
+    몸 = 글.split('if [ "$RC" = 0 ]; then')[1]
+    assert "infra_stamp" in 몸 and "infra_hash " in 몸.replace("infra_hash_tracked", "")
+    assert "infra_public_stamp" in 몸 and "infra_hash_tracked" in 몸
+    # ★ **부르는 것만으로는 안 찍힌다.** 추적분 지문을 적는 줄이 **그 자리로** 흘러야
+    #   한다 — `> /dev/null` 로 바꾸면 로컬은 멀쩡하고 **CI 만 빨개진다**(§186).
+    적는줄 = [l for l in 몸.split("\n") if "infra_hash_tracked" in l]
+    assert 적는줄, "추적분 지문을 적는 줄이 없다"
+    assert '"$WHEN" > "$PUB"' in 몸, (
+"추적분 지문이 도장 파일로 안 간다 — 적고도 버리면 CI 만 빨개진다")
+    # ★ **올리다 만 것은 안 적는다.** 두 도장 다 `RC = 0` 안에 있어야 한다.
+    밖 = 글.split('if [ "$RC" = 0 ]; then')[0]
+    assert "infra_public_stamp" not in 밖, "실패한 apply 뒤에도 도장을 찍는다"
+
+
+def test_doctor_가_두_범위에서_다_본다():
+    글 = (ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
+    assert "infra_hash_tracked" in 글, "doctor 가 추적분 지문을 안 본다"
+    # --repo(= CI) 범위에서 **SKIP 이 아니라 판정**이어야 한다
+    자리 = 글.index("infra_hash_tracked")
+    토막 = 글[자리 - 900:자리 + 1800]
+    assert "인프라 적용 시차 (기계 상태다)" not in 토막, "CI 범위가 아직 통째로 SKIP 이다"
+    assert "fail " in 토막, "CI 범위가 어긋남을 FAIL 로 안 낸다"
+
+
+def test_변수_이름이_ASCII_다():
+    # ★ **배시는 변수 이름에 한글을 안 받는다**(§123). `공개=...` 는 대입이 아니라
+    #   **명령**으로 읽히고 `bash -n` 은 그것을 문법 오류로 안 본다 — shellcheck 가
+    #   잡았다. 그 자리를 다시 만들지 않게 묻는다.
+    import re
+    for rel in ("tools/tf.sh", "tools/lib/infra.sh", "tools/doctor.sh"):
+        글 = (ROOT / rel).read_text(encoding="utf-8")
+        나쁜 = [l for l in 글.split("\n")
+               if re.match(r'^\s*[^\x00-\x7f][^\s=]*=[^=]', l)]
+        assert not 나쁜, f"{rel} 에 한글 변수 대입이 있다 : {나쁜[:2]}"
+
+
+def test_커밋되는_도장이_정말_커밋되는_자리에_있다():
+    # ★ **이 파일이 clone 에 없으면 전부 헛일이다.** 자리를 함수에 묻고, 그 자리가
+    #   **git 이 무시하지 않는 곳**인지 확인한다 — `.cache/` 로 돌아가면 CI 는 다시
+    #   눈을 잃고, 그런데도 로컬 검사는 통과한다(§186).
+    r = _쉘(f'infra_public_stamp "{ROOT}"')
+    자리 = pathlib.Path(r.stdout.strip())
+    assert 자리.is_file(), f"도장이 없다 : {자리}"
+    # ★ **묻는 것은 「무시되지 않음」 이지 「이미 추적됨」 이 아니다.** 패치를 막 붙인
+    #   나무에서는 아직 `git add` 전이라 추적되지 않는다 — 거기서 빨개지면 **고칠
+    #   것이 없는 빨강**이고, 그런 빨강은 검사를 끄게 만든다(§126).
+    무시 = subprocess.run(["git", "check-ignore", "-q", str(자리)], cwd=ROOT)
+    assert 무시.returncode != 0, f"도장 자리가 gitignore 다 — CI 가 못 본다 : {자리}"

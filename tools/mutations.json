@@ -1462,15 +1462,16 @@
       },
       {
         "이름": "차례를 안 맞춘다 — 같은 나무가 다른 지문을 낸다",
-        "전": "    | LC_ALL=C sort -z \\",
-        "후": "    | cat \\"
+        "전": "      -print0 \\\n    | LC_ALL=C sort -z \\",
+        "후": "      -print0 \\"
       },
       {
         "이름": "infra 가 없어도 성공으로 끝난다",
-        "전": "  [ -d \"$root/infra\" ] || return 1",
-        "후": "  [ -d \"$root/infra\" ] || return 0"
+        "전": "infra_hash(){\n  local root=\"${1:?infra_hash <저장소 뿌리>}\"\n  [ -d \"$root/infra\" ] || return 1",
+        "후": "infra_hash(){\n  local root=\"${1:?infra_hash <저장소 뿌리>}\""
       }
-    ]
+    ],
+    "_밖": "**2026-10-13** : `infra_hash_tracked` 가 같은 줄을 또 쓰게 되어 겨냥이 흐려졌다 — 앞뒤를 붙여 좁혔다(DECISIONS §186)."
   },
   "기준선지문": {
     "파일": "tools/bench_golden.py",
@@ -2226,6 +2227,79 @@
         "이름": "팝업 그림이 꼴을 안 본다",
         "전": "        \"extension/popup.css\",",
         "후": ""
+      }
+    ]
+  },
+  "적용기록": {
+    "_왜": "적용은 사람이 손으로 돌리고, 안 돌아도 아무도 모른다 — #126 의 인프라가 며칠을 안 올라간 채 전부 초록이었다(§133). 그 눈이 **적용하는 기계에만** 있었다(DECISIONS §186).",
+    "파일": "tools/lib/infra.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_infra_stamp.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "추적분 지문이 추적 안 되는 것까지 본다",
+        "전": "  ( cd \"$root\" && git ls-files -z -- infra 2>/dev/null \\",
+        "후": "  ( cd \"$root/infra\" && find . -type f -print0 \\"
+      },
+      {
+        "이름": "추적분 지문이 이름을 안 센다",
+        "전": "          printf '%s  %s\\n' \"$(git hash-object -- \"$f\")\" \"$f\"",
+        "후": "          printf '%s\\n' \"$(git hash-object -- \"$f\")\""
+      },
+      {
+        "이름": "전체 지문이 tfvars 를 안 본다",
+        "전": "  ( cd \"$root/infra\" && find . -type f \\\n      ! -path './.terraform/*' \\",
+        "후": "  ( cd \"$root/infra\" && find . -type f \\\n      ! -name '*.tfvars' ! -path './.terraform/*' \\"
+      },
+      {
+        "이름": "커밋되는 도장 자리를 .cache 로 되돌린다",
+        "전": "  printf '%s\\n' \"$root/tools/infra_applied.json\"",
+        "후": "  printf '%s\\n' \"$root/.cache/infra_applied.json\""
+      }
+    ]
+  },
+  "적용기록을찍는다": {
+    "_왜": "두 도장 중 하나만 찍히면 **CI 에서만 빨개진다** — 그 빨강은 「안 올렸다」 라고 말하는데 실제로는 올렸다. 틀린 말을 하는 관문은 꺼진다(§186).",
+    "파일": "tools/tf.sh",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_infra_stamp.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "커밋되는 도장을 안 찍는다",
+        "전": "\"$(infra_hash_tracked \"$ROOT\")\" \"$WHEN\" > \"$PUB\"",
+        "후": "\"$(infra_hash_tracked \"$ROOT\")\" \"$WHEN\" > /dev/null"
+      },
+      {
+        "이름": "실패한 apply 뒤에도 도장을 찍는다",
+        "전": "if [ \"$RC\" = 0 ]; then\n  WHEN=\"$(date -Iseconds)\"",
+        "후": "if true; then\n  WHEN=\"$(date -Iseconds)\""
+      }
+    ]
+  },
+  "판정하는범위가지": {
+    "_왜": "`--repo` 가지는 「CI 밖」 을 가르는 자리라 늘 `skip` 이었다. §186 이 **CI 가 보는 가지**를 처음 만들었고, 그 가지는 **못 보는 것을 같이 찍어야** 한다 — 안 찍으면 다음 사람이 그 초록을 「인프라가 실물과 같다」 로 읽는다(§59).",
+    "파일": "tools/check_static.py",
+    "시험": [
+      "bash",
+      "-c",
+      "cd worker && uv run pytest -qx tests/test_check_static.py"
+    ],
+    "돌연변이": [
+      {
+        "이름": "판정하는 가지에 눈 밖을 안 묻는다",
+        "전": "            if \"이 눈 밖\" not in 넓은창:",
+        "후": "            if False:"
+      },
+      {
+        "이름": "판정도 skip 도 안 하는 가지를 흘린다",
+        "전": "        fails.append(f\"tools/doctor.sh:{n} `--repo` 가지가 사유 딸린 `skip` 도 판정도 안 한다 — \"",
+        "후": "        [].append(f\"tools/doctor.sh:{n} `--repo` 가지가 사유 딸린 `skip` 도 판정도 안 한다 — \""
       }
     ]
   }

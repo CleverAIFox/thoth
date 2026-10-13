@@ -1,0 +1,7 @@
+{
+  "_왜": "CI 가 clone 만으로 「올린 뒤로 infra/ 가 바뀌었나」 를 볼 수 있게 커밋한다(DECISIONS §186). 로컬 도장(.cache/infra-applied)은 terraform.tfvars 까지 포함한 전체 지문이라 clone 이 재현할 수 없다.",
+  "_눈밖": "terraform.tfvars · backend.hcl 은 추적되지 않아 이 지문에 안 든다. 콘솔에서 손으로 바꾼 실물 표류도 이 눈으로는 **못 쟀다** — 「통과」 가 「맞다」 가 아니다(DECISIONS §59).",
+  "_처음": "186 이 세울 때 손으로 적었다. 2026-10-13T15:58:59+09:00 의 apply 가 No changes 로 끝났고 그 뒤로 infra/ 의 추적 파일이 한 글자도 안 바뀌었다. 다음부터는 tools/tf.sh apply 만 이 파일을 쓴다.",
+  "추적지문": "3dbaf7a324e991d1bf92ca92659e336dbcb271148cf940e80bb733b17e4c5828",
+  "올린때": "2026-10-13T15:58:59+09:00"
+}
