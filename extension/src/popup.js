@@ -139,4 +139,32 @@ $("save").addEventListener("click", async () => {
   out.dataset.level = "good";
 });
 
+// ---------- 수집 장부 내보내기 ----------
+//
+// ★ **네트워크가 없다**(DECISIONS §183). 장부는 `chrome.storage.local` 에만 있고
+//   여기서 클립보드로 나간다 — 주 35건짜리에 워커와 DB 를 짓지 않는다(§133).
+// ★ **담긴 칸은 수뿐이다.** 글자도 경로도 안 담기므로 붙여 넣어도 새는 것이 없다.
+$("export").addEventListener("click", async () => {
+  const out = $("exported");
+  const s = await chrome.storage.local.get(["st수집"]);
+  const 장부 = Array.isArray(s.st수집) ? s.st수집 : [];
+  if (!장부.length) {
+    out.textContent = "아직 비었다";
+    out.dataset.level = "";
+    return;
+  }
+  const 글 = JSON.stringify(장부, null, 1);
+  try {
+    await navigator.clipboard.writeText(글);
+    out.textContent = `${장부.length}건 복사했다`;
+    out.dataset.level = "good";
+  } catch {
+    // ★ 클립보드가 막히는 자리가 있다. 조용히 지나가면 **눌렀는데 아무 일도 안 난
+    //   것처럼** 보인다 — 콘솔로라도 내보낸다.
+    console.info("[st] 수집 장부", 글);
+    out.textContent = "클립보드가 막혔다 — 콘솔에 냈다";
+    out.dataset.level = "warn";
+  }
+});
+
 load();

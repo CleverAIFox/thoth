@@ -1167,11 +1167,6 @@
         "후": "    if (길[i].폭 >= globalThis.ST.최소폭) return { 자리: i, 꼴: \"형제\" };\n  }\n  return { 자리: 0, 꼴: \"형제\" };"
       },
       {
-        "이름": "li 를 행 경계에 넣는다",
-        "전": "globalThis.ST.행경계 = \"tr,[role=row]\";",
-        "후": "globalThis.ST.행경계 = \"tr,[role=row],li\";"
-      },
-      {
         "이름": "앵커의 폭을 레이아웃 물음으로 쓴다",
         "전": "  const 뿌리 = globalThis.document && globalThis.document.documentElement;\n  return !!뿌리 && 뿌리.clientWidth > 0;",
         "후": "  const 뿌리 = globalThis.document && globalThis.document.body;\n  return !!뿌리 && 뿌리.clientWidth > 0;"
@@ -1182,7 +1177,7 @@
         "후": "  if (false) return false;"
       }
     ],
-    "_밖": "`break` 는 **빠르기**이지 판정이 아니다. 지우면 행 위의 조상까지 `getComputedStyle` 을 읽지만, `고른다` 가 **가장 가까운 행**을 먼저 집으므로 답이 같다 — 표 안의 표에서도 `findIndex` 가 안쪽 행을 준다. **물릴 수 없는 줄은 선언한다**(DECISIONS §153)."
+    "_밖": "`break` 는 **빠르기**이지 판정이 아니다. 지우면 행 위의 조상까지 `getComputedStyle` 을 읽지만, `고른다` 가 **가장 가까운 행**을 먼저 집으므로 답이 같다 — 표 안의 표에서도 `findIndex` 가 안쪽 행을 준다. **물릴 수 없는 줄은 선언한다**(DECISIONS §153). **2026-10-12** : `li 를 행 경계에 넣는다` 를 여기서 뺐다 — 겨냥한 줄이 `지문.js` 로 옮겨 갔다. 그 몫은 `꼴지문` 이 든다(DECISIONS §183)."
   },
   "행중복": {
     "_왜": "한 행에 상자가 둘 떴다(§165). §160 이 막은 것은 조상-자손이고 이 둘은 형제다.",
@@ -2002,6 +1997,189 @@
         "이름": "생성기가 바뀐 것을 안 본다",
         "전": "   && git status --short -- docs/proposal 2>/dev/null | grep -q .; then",
         "후": "   && false; then"
+      }
+    ]
+  },
+  "꼴지문": {
+    "_왜": "거름망이 수를 재고 판을 낸다(§183). 틀리면 **아무것도 안 터지고** 장부만 쓸모없어진다 — 1주 뒤에야 안다.",
+    "파일": "extension/src/지문.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/collect.test.js tests/mount.test.js tests/adapters.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "꽂는 경계를 넓힌다",
+        "전": "  const 행경계 = \"tr,[role=row]\";",
+        "후": "  const 행경계 = \"li, tr, [role=row], article\";"
+      },
+      {
+        "이름": "덮임 경계를 꽂는 경계로 좁힌다",
+        "전": "  const 덮임경계 = \"li, tr, [role=row], article\";",
+        "후": "  const 덮임경계 = 행경계;"
+      },
+      {
+        "이름": "문턱을 안 본다",
+        "전": "    return 구조태그.filter((t) => (m[t] || 0) >= 문턱).join(\",\");",
+        "후": "    return 구조태그.filter((t) => (m[t] || 0) >= 0).join(\",\");"
+      },
+      {
+        "이름": "구조 밖 태그까지 지문에 넣는다",
+        "전": "    return 구조태그.filter((t) => (m[t] || 0) >= 문턱).join(\",\");",
+        "후": "    return Object.keys(m).filter((t) => (m[t] || 0) >= 문턱).sort().join(\",\");"
+      },
+      {
+        "이름": "덮인 자리도 모은다",
+        "전": "    if (덮였나) return { 모은다: false, 왜: \"덮였다\" };",
+        "후": "    if (false) return { 모은다: false, 왜: \"덮였다\" };"
+      },
+      {
+        "이름": "얇은 페이지도 모은다",
+        "전": "    if (div < 최소div) return { 모은다: false, 왜: `얇다(div ${div})` };",
+        "후": "    if (false) return { 모은다: false, 왜: `얇다(div ${div})` };"
+      },
+      {
+        "이름": "안 모으는 두 까닭을 한 말로 뭉갠다",
+        "전": "    if (div < 최소div) return { 모은다: false, 왜: `얇다(div ${div})` };",
+        "후": "    if (div < 최소div) return { 모은다: false, 왜: \"덮였다\" };"
+      }
+    ],
+    "_밖": "`지문.js` 를 **싣는 순서**는 `background.js` 의 `ST_FILES` 에 있어 겨냥 파일이 다르다 — 그 한 건은 `싣는순서` 선언이 든다(DECISIONS §183)."
+  },
+  "수집장부": {
+    "_왜": "장부에 **경로나 글자가 새면** 붙여 넣는 순간 나간다(§131 과 같은 결). 상한이 풀리면 그가 읽을 수 없는 양이 쌓인다(§183).",
+    "파일": "extension/src/broker.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/collect.test.js tests/broker.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "하루 상한을 안 본다",
+        "전": "    if (장부.filter((x) => x.날 === 오늘).length >= 하루상한) {",
+        "후": "    if (false) {"
+      },
+      {
+        "이름": "어제 것까지 오늘로 센다",
+        "전": "    if (장부.filter((x) => x.날 === 오늘).length >= 하루상한) {",
+        "후": "    if (장부.length >= 하루상한) {"
+      },
+      {
+        "이름": "같은 꼴을 또 쌓는다",
+        "전": "    if (장부.some((x) => x.지문 === rec.지문)) return { 쌓음: false, 왜: \"같은 꼴\" };",
+        "후": "    if (false) return { 쌓음: false, 왜: \"같은 꼴\" };"
+      },
+      {
+        "이름": "장부가 끝없이 자란다",
+        "전": "    while (장부.length > 장부최대) 장부.shift();",
+        "후": "    while (false) 장부.shift();"
+      },
+      {
+        "이름": "거름망을 안 보고 다 쌓는다",
+        "전": "    if (판.모은다) {",
+        "후": "    if (true) {"
+      },
+      {
+        "이름": "담을 칸 선언만 넓힌다",
+        "전": "  const 담을칸 = [\"k\", \"v\", \"site\", \"adapter\", \"단위\", \"글자\", \"행안\", \"div\",\n                  \"지문\", \"모은다\", \"왜\", \"날\"];",
+        "후": "  const 담을칸 = [\"k\", \"v\", \"site\", \"adapter\", \"단위\", \"글자\", \"행안\", \"div\",\n                  \"지문\", \"모은다\", \"왜\", \"날\", \"길\"];"
+      },
+      {
+        "이름": "같은 페이지를 순회마다 다시 센다",
+        "전": "    if (key === 수집키) return null;",
+        "후": "    if (false) return null;"
+      },
+      {
+        "이름": "호스트 대신 주소 전체를 담는다",
+        "전": "      v: 2,\n      site: location.hostname,",
+        "후": "      v: 2,\n      site: location.href,"
+      }
+    ]
+  },
+  "싣는순서": {
+    "_왜": "`cssaudit.js` 의 글자 울타리(`|| \"tr,[role=row]\"`)를 치우자 **순서가 계약이 됐다.** 어긋나면 `행경계` 가 `undefined` 로 굳는다 — 종전에는 순서가 틀려도 옛 값으로 조용히 돌았다(§91 · §183).",
+    "파일": "extension/src/background.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/collect.test.js tests/node.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "지문.js 를 cssaudit 보다 뒤에 싣는다",
+        "전": "const ST_FILES = [\"src/config.local.js\",\"src/지문.js\",\"src/adapters/generic.js\",\"src/adapters/standard.js\",\"src/adapters/udemy.js\",\"src/client.js\",\"src/cssaudit.js\",\"src/broker.js\"];",
+        "후": "const ST_FILES = [\"src/config.local.js\",\"src/adapters/generic.js\",\"src/adapters/standard.js\",\"src/adapters/udemy.js\",\"src/client.js\",\"src/cssaudit.js\",\"src/지문.js\",\"src/broker.js\"];"
+      }
+    ]
+  },
+  "끊는자리2": {
+    "_왜": "§177 이 문을 순회 **입구**에만 달았다. 들어온 뒤에 끄면 남은 묶음이 끝까지 워커로 나갔다 — 쟀더니 **6건 중 5건**이 끈 뒤였다(DECISIONS §184). 돈이다.",
+    "파일": "extension/src/broker.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test tests/mode.test.js tests/broker.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "순회 한가운데서는 끔을 안 본다",
+        "전": "        if (번역끔) { batch.forEach(거둔다); continue; }",
+        "후": "        if (false) { batch.forEach(거둔다); continue; }"
+      },
+      {
+        "이름": "거두면서 재시도 횟수를 센다",
+        "전": "        if (번역끔) { batch.forEach(거둔다); continue; }",
+        "후": "        if (번역끔) { batch.forEach((u) => drop(u, false)); continue; }"
+      },
+      {
+        "이름": "거두면서 그 자리를 아예 버린다",
+        "전": "        if (번역끔) { batch.forEach(거둔다); continue; }",
+        "후": "        if (번역끔) { batch.forEach((u) => drop(u, true)); continue; }"
+      },
+      {
+        "이름": "거두고도 끝난 표시를 남긴다",
+        "전": "    delete u.el.dataset.stDone;\n  };\n\n  // 상한에 걸렸거나",
+        "후": "    void u;\n  };\n\n  // 상한에 걸렸거나"
+      }
+    ]
+  },
+  "멈춤이참말이다": {
+    "_왜": "검사 틀이 **싣는 동안에만** 타이머를 가로채서, 뒤에 난 타이머와 관찰자를 `stop()` 이 못 껐다. 그 브로커가 다음 검사의 문서를 옛 어댑터로 훑어 `배치 기본값` 이 부하에서만 깨졌다(DECISIONS §184).",
+    "파일": "extension/tests/harness.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test --test-force-exit --test-name-pattern \"참말이다\" tests/broker.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "실은 뒤 바로 진짜 타이머로 되돌린다",
+        "전": "  return {\n    stop() {\n      const 껐다 = timers.length;",
+        "후": "  globalThis.setInterval = realSI;\n  globalThis.setTimeout = realST;\n  return {\n    stop() {\n      const 껐다 = timers.length;"
+      },
+      {
+        "이름": "관찰자 가로채기를 아예 안 깐다",
+        "전": "  if (realMO) {\n    globalThis.MutationObserver = class extends realMO {",
+        "후": "  if (false) {\n    globalThis.MutationObserver = class extends realMO {"
+      }
+    ],
+    "_밖": "가로채기를 **브로커 뒤로 옮기는** 돌연변이는 선언하지 않는다 — 줄을 통째로 옮기는 것이라 `전/후` 한 쌍으로 겨냥할 수가 없다. 그 자리는 `관찰자 >= 1` 단언이 **같은 뜻으로** 붙든다(안 깔거나 늦게 깔면 둘 다 0 이다). **`--test-force-exit` 를 쓴다.** 이 돌연변이는 가로채기를 일찍 풀어 브로커의 주기를 **아무도 못 끄게** 만든다 — 단언은 즉시 터지는데 러너가 안 끝나서 관문이 **타임아웃**으로 본다. 타임아웃은 「물렸다」 도 「살아남았다」 도 아니다(§59). 강제 종료로 그 둘을 가른다."
+  },
+  "멈춤이끊는다": {
+    "_왜": "타이머만 끄는 것은 「끈 척」 이다. 관찰자가 살아 있으면 DOM 이 바뀔 때마다 주기를 **되살린다**(DECISIONS §184).",
+    "파일": "extension/tests/harness.js",
+    "시험": [
+      "bash",
+      "-c",
+      "cd extension && node --test --test-name-pattern \"멈춘 브로커\" tests/broker.test.js"
+    ],
+    "돌연변이": [
+      {
+        "이름": "관찰자를 안 끊는다",
+        "전": "      for (const o of 관찰자) { try { o.disconnect(); } catch { /* 이미 죽었다 */ } }",
+        "후": "      for (const o of []) { try { o.disconnect(); } catch { /* 이미 죽었다 */ } }"
       }
     ]
   }

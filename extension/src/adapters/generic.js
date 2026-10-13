@@ -199,7 +199,7 @@ globalThis.ST.genericCollect = function (root, opts) {
 // ★ **밖 — 행이 없으면 아무것도 안 버린다.** 문서 본문에서 같은 문장이 두 번 나오는 것은
 //   정상이고, 그것까지 지우면 **글이 사라진다.** 행이라는 울타리 안에서만 묻는다.
 globalThis.ST.행안의포함을_뺀다 = function (units) {
-  const 행경계 = globalThis.ST.행경계 || "tr,[role=row]";
+  const 행경계 = globalThis.ST.행경계 || globalThis.ST.꼴?.행경계;
   const 납작 = (s) => s.replace(/\s+/g, " ").trim();
   const 행 = units.map((u) => (typeof u.el.closest === "function" ? u.el.closest(행경계) : null));
   const 버린다 = new Set();
@@ -228,7 +228,7 @@ globalThis.ST.행안의포함을_뺀다 = function (units) {
  *   보인다.** 행에 상자가 이미 섰는지는 **DOM 이 순회를 넘어 들고 있는 사실**이다.
  */
 globalThis.ST.한행에하나 = function (units) {
-  const 행경계 = globalThis.ST.행경계 || "tr,[role=row]";
+  const 행경계 = globalThis.ST.행경계 || globalThis.ST.꼴?.행경계;
   const 찬행 = new Set();
   const out = [];
   for (const u of units) {

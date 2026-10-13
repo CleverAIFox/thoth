@@ -307,6 +307,16 @@
     if (n >= MAX_RETRY) u.el.dataset.stFail = "1";
   };
 
+  // ★ **끔은 실패가 아니다**(DECISIONS §184). 자리만 거두고 **횟수를 안 센다** —
+  //   `drop(u, false)` 를 쓰면 끄는 것만으로 `stRetry` 가 올라 **몇 번 끄면 그 자리가
+  //   영영 `stFail`** 이 된다. `drop(u, true)` 는 그 자리를 이 세션에서 아예 버린다.
+  //   둘 다 「다시 켜면 번역된다」 를 깬다.
+  const 거둔다 = (u) => {
+    u.node.remove();
+    u.줄?.remove();
+    delete u.el.dataset.stDone;
+  };
+
   // 상한에 걸렸거나 엔드포인트가 틀린 상태에서 순회를 계속하는 것은 의미가 없다.
   let halted = "";
   let observer = null;
@@ -448,29 +458,87 @@
   //   칸을 영구히 들고 간다. 지금 세는 것은 **수집 경로가 살아 있다는 것**뿐이고,
   //   **네트워크로는 한 바이트도 안 나간다.**
   const 수집최대 = 20;
+  const 하루상한 = 5;        // ★ 1주 돌려 네가 직접 읽을 양이다 — 최대 35건
+  const 장부최대 = 200;
   ST.수집 = [];
   let 수집키 = "";
+
+  // ★ **태그 세기는 한 판에 한 번뿐이다.** 문서 전체를 훑으므로 순회마다 돌리면
+  //   느리다 — 중복 열쇠가 걸러진 **뒤**에만 부른다.
+  const 태그개수 = () => {
+    const m = Object.create(null);
+    for (const el of document.querySelectorAll("*")) {
+      const t = (el.tagName || "").toLowerCase();
+      if (t) m[t] = (m[t] || 0) + 1;
+    }
+    return m;
+  };
+
+  // ★ **밖으로 나가는 것은 수뿐이다**(DECISIONS §183). 글자도 경로도 안 담는다 —
+  //   `site` 는 `hostname` 이고 `지문` 은 태그 이름 목록이다. 그 약속을
+  //   `extension/tests/collect.test.js` 의 `test_장부에_담기는_칸이 선언된 것뿐이다`
+  //   가 **칸 이름으로** 붙든다.
+  const 담을칸 = ["k", "v", "site", "adapter", "단위", "글자", "행안", "div",
+                  "지문", "모은다", "왜", "날"];
+
+  /** 장부에 쌓는다. **저장소만 쓴다 — 네트워크가 없다.** */
+  const 쌓는다 = async (rec) => {
+    if (!globalThis.chrome?.storage?.local) return { 쌓음: false, 왜: "저장소 없음" };
+    const 오늘 = new Date().toISOString().slice(0, 10);
+    const s = await chrome.storage.local.get(["st수집"]);
+    const 장부 = Array.isArray(s.st수집) ? s.st수집 : [];
+    // ★ **상한이 거름망보다 뒤에 선다.** 거름망은 「볼 가치가 있나」 고 상한은
+    //   「오늘 얼마나 볼 수 있나」 다 — 둘을 하나로 묶으면 둘 다 못 조정한다.
+    if (장부.filter((x) => x.날 === 오늘).length >= 하루상한) {
+      return { 쌓음: false, 왜: "하루 상한" };
+    }
+    // ★ **같은 꼴은 한 번만.** 같은 사이트를 열 번 봐도 배우는 것은 한 번이다 —
+    //   2026-10-12 측정에서 꼴 하나당 평균 4.1 페이지였다(§183).
+    if (장부.some((x) => x.지문 === rec.지문)) return { 쌓음: false, 왜: "같은 꼴" };
+    장부.push({ ...rec, 날: 오늘 });
+    while (장부.length > 장부최대) 장부.shift();
+    await chrome.storage.local.set({ st수집: 장부 });
+    return { 쌓음: true, 왜: "" };
+  };
+
   const 수집만한다 = (units, ad) => {
-    const 경계 = ST.행경계 || "tr,[role=row]";
+    // ★ **수집은 `덮임경계` 로 묻는다 — 꽂는 자리와 다른 질문이다**(§183).
+    const 경계 = ST.꼴.덮임경계;
+    const 행안 = units.filter((u) => typeof u.el.closest === "function"
+                                     && u.el.closest(경계)).length;
+    // 같은 페이지 · 같은 수면 다시 싣지 않는다. 순회는 수십 번 돈다(§102 와 같은 꼴).
+    // ★ `pageUrl` 은 **이 비교에만** 쓰고 어디에도 안 담는다(§183 · §131 과 같은 결).
+    const key = [ST.pageUrl(), units.length, 행안].join("|");
+    if (key === 수집키) return null;
+    수집키 = key;
+
+    const 개수 = 태그개수();
+    const 판 = ST.꼴.모을까(개수, 행안 > 0);
     const rec = {
       k: "col",
-      v: 1,
+      v: 2,
       site: location.hostname,
       adapter: ad.name,
       단위: units.length,
       글자: units.reduce((n, u) => n + u.text.length, 0),
-      행안: units.filter((u) => typeof u.el.closest === "function"
-                                && u.el.closest(경계)).length,
+      행안,
+      div: 개수.div || 0,
+      지문: ST.꼴.지문(개수),
+      모은다: 판.모은다,
+      왜: 판.왜,
     };
-    // 같은 페이지 · 같은 수면 다시 싣지 않는다. 순회는 수십 번 돈다(§102 와 같은 꼴).
-    const key = [ST.pageUrl(), rec.단위, rec.글자].join("|");
-    if (key === 수집키) return null;
-    수집키 = key;
     ST.수집.push(rec);
     if (ST.수집.length > 수집최대) ST.수집.shift();
     console.info("[st] 수집만", rec);
+    if (판.모은다) {
+      쌓는다(rec).then((r) => {
+        if (r.쌓음) console.info("[st] 장부에 담았다", rec.지문);
+        else console.info("[st] 안 담았다 —", r.왜);
+      });
+    }
     return rec;
   };
+  ST.담을칸 = 담을칸;
 
   let idle = 0;            // 연속으로 아무것도 못 찾은 순회 수
   let relaxed = false;     // 주기를 이미 늘렸는가
@@ -608,6 +676,11 @@
     for (const list of groups.values()) {
       for (const batch of chunk(list, MAX_BATCH)) {
         if (halted) { batch.forEach((u) => drop(u, true)); continue; }
+        // ★ **②. 여기도 끊는 자리다**(DECISIONS §184). §177 이 ①을 순회 **입구**에
+        //   달았는데, 들어온 뒤에 끄면 **남은 묶음이 끝까지 워커로 나갔다** — 쟀더니
+        //   그룹 셋짜리 페이지에서 **6건 중 5건이 끈 뒤에** 나갔다. 「껐다」 가
+        //   「안 끈다」 인 자리는 §177 과 **같은 병이고 같은 돈**이다.
+        if (번역끔) { batch.forEach(거둔다); continue; }
         try {
           const { translations: out, partial } = await ST.translate(
             batch.map((u) => u.body), { site: location.hostname, adapter: ad.name });

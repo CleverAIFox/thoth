@@ -104,6 +104,91 @@ test("끄면 새 글이 들어와도 요청이 안 나간다", need, async () =>
   } finally { b.stop(); }
 });
 
+test("순회 한가운데서 꺼도 남은 묶음이 안 나간다", need, async () => {
+  // ★ **§177 이 문을 입구에만 달았다.** 끊는 자리 ①은 순회 **들머리**에 있어서,
+  //   들어온 뒤에 끄면 남은 묶음이 **끝까지** 워커로 나갔다 — 2026-10-12 에 재니
+  //   그룹 셋짜리 한 페이지에서 **6건 중 5건이 끈 뒤**였다(DECISIONS §184).
+  // ★ **재는 것은 「클래스가 붙었나」 가 아니라 「요청이 몇 번 나갔나」 다** — 이
+  //   파일의 머리말이 §177 에서 그렇게 적어 놨고, 그 자리가 하나 더 있었다.
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome } = harness;
+  await loadAdapters(["generic", "standard"]);
+  // 그룹 셋 × 보기 넷 ⇒ 한 순회가 요청을 여러 번 낸다. 하나면 잴 수가 없다.
+  let html = "";
+  for (let g = 0; g < 3; g++) {
+    html += '<div role="radiogroup">';
+    for (let i = 0; i < 4; i++)
+      html += `<div role="radio">Group ${g} option ${i} ${글}</div>`;
+    html += "</div>";
+  }
+  makeDoc(html);
+  const c = fakeChrome({ stOff: false });
+  globalThis.chrome = c.api;
+
+  const 부름 = [];
+  let 껐나 = false;
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    부름.push({ 끈뒤: 껐나 });
+    // ★ **첫 요청이 나간 직후에 끈다** — 팝업·Alt+K 와 **같은 길**(저장소)로 끈다.
+    if (부름.length === 1) { 껐나 = true; await c.api.storage.local.set({ stOff: true }); }
+    await new Promise((r) => setTimeout(r, 120));        // 워커가 느린 척
+    return { ok: true, status: 200,
+             json: async () => ({ translations: body.texts.map(() => "echo") }) };
+  };
+  const b = await loadBroker();
+  try {
+    await new Promise((r) => setTimeout(r, 3000));
+    const 샌것 = 부름.filter((x) => x.끈뒤).length;
+    assert.equal(샌것, 0, `끈 뒤에 ${샌것}건이 워커로 나갔다 (전체 ${부름.length}건)`);
+    assert.ok(부름.length >= 1, "켠 상태를 못 만들었다 — 재는 것이 없다");
+  } finally { b.stop(); }
+});
+
+test("끄느라 거둔 자리는 다시 켜면 번역된다", need, async () => {
+  // ★ **끔은 실패가 아니다.** 거두는 자리에 `drop(u, false)` 를 쓰면 `stRetry` 가
+  //   올라 **몇 번 끄면 그 자리가 영영 `stFail`** 이 되고, `drop(u, true)` 는 한 번에
+  //   버린다. 둘 다 조용하다 — **다시 켰을 때 거기만 안 되는** 꼴로만 드러난다.
+  // ★ 그래서 **글자로 묻지 않고 돌려서 묻는다.** 처음 판은 `거둔다` 의 몸만 봤고,
+  //   **호출부를 `drop` 으로 바꾼 돌연변이가 둘 다 살아남았다**(§184).
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome } = harness;
+  await loadAdapters(["generic", "standard"]);
+  let html = "";
+  for (let g = 0; g < 3; g++) {
+    html += '<div role="radiogroup">';
+    for (let i = 0; i < 4; i++)
+      html += `<div role="radio">Group ${g} option ${i} ${글}</div>`;
+    html += "</div>";
+  }
+  const doc = makeDoc(html);
+  const c = fakeChrome({ stOff: false });
+  globalThis.chrome = c.api;
+
+  let 껐나 = false;
+  const 보낸글 = [];
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    body.texts.forEach((t) => 보낸글.push(t));
+    if (!껐나) { 껐나 = true; await c.api.storage.local.set({ stOff: true }); }
+    await new Promise((r) => setTimeout(r, 60));
+    return { ok: true, status: 200,
+             json: async () => ({ translations: body.texts.map(() => "echo") }) };
+  };
+  const b = await loadBroker();
+  try {
+    await new Promise((r) => setTimeout(r, 2500));     // 끈 채로 한참 돈다
+    await c.api.storage.local.set({ stOff: false });   // **다시 켠다**
+    await new Promise((r) => setTimeout(r, 4000));
+
+    const 버린것 = doc.querySelectorAll("[data-st-fail]").length;
+    assert.equal(버린것, 0, `끄기만 했는데 자리 ${버린것}개가 버려졌다`);
+    const 센것 = [...doc.querySelectorAll("[data-st-retry]")]
+      .map((el) => el.dataset.stRetry);
+    assert.deepEqual(센것, [], `끄기를 실패로 세어 재시도가 ${센것} 쌓였다`);
+    assert.equal(보낸글.length, 12,
+                 `다시 켠 뒤에도 안 나간 자리가 있다 — 보낸 글 ${보낸글.length}/12`);
+  } finally { b.stop(); }
+});
+
 test("Alt+K 가 저장소를 거쳐 적용된다", need, async () => {
   // ★ **길을 하나로 둔다**(DECISIONS §173). 쓰기는 저장소에만, 적용은 `onChanged`
   //   에서만 한다 — 그래야 팝업에서 눌러도 **같은 한 길**이다.

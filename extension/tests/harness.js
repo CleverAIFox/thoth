@@ -40,6 +40,11 @@ export async function loadAdapters(names) {
   const here = dirname(fileURLToPath(import.meta.url));
 
   globalThis.ST = { adapters: [] };
+  // ★ **어댑터만 실으면 모자란다**(2026-10-12). `generic.js` 는 행 경계를 제 안에
+  //   글자로 들고 있지 않고 `지문.js` 가 세운 `ST.꼴` 에서 읽는다 — 안 실으면
+  //   `closest(undefined)` 가 **던진다.** 배경도 `지문.js` 를 어댑터보다 **먼저**
+  //   싣는다(`ST_FILES` 의 순서). 그 순서를 여기서도 지킨다.
+  new Function(readFileSync(join(here, "..", "src", "지문.js"), "utf8"))();
   for (const n of names) {
     const src = readFileSync(join(here, "..", "src", "adapters", `${n}.js`), "utf8");
     // 어댑터는 콘텐츠 스크립트라 모듈이 아니다. 그대로 평가한다 —
@@ -215,6 +220,15 @@ export const BROKER_FILES = (() => {
 export async function loadBroker(손질 = null) {
   const here = dirname(fileURLToPath(import.meta.url));
   const timers = [];
+  // ★ **싣기 전에 깐다.** 브로커는 **올라가는 줄에서** 관찰자를 만든다 — 뒤에 깔면
+  //   **그 하나를 못 잡고**, 그러면 DOM 이 바뀔 때마다 주기가 되살아난다.
+  const realMO = globalThis.MutationObserver;
+  const 관찰자 = [];
+  if (realMO) {
+    globalThis.MutationObserver = class extends realMO {
+      constructor(fn) { super(fn); 관찰자.push(this); }
+    };
+  }
   const realSI = globalThis.setInterval;
   const realST = globalThis.setTimeout;
   globalThis.setInterval = (fn, ms) => { const t = realSI(fn, ms); timers.push(t); return t; };
@@ -235,12 +249,31 @@ export async function loadBroker(손질 = null) {
     new Function(readFileSync(join(here, "..", "src", `${n}.js`), "utf8"))();
   }
 
-  globalThis.setInterval = realSI;
-  globalThis.setTimeout = realST;
+  // ★ **싣는 동안만 가로채면 「멈췄다」 가 거짓말이 된다**(DECISIONS §184).
+  //   종전에는 여기서 진짜 타이머로 되돌렸다. 그런데 브로커는 **올라간 뒤에도**
+  //   타이머를 만든다 — `MutationObserver` 콜백이 주기를 되살리고(`broker.js` 의
+  //   `observer` 핸들러), 한가해지면 `POLL_MAX` 로 다시 건다. 그렇게 **나중에 난
+  //   타이머는 아무도 안 잡아서** `stop()` 이 못 끈다. 그 브로커는 다음 검사까지
+  //   살아서 **남의 문서를 제 어댑터로 훑는다** — 2026-10-12 에 `배치 기본값` 이
+  //   부하에서 깨진 원인이 그것이었다(`pick=generic ads=["generic"]`).
+  //
+  // ★ 그래서 **`stop()` 이 돌려놓는다.** 가로채기를 브로커가 사는 동안 유지한다.
   return {
     stop() {
+      const 껐다 = timers.length;
+      const 끊었다 = 관찰자.length;
       for (const t of timers) { clearInterval(t); clearTimeout(t); }
       timers.length = 0;
+      // ★ **관찰자도 끊는다.** 안 끊으면 DOM 이 바뀔 때마다 주기를 **되살린다** —
+      //   타이머만 끄는 것은 「끈 척」 이다.
+      for (const o of 관찰자) { try { o.disconnect(); } catch { /* 이미 죽었다 */ } }
+      관찰자.length = 0;
+      globalThis.setInterval = realSI;
+      globalThis.setTimeout = realST;
+      if (realMO) globalThis.MutationObserver = realMO;
+      // ★ **센 것을 돌려준다.** 「끊었다」 를 **시간으로** 물으면 부하가 있어야만
+      //   무는 가드가 된다 — 그런 가드는 CI 에서 조용하다(DECISIONS §184).
+      return { 타이머: 껐다, 관찰자: 끊었다 };
     },
   };
 }

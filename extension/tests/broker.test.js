@@ -329,3 +329,70 @@ test("배경이 섀도 CSS 를 ST_FILES 보다 먼저 밀어 넣는다", async (
   assert.ok(!열린것.includes("content.css"),
             "content.css 가 모든 사이트에 열려 있다 — 배경이 밀어 넣는 길로 간다");
 });
+
+test("멈춘 브로커는 정말 멈춘다 — 다음 판을 안 훑는다", need, async () => {
+  // ★ **검사 틀이 「멈췄다」 고 거짓말을 하고 있었다**(DECISIONS §184). 종전에는
+  //   **싣는 동안에만** 타이머를 가로채고 바로 진짜로 되돌렸다. 그런데 브로커는
+  //   올라간 뒤에도 타이머를 만든다 — `MutationObserver` 콜백이 주기를 되살리고,
+  //   한가해지면 `POLL_MAX` 로 다시 건다. 그렇게 **나중에 난 타이머는 아무도 안
+  //   잡아서** `stop()` 이 못 껐고, 그 브로커는 **다음 검사의 문서를 제 옛 어댑터로**
+  //   훑었다. 2026-10-12 에 `배치 기본값` 이 부하에서만 깨진 원인이 그것이고,
+  //   증거는 `pick=generic ads=["generic"]` 인데 문서에는 radiogroup 이 있던 것이다.
+  // ★ **「느려서 깨진다」 가 아니라 「안 멈춰서 깨진다」 였다** — 둘은 고치는 데가
+  //   다르다(§59). 상수를 늘렸으면 **덮고 지나갔다.**
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome, fakeFetch } = harness;
+  await loadAdapters(["generic"]);
+  const 본문 = "A whole sentence that is long enough to be collected here now.";
+  const doc = makeDoc(`<p>${본문}</p>`);
+  globalThis.chrome = fakeChrome({ stOff: false }).api;
+  const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
+  globalThis.fetch = f;
+  const b = await loadBroker();
+  await new Promise((r) => setTimeout(r, 2000));
+  const 전 = f.calls.length;
+  assert.ok(전 >= 1, "켠 상태를 못 만들었다 — 재는 것이 없다");
+
+  b.stop();
+
+  // ★ **멈춘 뒤에 DOM 을 휘젓는다.** 관찰자가 살아 있으면 주기를 되살리고 **새 글을
+  //   보낸다** — 「타이머만 껐다」 와 「정말 멈췄다」 를 가르는 유일한 자리다.
+  const p = (globalThis.document || doc).createElement("p");
+  p.textContent = `Another whole sentence after the stop call, also long enough.`;
+  (globalThis.document || doc).body.appendChild(p);
+  await new Promise((r) => setTimeout(r, 2500));
+
+  // ★ **재는 말을 정확히 적는다**(§59). `stop()` 은 **날아가던 순회**는 못 끊는다 —
+  //   그 순회는 이미 모은 유닛을 들고 있어 **남의 문서를 훑지는 않는다.** 깨뜨린
+  //   것은 그것이 아니라 **새 순회가 또 도는 것**이었다. 그러니 묻는 것은 「요청 수가
+  //   그대로냐」 가 아니라 **「멈춘 뒤에 들어온 글이 나갔느냐」** 다.
+  const 샌것 = f.calls.filter((c) => JSON.stringify(c.body).includes("after the stop call"));
+  assert.equal(샌것.length, 0, `멈춘 뒤에 들어온 글을 ${샌것.length}건 보냈다`);
+  assert.equal(doc.querySelectorAll(".st-translation").length, 전,
+               "멈춘 뒤에 상자를 더 꽂았다");
+});
+
+test("검사 틀의 「멈췄다」 가 참말이다", need, async () => {
+  // ★ **시간으로 묻지 않는다.** 앞 검사(「멈춘 브로커는 정말 멈춘다」)는 **부하가
+  //   있어야만** 샘이 드러난다 — 돌연변이를 먹여 보니 한가한 기계에서 둘이 **살아
+  //   남았다**(§184). 부하에서만 무는 가드는 CI 에서 조용하다.
+  // ★ 그래서 **계약을 바로 묻는다** : 싣는 동안만이 아니라 **브로커가 사는 동안**
+  //   가로채고 있는가 · 브로커의 관찰자를 **하나라도 잡았는가**.
+  const { loadAdapters, makeDoc, loadBroker, fakeChrome, fakeFetch } = harness;
+  await loadAdapters(["generic"]);
+  makeDoc("<p>A whole sentence that is long enough to be collected here now.</p>");
+  // ★ **문서를 세운 뒤에 집는다.** `makeDoc` 이 새 창의 `MutationObserver` 를
+  //   전역에 꽂으므로, 그 앞에서 집으면 **엉뚱한 것과 견준다.**
+  const 진짜SI = globalThis.setInterval;
+  const 진짜MO = globalThis.MutationObserver;
+  globalThis.chrome = fakeChrome({ stOff: true }).api;
+  globalThis.fetch = fakeFetch([]);
+  const b = await loadBroker();
+
+  assert.notEqual(globalThis.setInterval, 진짜SI,
+                  "실은 뒤 가로채기가 풀렸다 — 나중에 난 타이머를 아무도 안 잡는다");
+  const 센것 = b.stop();
+  assert.ok(센것.관찰자 >= 1,
+            "브로커의 관찰자를 하나도 못 잡았다 — 가로채기가 브로커보다 뒤에 깔렸다");
+  assert.equal(globalThis.setInterval, 진짜SI, "stop 이 타이머를 안 돌려놨다");
+  assert.equal(globalThis.MutationObserver, 진짜MO, "stop 이 관찰자를 안 돌려놨다");
+});

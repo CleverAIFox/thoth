@@ -16,6 +16,9 @@ import { fileURLToPath } from "node:url";
 
 const 뿌리 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 globalThis.ST = {};
+// ★ **배경과 같은 순서로 싣는다**(§173). `cssaudit.js` 는 행 경계를 제 안에 글자로
+//   들지 않고 `지문.js` 가 세운 `ST.꼴` 에서 읽는다 — 안 실으면 `undefined` 다.
+new Function(fs.readFileSync(path.join(뿌리, "src/지문.js"), "utf8"))();
 new Function(fs.readFileSync(path.join(뿌리, "src/cssaudit.js"), "utf8"))();
 const ST = globalThis.ST;
 
@@ -63,6 +66,11 @@ test("최소폭이 글자 수가 아니라 폭이다", () => {
 test("행 경계에 li 가 없다", () => {
   // ★ **오늘 잰 병만 고친다**(§133). 지메일은 `tr` 이고, `li` 까지 넣으면 Udemy 쪽
   //   자리가 같이 바뀐다. **안 보는 꼴이라고 적어 둔다** — 안 적으면 본다고 믿는다(§73).
+  // ★ **2026-10-12 — 그 「안 보는 꼴」 을 쟀다**(§183). HTTP Archive 로 보니 `li` 가
+  //   있는 페이지가 ~76%, `tr` 은 ~12% 였다. **그래도 여기는 안 바꿨다** — 쟀던 것은
+  //   「이 페이지 구조를 아는가」 이고 이 줄이 지키는 것은 **「상자를 어디에 꽂을까」**
+  //   다. 위 줄의 Udemy 위험은 아직 안 쟀다. 넓힌 쪽은 `ST.꼴.덮임경계` 로 따로 섰고
+  //   `collect.test.js` 의 「꽂는 경계는 안 넓혔다」 가 둘이 갈린 채임을 묻는다.
   assert.ok(!ST.행경계.includes("li"));
   assert.ok(ST.행경계.includes("tr") && ST.행경계.includes("[role=row]"));
 });
