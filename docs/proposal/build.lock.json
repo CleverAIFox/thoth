@@ -2,7 +2,7 @@
   "적는이": "docs/proposal/build.js",
   "판": "3.0",
   "생성기": {
-    "build.js": "77ccd59b41180c44",
+    "build.js": "24269cdffd495d5e",
     "html.js": "a7cab2e018c8d72a",
     "lib.js": "707deaf312ea70a6",
     "facts.js": "cb7ef4866d9106ce",
@@ -26,16 +26,13 @@
     "f_endings.png": "c37c832bb50d8e71",
     "f_engine.png": "147d53cc6757e49a",
     "f_erd.png": "709ca8c6844a27d0",
-    "f_gantt.png": "8bcb8549ea83aa02",
+    "f_gantt.png": "19d9031d69b4846e",
     "f_menu.png": "98648f560cbe5250",
     "f_popup.png": "ed5ca96a6421a2f7",
     "f_preview_a.png": "491690bce00d995e",
     "f_seq.png": "2db1e9731c5cf2d7",
     "f_seshat.png": "4fe93676794dd78a",
     "f_slot.png": "08f72cc616b33a14",
-    "f_usecase.png": "58f1ed4dbb688f9e",
-    "shot_popup_off.png": "319919bb0b4dadb5",
-    "shot_popup_on.png": "3895a3878e180769",
-    "shot_preview.png": "84be044dde7f720a"
+    "f_usecase.png": "58f1ed4dbb688f9e"
   }
 }

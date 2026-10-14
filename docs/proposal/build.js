@@ -75,10 +75,21 @@ const 자물쇠 = () => {
   //   관문을 따로 세우는 대신 **이미 추적되는 파일을 증인으로 세운다.**
   // ★ `.build/` 는 gitignore 라 없을 수 있다 — 없으면 `없다` 를 적는다. **빈 칸이 아니라
   //   「못 쟀다」 를 적는 것**이 §59 다.
+  // ★ **산출물에 실리는 것만 센다 — `f_` 로 시작하는 것들**(DECISIONS §191). 첫 판은
+  //   `.build/fig/*.png` 를 **전부** 셌는데, 거기엔 `shot_preview.png` · `shot_popup_on.png` ·
+  //   `shot_popup_off.png` 셋이 섞여 있다. 그 셋은 **기획서에 안 들어간다** — `shots.py` 가
+  //   `crop(y<2050)` 하고 `trim()` 해서 `f_preview_a` · `f_popup` 을 만든 뒤 버리는 **중간
+  //   산출물**이다. 그래서 **잘려 나가는 영역**이 브라우저 판에 따라 달라지면, 산출물은
+  //   한 바이트도 안 변했는데 자물쇠만 달라진다.
+  // ★ **2026-10-14 에 실제로 그렇게 됐다.** 크로미움 1243(내 기계)과 1248(그의 기계)에서
+  //   `proposal.docx` · `site/proposal.html` 이 **바이트까지 같았는데** 자물쇠만 갈렸다.
+  //   `f_` 19장의 지문 묶음은 양쪽이 `1cb0d107c9c7f024` 로 같았고, **다른 것은 저 셋뿐**이었다.
+  // ★ **짖을 일이 없는데 짖는 개는 곧 무시된다**(§126). 증인은 **산출물에 도달하는 것**이어야
+  //   한다 — 도달하지 않는 픽셀을 세면 관문이 아니라 소음이다.
   const 그림 = {};
   const 그림칸 = path.join(__dirname, ".build/fig");
   for (const f of fs.existsSync(그림칸) ? fs.readdirSync(그림칸).sort() : []) {
-    if (!f.endsWith(".png")) continue;
+    if (!f.endsWith(".png") || !f.startsWith("f_")) continue;
     그림[f] = crypto.createHash("sha256").update(fs.readFileSync(path.join(그림칸, f))).digest("hex").slice(0, 16);
   }
   fs.writeFileSync(path.join(__dirname, "build.lock.json"),

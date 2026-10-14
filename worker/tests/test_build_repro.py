@@ -103,22 +103,62 @@ def test_자물쇠가_그림_지문을_든다():
     것 = json.loads(자물쇠.read_text(encoding="utf-8"))
     그림 = 것.get("그림")
     assert 그림 != "없다", "자물쇠가 그림을 못 쟀다 — .build/fig 없이 구웠다"
-    assert isinstance(그림, dict) and len(그림) >= 20, 그림
+    assert isinstance(그림, dict) and len(그림) >= 19, 그림
     assert all(k.endswith(".png") for k in 그림), list(그림)[:3]
     assert all(re.fullmatch(r"[0-9a-f]{16}", v) for v in 그림.values())
 
 
-def test_자물쇠의_그림_지문이_실물과_같다():
-    # ★ **적힌 것과 있는 것을 견준다.** 둘이 갈라지면 적힌 쪽이 늙은 것이다(§91).
+def test_자물쇠가_중간_산출물을_안_센다():
+    # ★ **증인은 산출물에 도달하는 것이어야 한다**(DECISIONS §191). `shot_preview.png` ·
+    #   `shot_popup_on.png` · `shot_popup_off.png` 셋은 **기획서에 안 들어간다** —
+    #   `crop` 과 `trim` 으로 잘려 나가는 중간 산출물이다. 그 잘린 영역이 브라우저 판에
+    #   따라 달라지면, 산출물이 한 바이트도 안 변했는데 자물쇠만 갈린다.
+    # ★ **2026-10-14 에 실제로 그렇게 됐다.** 크로미움 1243 과 1248 에서 docx · html 이
+    #   바이트까지 같은데 자물쇠만 달랐고, 다른 것은 저 셋뿐이었다.
+    그림 = json.loads(자물쇠.read_text(encoding="utf-8")).get("그림")
+    assert isinstance(그림, dict), 그림
+    섞인것 = sorted(k for k in 그림 if not k.startswith("f_"))
+    assert 섞인것 == [], f"산출물에 안 실리는 그림을 센다 : {섞인것}"
+
+
+def _docx_그림지문() -> set[str]:
+    """`proposal.docx` 가 **실제로 품고 있는** 그림의 지문. 추적되는 파일만 읽는다.
+
+    ★ **`.build/fig` 를 보면 CI 에서 건너뛴다**(DECISIONS §192). 그 칸은 gitignore 라
+      clone 에 없고, 건너뛴 시험은 `doctor` 가 세는 `passed` 를 줄여 **문서 건수를
+      어긋나게** 한다 — `ci.yml` 이 §158 로 적어 둔 바로 그 함정이다.
+    ★ **그리고 docx 를 보는 쪽이 더 센 말이다.** 묻는 것은 「자물쇠가 **실린 것**을
+      적었나」 이고, 실린 것의 정본은 `.build/` 가 아니라 **산출물**이다. 재서 확인했다 —
+      `word/media/*` 가 `.build/fig/f_*.png` 와 **바이트까지 같다**(19/19).
+    """
     import hashlib
+    import zipfile
+    with zipfile.ZipFile(ROOT / "docs/proposal.docx") as z:
+        return {hashlib.sha256(z.read(n)).hexdigest()[:16]
+                for n in z.namelist() if n.startswith("word/media/")}
+
+
+def test_실린_그림이_빠짐없이_세어진다():
+    # ★ **좁히다가 빠뜨리면 관문이 조용해진다**(§59). `f_` 로 좁힌 것이 **실제로 기획서가
+    #   드는 그림 전부**인지 산출물과 맞춰 본다 — 한쪽만 늙으면 못 본다(§91).
+    적힌것 = json.loads(자물쇠.read_text(encoding="utf-8")).get("그림", {})
+    assert isinstance(적힌것, dict) and 적힌것, 적힌것
+    품은것 = _docx_그림지문()
+    빠진것 = sorted(k for k, v in 적힌것.items() if v not in 품은것)
+    assert 빠진것 == [], f"자물쇠가 적었는데 docx 에 없는 그림 : {빠진것}"
+    assert len(품은것) >= len(적힌것), (len(품은것), len(적힌것))
+
+
+def test_자물쇠의_그림_지문이_실물과_같다():
+    # ★ **적힌 것과 실린 것을 견준다.** 둘이 갈라지면 적힌 쪽이 늙은 것이다(§91).
+    # ★ **건너뛰지 않는다**(DECISIONS §192). 전에는 `.build/fig` 가 없으면 `skip` 했는데,
+    #   그 칸은 gitignore 라 **CI 에는 언제나 없다** — 즉 이 시험은 CI 에서 한 번도 안 돌았고
+    #   `passed` 만 하나 줄여 **문서 건수를 빨갛게** 했다. 산출물을 보면 둘 다 없어진다.
     것 = json.loads(자물쇠.read_text(encoding="utf-8")).get("그림")
-    칸 = ROOT / "docs/proposal/.build/fig"
-    if not 칸.is_dir() or not isinstance(것, dict):
-        import pytest
-        pytest.skip("그림 칸이 없다 — .build/ 는 gitignore 다 (못 쟀다, 통과가 아니다)")
-    다른 = [k for k, v in 것.items()
-            if not (칸 / k).exists() or hashlib.sha256((칸 / k).read_bytes()).hexdigest()[:16] != v]
-    assert 다른 == [], f"자물쇠와 실물이 다르다 : {다른[:3]}"
+    assert isinstance(것, dict) and 것, 것
+    품은것 = _docx_그림지문()
+    다른 = sorted(k for k, v in 것.items() if v not in 품은것)
+    assert 다른 == [], f"자물쇠와 산출물이 다르다 : {다른[:3]}"
 
 
 def test_화면을_애니메이션_없이_찍는다():
