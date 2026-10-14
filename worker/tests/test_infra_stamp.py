@@ -264,7 +264,11 @@ def test_doctor_가_두_범위에서_다_본다():
     자리 = 글.index("infra_hash_tracked")
     토막 = 글[자리 - 900:자리 + 1800]
     assert "인프라 적용 시차 (기계 상태다)" not in 토막, "CI 범위가 아직 통째로 SKIP 이다"
-    assert "fail " in 토막, "CI 범위가 어긋남을 FAIL 로 안 낸다"
+    # ★ **이 줄이 오타를 못으로 박고 있었다**(DECISIONS §190). `fail` 은 정의된 적이
+    #   없는 이름인데 가드가 그것을 **찾고 있었으므로** 초록이었다. 글자를 찾지 말고
+    #   **실재하는 보고 함수**를 찾는다 — 그 이름의 정본은 `doctor.sh` 의 정의다.
+    assert "no " in 토막, "CI 범위가 어긋남을 FAIL 로 안 낸다"
+    assert "fail " not in 토막, "없는 이름을 부른다 — 배시는 안 멈추고 초록이 된다(§190)"
 
 
 def test_변수_이름이_ASCII_다():

@@ -14,6 +14,13 @@
 
 ★ **종류 목록을 들지 않는다.** 「lifecycle 이 둘인가」 로 적으면 **다음에 versioning 이
   둘이어도 조용하다.** 묻는 것은 **「같은 부모에 같은 종류가 둘 있나」** 하나다(족 가드).
+
+★ **못 보는 것을 적는다**(DECISIONS §157 · §186). 이 자는 **글만 읽는다** —
+  `infra/*.tf` 의 선언을 파싱해 겹침만 센다. **AWS 에 실제로 무엇이 서 있는지는
+  안 본다**(콘솔에서 손으로 만든 자원 · 지워진 자원 · 설정이 밀린 자원). 그래서 여기가
+  0 건이어도 **실물이 선언과 같다는 뜻이 아니다** — 그 축은 적용 기록(§186)과 `--재다`
+  가 따로 본다. 또 **`count`·`for_each`·모듈로 늘어나는 자원은 안 센다** — 이 저장소에
+  아직 없고, 생기면 이 줄부터 고친다.
   겹쳐도 되는 자리(`aws_iam_role_policy` 를 한 역할에 여럿 등)는 자원에
   `# 겹침 허용 : <까닭>` 을 적어 선언한다 — **지금 그 선언이 하나도 없다.** 병을 재고
   관문을 세웠다.
@@ -122,7 +129,27 @@ def 읽기(root: pathlib.Path = ROOT) -> dict[str, str]:
     return {f.name: f.read_text(encoding="utf-8") for f in sorted(d.glob("*.tf"))}
 
 
+def _canary() -> None:
+    """★ **판별식이 사나**(§157). `duplicate_parents` 가 죽으면 겹침이 **언제나 0 건**이
+    되고, 그러면 §134 의 사고(같은 버킷에 lifecycle 둘)가 **다시 나도 조용하다.**
+    겹친 판과 안 겹친 판을 **둘 다** 먹인다 — 「짖는가」 만 보면 음성 대조가 없다."""
+    겹친것 = {"a.tf": (
+        'resource "aws_s3_bucket_lifecycle_configuration" "first" {\n  bucket = aws_s3_bucket.one.id\n}\n'
+        'resource "aws_s3_bucket_lifecycle_configuration" "second" {\n  bucket = aws_s3_bucket.one.id\n}\n')}
+    if not duplicate_parents(겹친것):
+        print("    ★ 카나리아가 죽었다 — 같은 부모에 같은 종류 둘을 안 문다"); sys.exit(2)
+    안겹친것 = {"a.tf": (
+        'resource "aws_s3_bucket_lifecycle_configuration" "first" {\n  bucket = aws_s3_bucket.one.id\n}\n'
+        'resource "aws_s3_bucket_lifecycle_configuration" "second" {\n  bucket = aws_s3_bucket.two.id\n}\n')}
+    if duplicate_parents(안겹친것):
+        print("    ★ 카나리아가 죽었다 — 부모가 다른 둘을 겹쳤다고 한다"); sys.exit(2)
+
+
 def main() -> int:
+    _canary()
+    if "--selftest" in sys.argv[1:]:
+        print("  프로브 살아 있다 — 같은 부모 겹침 (양방향)")
+        return 0
     파일들 = 읽기()
     if not 파일들:
         print("infra/ 에 .tf 가 없다")

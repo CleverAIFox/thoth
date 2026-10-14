@@ -361,9 +361,11 @@ def _canary() -> None:
 #   목록**만 대조하므로, 생성기를 고치고 다시 만들지 않으면 **docx 가 몇 달 뒤져도
 #   초록**이다. 2026-10-03 에 배포본이 실제로 그렇게 낡아 있었다.
 #
-# ★ **바이트로 견주지 않는다.** docx 는 zip 이고 타임스탬프와 압축이 판마다 달라
-#   같은 입력에서 같은 바이트가 안 나온다. 대신 **입력의 지문**을 산출물 옆에 적고
-#   그것이 어긋나면 「다시 만들어야 한다」 로 읽는다 — 봉인과 같은 꼴이다.
+# ★ **바이트로 견주지 않는다.** 여기 「docx 는 zip 이라 같은 입력에서 같은 바이트가 안
+#   나온다」 고 적혀 있었다 — **안 재고 적은 말이다**(DECISIONS §189). 2026-10-14 에
+#   재니 zip 항목 시각은 이미 고정이고 **다른 것은 `docProps/core.xml` 의 두 줄뿐**이었다.
+#   그 둘을 못 박은 지금은 **같은 입력에서 같은 바이트가 나온다.** 그래도 지문은 그대로
+#   둔다 — 지문이 답하는 것은 「바이트가 같나」 가 아니라 **「무엇으로 구웠나」** 다.
 #
 # ★ **`doctor` 에서는 WARN 이고 배포에서는 실패다**(`--deploy`). 다시 쓰는 중에
 #   커밋을 막을 일은 아니지만 **낡은 기획서를 내보내는 것은 막아야 한다.** 등급이
@@ -382,6 +384,43 @@ def 생성기지문(root: Path) -> dict[str, str]:
         p = root / "docs/proposal" / rel
         것[rel] = (hashlib.sha256(p.read_bytes()).hexdigest()[:16] if p.exists() else "없다")
     return 것
+
+
+# ★ **벽시계가 산출물에 들어 있으면 나무가 흔들린다**(DECISIONS §189). `proposal.docx` ·
+#   `site/proposal.html` · `build.lock.json` 셋은 **추적된다.** 안에 `new Date()` 가 하나라도
+#   있으면 소스를 한 글자도 안 고치고 다시 구워도 나무 해시가 달라지고, `apply_patch.sh` 의
+#   바탕 선언(§129 · §130)이 어긋난다 — 실제로 세 번 어긋났고 그때마다 패치를 의심했다.
+# ★ **글이 아니라 **구운 물건**을 본다.** 「`build.js` 에 `new Date()` 가 있나」 를 물으면
+#   글을 코드로 읽는 검사가 되고, 그 족속은 이 저장소에서 열두 번 틀렸다. 여기서 묻는 것은
+#   **`docx` 안에 실제로 무엇이 박혀 있나** 다.
+def 판날짜(root: Path) -> str | None:
+    """`build.js` 가 선언한 판 날짜(`YYYY-MM-DD`). 못 읽으면 None — **없는 것과 다르다**."""
+    m = re.search(r'날짜:\s*new Date\("(\d{4}-\d{2}-\d{2})',
+                  (root / "docs/proposal/build.js").read_text(encoding="utf-8"))
+    return m.group(1) if m else None
+
+
+def check_wall_clock(root: Path) -> list[str]:
+    """빈 리스트가 통과다. docx 속성의 시각이 **판 날짜**가 아니면 벽시계가 들어온 것이다."""
+    import zipfile
+    want = 판날짜(root)
+    if want is None:
+        return ["docs/proposal/build.js 에서 판 날짜를 못 읽었다 — "
+                "docx 에 벽시계가 들어와도 못 잡는다(DECISIONS §189)"]
+    try:
+        with zipfile.ZipFile(root / "docs/proposal.docx") as z:
+            core = z.read("docProps/core.xml").decode("utf-8")
+    except (OSError, KeyError, zipfile.BadZipFile) as e:
+        return [f"docs/proposal.docx 의 속성을 읽지 못했다 — {e}"]
+    박힌 = re.findall(r"<dcterms:(?:created|modified)[^>]*>([^<]+)<", core)
+    나쁜 = sorted({x for x in 박힌 if not x.startswith(want)})
+    if not 박힌:
+        return ["docs/proposal.docx 에 dcterms 시각이 없다 — 꼴이 바뀌었다"]
+    if 나쁜:
+        return [f"docx 에 벽시계가 박혀 있다 — {' · '.join(나쁜)} (판 날짜 {want} 여야 한다)\n"
+                f"        같은 소스에서 같은 바이트가 안 나온다(DECISIONS §189)\n"
+                f"        bash tools/build_proposal.sh"]
+    return []
 
 
 def check_build_lock(root: Path) -> list[str]:
@@ -428,7 +467,7 @@ def main() -> int:
     # ★ **행 번호 참조는 docx 가 아니라 생성기에서 본다.** 번호가 사는 자리가 거기다 —
     #   docx 를 다시 안 구웠어도 **고쳐야 할 글은 이미 틀려 있다**(DECISIONS §129).
     fails = (check(text_of(DOCX), ROOT) + check_figures(figures_of(DOCX), ROOT)
-             + check_plan_refs(ROOT))
+             + check_plan_refs(ROOT) + check_wall_clock(ROOT))
     낡음 = check_build_lock(ROOT)
     if 배포:
         fails += 낡음

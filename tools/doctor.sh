@@ -102,6 +102,19 @@ MISS="$(comm -23 <(keys .env.example) <(keys .env))"
 EXTRA="$(comm -13 <(keys .env.example) <(keys .env))"
 [ -z "$MISS" ]  && ok ".env 에 빠진 키 없음"         || no ".env 에 없는 키: $(echo $MISS)"
 [ -z "$EXTRA" ] && ok ".env.example 에 빠진 키 없음" || no ".env.example 에 없는 키: $(echo $EXTRA)"
+# ★ **키가 있는 것과 값이 있는 것은 다르다**(DECISIONS §188). 종전에는 존재만 봤다 —
+#   `CACHE_TABLE=` 가 비어도 초록이었다. 기계 층의 `hygiene.sh` 가 밖에서 그 사각을
+#   짚었고, **남의 도구가 내 사각을 보는 동안 내 검사는 통과를 내고 있었다.**
+# ★ **비어도 되는 키는 `.env.example` 이 비운 채로 배포한 것들**이다 —
+#   `TERMINOLOGY_NAME`(translate 전용) · `HTTP_*`(http 전용) · `WORKER_TOKEN`(채우면
+#   골든셋과 스모크가 401 을 받는다). 목록을 여기 또 적지 않는다.
+EMPTY=""
+for k in $(env_valued_keys .env.example); do
+  v="$(sed -n "s/^${k}=//p" .env | head -1)"
+  [ -n "$v" ] || EMPTY="$EMPTY $k"
+done
+[ -z "$EMPTY" ] && ok "값이 있어야 하는 키가 다 차 있다" \
+                || no "값이 비었다:$EMPTY — .env.example 은 값을 들고 배포한다"
 fi
 
 echo "== .env 로더 =="
@@ -176,13 +189,34 @@ echo "== 홈 규약 =="
 # 저장소가 아니라 작업 기계의 규약이다. FAIL 로 올리지 않는다.
 # ★ `ls | grep` 을 쓰지 않는다. 이름에 개행이나 특수문자가 들어가면 판정이
 #   흔들린다 — 보여주기용이 아니라 ok/skip 을 가르는 값이다.
-OUT=""
+# ★ **이름 목록은 썩는다 — 꼴로 묶는다**(DECISIONS §188). 종전에는 `projects` 하나만
+#   허락하고 **나머지를 전부 이름으로 찍었다.** 2026-10-13 에 그것이 **35개**였고,
+#   그 줄은 아무도 안 읽는다 — `musicfm` 이 하나 늘어도 안 보였다. **거짓 빨강이
+#   검사를 끄는 것과 같은 꼴**이다(§126).
+# ★ **thoth 가 치우는 것이 아니다.** 홈의 쓰레기는 다른 저장소 것이고 이 자는
+#   **세기만 한다** — 「내 저장소가 안 싼 것을 내가 치운다」 는 층을 섞는 짓이다.
+# ★ 실측(2026-10-13) : 로그 22 · 녹음(wav·mid) 6 · diff 1 · 디렉터리 7. 꼴 셋이
+#   29개를 덮고 남는 것은 디렉터리뿐이라, **디렉터리는 이름을 찍고 파일은 센다.**
+HOME_LOG=0; HOME_WAV=0; HOME_ETC=""; HOME_DIR=""
 for e in "$HOME"/*; do
   [ -e "$e" ] || continue
   b="$(basename "$e")"
-  [ "$b" = "projects" ] || OUT="$OUT$b "
+  [ "$b" = "projects" ] && continue          # 저장소가 사는 곳. 규약 안이다
+  if [ -d "$e" ]; then HOME_DIR="$HOME_DIR$b "
+  else
+    case "$b" in
+      *.log)          HOME_LOG=$((HOME_LOG+1)) ;;
+      *.wav|*.mid)    HOME_WAV=$((HOME_WAV+1)) ;;
+      *)              HOME_ETC="$HOME_ETC$b " ;;
+    esac
+  fi
 done
-[ -z "$OUT" ] && ok "홈 바로 아래에 규약 밖 이름 없음" || skip "규약 밖: $OUT"
+if [ "$HOME_LOG" = 0 ] && [ "$HOME_WAV" = 0 ] && [ -z "$HOME_ETC" ] && [ -z "$HOME_DIR" ]; then
+  ok "홈 바로 아래에 규약 밖 이름 없음"
+else
+  # ★ **꼴에 든 것은 세고, 안 든 것만 이름을 찍는다.** 그래야 **새로 생긴 것**이 보인다.
+  skip "규약 밖 — 로그 $HOME_LOG · 녹음 $HOME_WAV · 디렉터리: ${HOME_DIR:-없음}${HOME_ETC:+ · 꼴 밖: $HOME_ETC}"
+fi
 
 echo "== 산출물 =="
 # ★ 설정이 틀린 것과 마운트가 안 붙은 것은 다르다. 전자는 저장소 규약 위반이고
@@ -621,7 +655,7 @@ elif [ "$SCOPE" = "--repo" ]; then
   if [ -z "$INFRA_TRACKED" ]; then
     skip "infra/ 추적분 지문을 뜨지 못했다"
   elif [ ! -f "$INFRA_PUB" ]; then
-    fail "인프라를 언제 올렸는지 적힌 것이 없다 — ${INFRA_PUB#./}"
+    no "인프라를 언제 올렸는지 적힌 것이 없다 — ${INFRA_PUB#./}"
     echo "       bash tools/tf.sh apply   (바뀐 게 없으면 No changes 로 끝나고 도장만 찍힌다)"
   else
     INFRA_PUB_WAS="$(grep -o '"추적지문"[^"]*"[0-9a-f]*"' "$INFRA_PUB" | grep -o '[0-9a-f]\{16,\}')"
@@ -634,7 +668,7 @@ elif [ "$SCOPE" = "--repo" ]; then
       #   콘솔에서 손으로 바꾼 실물도 **안 보인다.** 「통과」 가 「맞다」 가 아니다.
       echo "       이 눈 밖 : terraform.tfvars · backend.hcl (추적 안 됨) · 콘솔 실물 표류"
     else
-      fail "infra/ 가 마지막 적용 기록 뒤로 바뀌었다 — 올린 것은 $INFRA_PUB_WHEN 것이다"
+      no "infra/ 가 마지막 적용 기록 뒤로 바뀌었다 — 올린 것은 $INFRA_PUB_WHEN 것이다"
       echo "       올렸으면 bash tools/tf.sh apply 를 돌리고 ${INFRA_PUB#./} 를 **같이 커밋한다**"
       echo "       올린 지문 ${INFRA_PUB_WAS:0:12} · 지금 지문 ${INFRA_TRACKED:0:12}"
     fi
@@ -682,7 +716,13 @@ elif ! command -v gh >/dev/null 2>&1; then
 else
   GATE_OUT="$(python3 tools/env_protection.py 2>&1)"; GATE_RC=$?
   case "$GATE_RC" in
-    0) ok "production 에 승인자 · v* 태그 제한이 걸려 있다" ;;
+    0) ok "production 에 승인 한 단계와 v* 태그 제한이 걸려 있다"
+      # ★ **이 눈 밖**(DECISIONS §188). 조직 소유자는 Environment 보호를 **지나갈 수
+      #   있고** 그 사실은 GitHub 응답에 안 담긴다 — 이 검사가 영영 못 본다.
+      #   그러니 막는 것은 「남」 이 아니라 **잘못 민 태그**다. 1인 저장소에서는
+      #   그쪽이 더 자주 나는 사고라 값이 있지만, **「승인 없이는 못 민다」 로
+      #   읽으면 과한 독해다.**
+      echo "       이 눈 밖 : 조직 소유자는 지나갈 수 있다 — 막는 것은 잘못 민 태그다" ;;
     1) no "배포 게이트가 빠졌다"; printf '%s\n' "$GATE_OUT" | sed 's/^/       /' ;;
     *) skip "배포 게이트를 재지 못했다 — ${GATE_OUT}" ;;
   esac

@@ -30,6 +30,16 @@ env_keys() {
   sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' "${1:-.env.example}" 2>/dev/null | sort -u
 }
 
+# ★ **값이 있어야 하는 키.** 정본은 `.env.example` 이다 — **거기서 값이 붙은 키**는
+#   비면 안 되고, **비운 채 배포한 키**(`TERMINOLOGY_NAME` · `WORKER_TOKEN` · `HTTP_*`)는
+#   비어도 된다. 목록을 손으로 들지 않는다 — 들면 한쪽만 늙는다(족 가드 · §91).
+# ★ **왜 생겼나**(DECISIONS §188). 종전 검사는 **키가 있는지만** 봤다. 그래서
+#   `CACHE_TABLE=` 이나 `WIN_DOWNLOADS=` 가 **비어도 통과**했고, 기계 층의
+#   `hygiene.sh` 가 그 사각을 밖에서 짚어 줬다 — **남의 도구가 내 사각을 봤다.**
+env_valued_keys() {
+  sed -n 's/^\([A-Z_][A-Z0-9_]*\)=[^[:space:]].*/\1/p' "${1:-.env.example}" 2>/dev/null | sort -u
+}
+
 ambient_keys() {
   local f="${1:-.env.example}"
   local k

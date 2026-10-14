@@ -3,6 +3,11 @@
 ★ 번역의 '정확도' 를 재지 않는다. 측정할 수 없는 목표는 세우지 않는다
   (MASTER §8). 여기서 재는 것은 검증 가능한 불변식뿐이다.
 
+★ **못 보는 것을 적는다**(DECISIONS §157). 이 자는 **뜻이 맞는지 안 본다** — 용어가
+  살아 있나 · 활용이 깨졌나 · 마커가 남았나 같은 **형태 불변식만** 센다. 그래서 여기가
+  0 건이어도 **번역이 좋다는 뜻이 아니다.** 뜻은 `review.tsv` 를 사람이 읽어서 가른다
+  (PLAN #66). 또 **엔진이 안 떠 있으면 못 잰다** — 그때는 0 건이 아니라 못 잼이다(§59).
+
 ★ 워커를 HTTP 로 때린다. 엔진을 import 하지 않는 이유는 캐시 · 가드 · 용어집을
   포함한 서빙 경로 전체가 측정 대상이기 때문이다. TestClient 로는 그 경로가
   검증되지 않는다(DECISIONS §10 의 연장).
@@ -60,6 +65,23 @@ def bad_conjugation(ko: str) -> list[str]:
         if jong == 0 or jong == 8:
             bad.append(f"어미:{stem}{m.group(2)}")
     return bad
+
+
+def _canary() -> None:
+    """★ **판별식이 사나**(DECISIONS §157 · §186). `bad_conjugation` 이 죽으면 위반이
+    **언제나 0 건**이 되고, 그러면 이 벤치는 **어떤 엔진을 먹여도 통과**한다 — 꺼진 채
+    초록이다. 받침 있는 어간(`습니다` 가 맞다)과 없는 어간(`ㅂ니다` 가 맞다)을 둘 다
+    먹여, **무는 쪽과 안 무는 쪽**이 다 사는지 본다(음성 대조 없이는 「짖는가」 만 본다).
+    """
+    import sys
+    물어야 = bad_conjugation("이 값을 쓰습니다")          # 어간 `쓰` — 받침 없음 ⇒ 틀렸다
+    if not 물어야:
+        print("    ★ 카나리아가 죽었다 — 받침 없는 어간의 `습니다` 를 안 문다"); sys.exit(2)
+    안물어야 = bad_conjugation("이 값을 먹습니다")        # 어간 `먹` — 받침 ㄱ ⇒ 맞다
+    if 안물어야:
+        print(f"    ★ 카나리아가 죽었다 — 맞는 활용을 문다 : {안물어야}"); sys.exit(2)
+    if bad_conjugation("It runs습니다"):
+        print("    ★ 카나리아가 죽었다 — 한글이 아닌 어간을 판정한다"); sys.exit(2)
 
 
 def load_terms() -> dict[str, str]:
@@ -526,6 +548,10 @@ def check(unit: dict, ko: str, book: dict[str, str]) -> list[str]:
 
 
 def main() -> int:
+    _canary()
+    if "--selftest" in sys.argv[1:]:
+        print("  프로브 살아 있다 — 활용 판별식(받침 유무 · 비한글)")
+        return 0
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", default="http://127.0.0.1:8000/translate")
     ap.add_argument("--batch", type=int, default=None,

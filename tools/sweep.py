@@ -21,6 +21,13 @@
   경우가 "아직 아니다" 로 떨어져 거짓말이 된다 — 셋으로 가른다(DECISIONS §61).
 
 ★ 닿지 못한 자리는 **0건이 아니라 못 잼**이다. 못 잰 것과 깨끗한 것은 다르다.
+
+★ **못 보는 것을 적는다**(DECISIONS §157 · §186). 이 자는 **thoth 가 싼 것만** 본다 —
+  `/tmp` 의 이 저장소 흔적 · 수신함의 패치 · `uv.lock` 에 걸린 캐시 항목. 그래서
+  **홈에 쌓인 것은 안 센다**(로그 · 녹음 · 러너 진단 · 남의 저장소 산출물). 그것은
+  기계 층(`~/.local/bin/hygiene.sh`)의 일이고 이 자의 일이 아니다 — 여기가 0 건이어도
+  **기계가 깨끗하다는 뜻이 아니다.** 또 **uv 캐시는 공유라 안 지운다** — 「thoth 만
+  쓰는 것」 을 세어 보여 주기만 하고, 비우는 판단은 사람이 한다.
 """
 import argparse
 import os
@@ -269,7 +276,34 @@ def show(title, rows, fix) -> int:
     return n
 
 
+def _canary() -> None:
+    """★ **판별식이 사나**(§157). `judge` 가 죽으면 패치가 **전부 「판정 불가」** 로 떨어져
+    수신함이 영영 안 비거나, 반대로 **전부 「적용됨」** 이 되어 **안 붙은 패치를 지운다.**
+    뒤가 더 비싸다 — 받은 것을 잃는다. 셋 다 먹여 **세 갈래가 다 사는지** 본다(§61)."""
+    import hashlib
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        t = pathlib.Path(d)
+        몸 = "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-ㄱ\n+ㄴ\n".encode("utf-8")
+        f = t / "a.patch"; f.write_bytes(몸)
+        해시 = hashlib.sha256(몸).hexdigest()
+        if judge(f, {해시}) != (True, "적용됨"):
+            print("    ★ 카나리아가 죽었다 — 영수증에 있는 패치를 못 알아본다"); sys.exit(2)
+        지움, 왜 = judge(f, set())
+        if 지움 or 왜 not in ("아직 아니다", "판정 불가"):
+            print(f"    ★ 카나리아가 죽었다 — 영수증 없는 패치를 지워도 된다고 한다 : {왜}")
+            sys.exit(2)
+        if judge(t / "없는것.patch", set()) != (False, "읽지 못했다"):
+            print("    ★ 카나리아가 죽었다 — 못 읽은 것을 못 읽었다고 안 한다"); sys.exit(2)
+    if lock_packages(pathlib.Path("/없는/uv.lock")) != set():
+        print("    ★ 카나리아가 죽었다 — 없는 lock 에서 패키지를 센다"); sys.exit(2)
+
+
 def main() -> int:
+    _canary()
+    if "--selftest" in sys.argv[1:]:
+        print("  프로브 살아 있다 — 패치 세 갈래 · lock 발췌")
+        return 0
     ap = argparse.ArgumentParser()
     ap.add_argument("--fix", action="store_true", help="근거가 확실한 것만 지운다")
     ap.add_argument("--brief", action="store_true", help="건수만 한 줄로")

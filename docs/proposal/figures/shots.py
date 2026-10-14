@@ -24,6 +24,18 @@ window.fetch=async()=>new Response(JSON.stringify({status:'ok',version:'0.1.0',e
 """
 
 
+# ★ **같은 소스에서 같은 바이트가 나와야 한다**(DECISIONS §189). `content.css` 의
+#   `st-pulse 1.5s infinite` 이 `preview.html` 에서 돌고 있어서, 800ms 뒤에 찍은 한 장은
+#   **애니메이션의 아무 프레임**이었다 — 소스를 한 글자도 안 고치고 다시 구워도
+#   `f_preview_a.png` 가 달라지고, 그 그림이 base64 로 박히는 `proposal.docx` ·
+#   `site/proposal.html` 도 달라졌다. 그 셋이 추적되므로 **나무 해시가 달라진다** —
+#   `apply_patch.sh` 의 바탕 선언(§129 · §130)이 셋 때문에 세 번 어긋났고, 그때마다
+#   「무엇이 틀렸나」 를 손으로 되짚었다. 까닭은 패치가 아니라 **여기**였다.
+# ★ 멈춘 화면이 아니라 **첫 프레임**으로 고정한다 — `prefers-reduced-motion` 가지를
+#   흉내내면 사람 대부분이 보는 화면과 **다른 가지**를 찍는다(content.css §333).
+찍기 = {"full_page": True, "animations": "disabled"}
+
+
 async def shoot():
     from playwright.async_api import async_playwright
     srv = subprocess.Popen(["python3", "-m", "http.server", "8765", "-d", str(EXT)],
@@ -35,7 +47,7 @@ async def shoot():
             pg = await b.new_page(viewport={"width": 900, "height": 1400}, device_scale_factor=2)
             await pg.goto(f"file://{EXT}/preview.html")
             await pg.wait_for_timeout(800)
-            await pg.screenshot(path=str(OUT / "shot_preview.png"), full_page=True)
+            await pg.screenshot(path=str(OUT / "shot_preview.png"), **찍기)
             for name, url, granted, adv in [("on", "https://www.udemy.com/course/x/learn/quiz/1", "true", False),
                                             ("off", "https://example.com/quiz", "false", True)]:
                 pg = await b.new_page(viewport={"width": 340, "height": 420}, device_scale_factor=2)
@@ -47,7 +59,7 @@ async def shoot():
                 else:
                     await pg.click("#check")
                 await pg.wait_for_timeout(500)
-                await pg.screenshot(path=str(OUT / f"shot_popup_{name}.png"), full_page=True)
+                await pg.screenshot(path=str(OUT / f"shot_popup_{name}.png"), **찍기)
             await b.close()
     finally:
         srv.kill()

@@ -1,8 +1,8 @@
 {
   "적는이": "docs/proposal/build.js",
-  "만든때": "2026-10-13T12:09:50.921Z",
+  "판": "3.0",
   "생성기": {
-    "build.js": "878d9d2aabee47e7",
+    "build.js": "77ccd59b41180c44",
     "html.js": "a7cab2e018c8d72a",
     "lib.js": "707deaf312ea70a6",
     "facts.js": "cb7ef4866d9106ce",
@@ -10,8 +10,32 @@
     "part2.js": "c9d4d0b669109fb9",
     "part3.js": "5bcd72b9b176fbe0",
     "figures/figlib.py": "2034ee4eca40671e",
-    "figures/charts.py": "36088fa3fb5415c6",
+    "figures/charts.py": "e2c31075e85ae97f",
     "figures/diagrams.py": "d239c6ed57df93e3",
-    "figures/shots.py": "739e60b09c0115a7"
+    "figures/shots.py": "7d295321bc8ae7b2"
+  },
+  "그림": {
+    "f_adapter.png": "809e2aa1955698f9",
+    "f_arch.png": "c4c19ed5b4019ec7",
+    "f_batch.png": "9dfcc97e3988cec7",
+    "f_coldpath.png": "4264495e49ca8223",
+    "f_concept.png": "7c5dd253a82328a0",
+    "f_cost.png": "8e86ecca7914b337",
+    "f_deploy.png": "855f146cde269431",
+    "f_docs.png": "f1ca05889eacec93",
+    "f_endings.png": "c37c832bb50d8e71",
+    "f_engine.png": "147d53cc6757e49a",
+    "f_erd.png": "709ca8c6844a27d0",
+    "f_gantt.png": "8bcb8549ea83aa02",
+    "f_menu.png": "98648f560cbe5250",
+    "f_popup.png": "ed5ca96a6421a2f7",
+    "f_preview_a.png": "491690bce00d995e",
+    "f_seq.png": "2db1e9731c5cf2d7",
+    "f_seshat.png": "4fe93676794dd78a",
+    "f_slot.png": "08f72cc616b33a14",
+    "f_usecase.png": "58f1ed4dbb688f9e",
+    "shot_popup_off.png": "319919bb0b4dadb5",
+    "shot_popup_on.png": "3895a3878e180769",
+    "shot_preview.png": "84be044dde7f720a"
   }
 }

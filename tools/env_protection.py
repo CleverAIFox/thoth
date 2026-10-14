@@ -13,6 +13,13 @@
   0  게이트가 걸려 있다
   1  빠진 것이 있다
   3  재지 못했다 (gh 가 없거나 인증이 없다)
+
+★ **못 보는 것을 적는다**(DECISIONS §157 · §186). 이 자는 **설정이 걸려 있나**만 본다 —
+  승인자가 **누구인지** · 그 사람이 실제로 승인할 수 있는지 · 바이패스 권한을 가진
+  관리자가 있는지는 **안 본다.** 조직 소유자는 Environment 보호를 **지나갈 수 있고**
+  그 사실은 이 응답에 안 담긴다. 또 **읽은 순간의 상태**다 — 읽은 뒤에 누가 끄면
+  다음 실행까지 모른다. 그래서 0 은 「그때 걸려 있었다」 이지 「아무도 못 지나간다」 가
+  아니다.
 """
 import json
 import subprocess
@@ -52,7 +59,29 @@ def _gh(path: str) -> dict | None:
         return None
 
 
+def _canary() -> None:
+    """★ **판별식이 사나**(§157). `judge` 가 죽으면 **무엇을 먹여도 0 건**이 되고,
+    그러면 §98 의 사고(게이트 없이 배포가 돈 날)가 **다시 나도 초록**이다.
+    걸린 판과 빈 판을 **둘 다** 먹인다."""
+    걸린판 = {"protection_rules": [{"type": "required_reviewers",
+                                 "reviewers": [{"type": "User"}]}],
+            "deployment_branch_policy": {"custom_branch_policies": True}}
+    정책 = {"branch_policies": [{"type": "tag", "name": TAG}]}
+    난것 = judge(걸린판, 정책)
+    if 난것:
+        print(f"    ★ 카나리아가 죽었다 — 다 걸린 판을 빠졌다고 한다 : {난것}"); sys.exit(2)
+    if len(judge({}, {})) != 3:
+        print("    ★ 카나리아가 죽었다 — 빈 판에서 셋을 다 안 센다"); sys.exit(2)
+    if not judge(걸린판, {"branch_policies": [{"type": "tag", "name": "다른것"}]}):
+        print("    ★ 카나리아가 죽었다 — 태그 정책이 달라도 통과시킨다"); sys.exit(2)
+
+
 def main(argv=None) -> int:
+    _canary()
+    args0 = sys.argv[1:] if argv is None else argv
+    if "--selftest" in args0:
+        print("  프로브 살아 있다 — 승인자 · 브랜치 정책 · 태그 (양방향)")
+        return 0
     args = sys.argv[1:] if argv is None else argv
     if len(args) == 2:
         env = json.load(open(args[0], encoding="utf-8"))
