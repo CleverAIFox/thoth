@@ -740,6 +740,47 @@ elif command -v gh >/dev/null 2>&1; then
   esac
 fi
 
+
+echo "== 배포 =="
+# ★ **배포는 태그에서만 돈다**(`.github/workflows/deploy.yml` 의 `tags: ["v*"]`). 그런데
+#   **태그가 뒤처졌는지는 아무도 안 봤다.** 2026-10-14 에 재니 `v0.1.8`(9월 22일) 뒤로
+#   66 커밋이 쌓였고 그 안에 `worker/app` 이 +428 줄이었다 — **올라가 있는 람다는 3주 전
+#   코드**인데 `doctor` 는 내내 초록이었다(DECISIONS §193).
+#
+# ★ **AWS 를 안 부른다.** 람다에서 코드 해시를 읽으려면 `lambda:GetFunction` 이 들고,
+#   그 응답에는 `WORKER_TOKEN` 이 **평문으로** 들어 있다(§186 이 CI 에 그 권한을 안 준 까닭).
+#   그래서 묻는 말을 바꿨다 — 「올라간 것이 무엇인가」 가 아니라 **「마지막 태그가 지금
+#   배포 대상을 담고 있나」** 다. 그 답은 `git` 안에 전부 있다.
+#
+# ★ **배포 대상은 꾸러미가 정한다**(`tools/lib/pkg.py`). 람다에 담기는 것은 `worker/app`
+#   이고, 같은 워크플로가 `terraform apply` 로 `infra` 도 민다. 둘만 본다 —
+#   `extension` 은 태그가 안 싣는다(사람이 크롬에 얹는다).
+#
+# ★ **WARN 이다**(DECISIONS §193). 「다시 쓰는 중에 커밋을 막을 일은 아니지만 **낡은 것이
+#   올라가 있는 줄 모르는 것**은 막아야 한다」 — `docx_check` 의 등급과 같은 꼴이다.
+#   태그를 밀면 저절로 꺼진다.
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  TAG_LAST="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+  if [ -z "$TAG_LAST" ]; then
+    skip "태그가 하나도 없어 배포 뒤처짐을 재지 못했다"
+  else
+    TAG_N="$(git rev-list --count "$TAG_LAST"..HEAD 2>/dev/null || echo 0)"
+    TAG_DIFF="$(git diff --name-only "$TAG_LAST"..HEAD -- worker/app infra 2>/dev/null | wc -l)"
+    if [ "$TAG_DIFF" -eq 0 ]; then
+      ok "마지막 태그 $TAG_LAST 가 지금 배포 대상을 담고 있다 (그 뒤 $TAG_N 커밋 · 배포 대상은 안 바뀜)"
+    else
+      warn "배포된 것이 지금 코드가 아니다 — $TAG_LAST 뒤로 배포 대상 $TAG_DIFF 파일이 바뀌었다 ($TAG_N 커밋)"
+      git diff --name-only "$TAG_LAST"..HEAD -- worker/app infra | sed 's/^/           /'
+      echo "       배포는 태그에서만 돈다 : git tag v0.1.9 && git push origin v0.1.9"
+      # ★ **못 보는 것을 말한다**(§59). 태그를 밀었다고 배포가 **성공한** 것은 아니다 —
+      #   `ci_status` 는 가지로 걸러 묻기 때문에 **태그가 띄운 판을 못 본다.**
+      echo "       이 눈 밖 : 그 태그의 배포가 실제로 성공했는지 — ci_status 는 가지로 걸러 태그 판을 못 본다"
+    fi
+  fi
+else
+  skip "git 저장소가 아니라 배포 뒤처짐을 재지 못했다"
+fi
+
 echo "== 과금 =="
 # ★ **이 저장소는 코드·문서·인프라·CI 를 다 재면서 돈만 안 쟀다**(DECISIONS §180).
 #   그 사각이 이미 한 번 물었다 — §177 전까지 **꺼 둔 줄 알고 Bedrock 요청이 계속 나갔고
