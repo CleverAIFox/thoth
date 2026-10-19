@@ -2714,5 +2714,56 @@
     "후": "  [ -s \"$f\" ] || NEW_BIN=\"$NEW_BIN $f\""
    }
   ]
+ },
+ "패치문": {
+  "_왜": "패치를 받는 문에 시험이 하나도 없었다 — 그리고 2026-10-16 에 **반쯤 붙은 상태를 「이미 적용되어 있다」 로 찍고 0 으로 끝났다**(§195). 영수증은 역사를 알고 역방향 검사는 되돌릴 수 있나를 아는데, 둘 다 「지금 다 있나」 를 모른다.",
+  "파일": "tools/apply_patch.sh",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_apply_patch.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "없는 새 파일을 안 묻는다",
+    "전": "  [ -n \"$GONE\" ] || return 0",
+    "후": "  return 0"
+   },
+   {
+    "이름": "따옴표 경로를 그대로 든다",
+    "후": "  awk '/^diff --git /{p=$4} /^new file mode /{sub(/^b\\//,\"\",p); print p}' \"$TMP\"",
+    "전": "  awk '/^diff --git /{p=$4} /^new file mode /{sub(/^b\\//,\"\",p); if (p !~ /^\"/) print p}' \"$TMP\""
+   },
+   {
+    "이름": "못 본 것을 말하지 않는다",
+    "전": "  [ \"$QN\" = 0 ] || echo \"       이 눈 밖 : 따옴표로 싸인 경로 $QN개 — 비 ASCII 이름은 못 본다\" >&2",
+    "후": "  :"
+   },
+   {
+    "이름": "찌꺼기를 바탕 흠으로 뭉갠다",
+    "전": "  if grep -q \"already exists in working directory\" /tmp/thoth-patch.err; then",
+    "후": "  if false; then"
+   },
+   {
+    "이름": "찌꺼기 자리에서 쓸어담기를 권한다",
+    "전": "    echo \"       git clean 으로 쓸지 않는다 — 지울 것을 정확히 아는 자리다.\" >&2",
+    "후": "    echo \"       git clean -fd 로 쓸어 담는다.\" >&2"
+   },
+   {
+    "이름": "색인이 더러운 것을 안 본다",
+    "전": "  if ! git diff --cached --quiet 2>/dev/null; then",
+    "후": "  if false; then"
+   },
+   {
+    "이름": "색인을 경고로만 알린다",
+    "전": "    exit 1\n  fi\n  if [ -n \"$(git status --porcelain)\" ]; then",
+    "후": "    :\n  fi\n  if [ -n \"$(git status --porcelain)\" ]; then"
+   },
+   {
+    "이름": "색인 자리에 restore 를 권한다",
+    "전": "    echo \"       버릴 것이면 :  git reset --hard HEAD\" >&2",
+    "후": "    echo \"       버릴 것이면 :  git restore .\" >&2"
+   }
+  ]
  }
 }

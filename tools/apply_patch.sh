@@ -66,11 +66,41 @@ cd "$ROOT"
 
 # ★ 적용 전에 작업 트리가 깨끗한지 본다. 더러운 상태에서 반쯤 적용되면
 #   무엇이 패치이고 무엇이 원래 작업이었는지 가를 수 없다.
+#
+# ★ **「더럽다」 에 두 가지가 있고, 되돌리는 명령이 다르다**(DECISIONS §195).
+#   `git status --short` 의 **첫 칸은 색인**이고 **둘째 칸은 작업 트리**다 :
+#
+#       ` M file`   작업 트리만 바뀌었다        → git restore <file>
+#       `M  file`   **색인에 올라가 있다**       → git reset --hard HEAD
+#       `AD file`   색인엔 올렸고 작업 트리엔 없다
+#
+#   앞판은 둘을 한 줄로 뭉개고 「git stash 로 치우는 것을 권한다」 만 적었다.
+#   2026-10-19 에 그 값을 치렀다 : `ship.sh` 가 **`git add -A` 를 한 뒤 훅에 막혀**
+#   194 전체가 **색인에 올라간 채** 남았고, 내가 「`git restore .` 로 되돌려라」 고
+#   말했다. **`git restore .` 는 색인을 안 건드린다** — 작업 트리를 **색인에서**
+#   되돌리므로 194 가 그대로 복원됐고, 그 위에 패치를 붙이려다 **18 개가 전부
+#   거절**됐다. 오류 열여덟 줄은 「바탕이 틀렸나」 로 읽혔다. 바탕은 맞았다.
+# ★ **색인이 더러우면 멈춘다.** 작업 트리만 더러운 것은 경고로 족하다 —
+#   `git apply` 가 겹치면 거기서 운다. 색인은 다르다 : **거기 있는 것은 `git apply`
+#   의 눈에 안 보이면서 커밋에는 들어간다.** 「다음 사람이 스스로 알아차리게」 두면
+#   안 되는 자리다.
+# ★ **`git add -N` 은 여기 안 걸린다 — 재서 확인했다.** 의도만 올린 항목은
+#   색인↔HEAD 차이에 **안 뜬다**. 그래서 이 저장소가 권하는 `git add -N` 뒤에도
+#   조용하다(거짓 빨강 아님 · §126).
 if git rev-parse --git-dir >/dev/null 2>&1; then
+  if ! git diff --cached --quiet 2>/dev/null; then
+    echo "색인에 올라간 변경이 있다 — 멈춘다 :" >&2
+    git diff --cached --name-status | sed 's/^/       /' >&2
+    echo "       **git restore . 는 이것을 안 지운다.** 색인에서 작업 트리를" >&2
+    echo "       되돌릴 뿐이라 같은 내용이 그대로 돌아온다." >&2
+    echo "       버릴 것이면 :  git reset --hard HEAD" >&2
+    echo "       둘 것이면   :  git stash --include-untracked" >&2
+    exit 1
+  fi
   if [ -n "$(git status --porcelain)" ]; then
-    echo "경고 : 작업 트리에 커밋되지 않은 변경이 있다" >&2
+    echo "경고 : 작업 트리에 커밋 안 된 변경이 있다 (색인은 깨끗하다)" >&2
     git status --short | sed 's/^/       /' >&2
-    echo "       git stash 로 치우고 적용하는 것을 권한다" >&2
+    echo "       겹치면 git apply 가 거기서 운다. 치우려면 : git restore ." >&2
   fi
 fi
 
@@ -80,6 +110,69 @@ already_applied(){
   git apply --check -R -p1 "$TMP" 2>/dev/null && return 0
   local R="$ROOT/.cache/applied-patches.tsv"
   [ -f "$R" ] && grep -q "^$(sha256sum "$TMP" | cut -d' ' -f1)	" "$R"
+}
+
+# ★ **「이미 적용되어 있다」 는 저장소 상태에 대한 말인데, 영수증은 역사에 대한 말이다**
+#   (DECISIONS §195). 2026-10-16 에 앞판을 붙인 뒤 **그 판이 만든 새 파일 여섯을
+#   이름으로 지우고** 같은 패치를 다시 돌렸더니 이 스크립트가 **「이미 적용되어 있다.
+#   아무것도 하지 않는다」 를 찍고 0 으로 끝났다.** 그때 저장소는 **반쯤 붙은 상태**였고,
+#   뒤이은 `build_proposal.sh` 가 없는 `tools/lib/pw.sh` 를 들이려다 죽었다.
+# ★ **이것은 메시지 흠이 아니라 틀린 초록이다.** 영수증은 「언젠가 붙였다」 를 알고,
+#   역방향 검사는 「되돌릴 수 있나」 를 아는데 **둘 다 「지금 다 있나」 를 모른다.**
+#   패치가 만드는 파일 목록은 패치 안에 적혀 있다 — **묻기만 하면 된다.**
+# ★ **git 은 비 ASCII 경로를 따옴표로 싸서 escape 한다 — 재서 알았다.** `diff --git`
+#   줄이 `"b/\354\203\210.txt"` 꼴이 되므로 그대로 `[ -e ]` 에 넣으면 **있는 파일을
+#   없다고 읽는다**(거짓 빨강 · §126). 이 저장소의 추적 경로는 **전부 ASCII** 이고
+#   `test_apply_patch.py` 가 그것을 관문으로 든다. 그래도 **못 보는 것은 말한다**(§59) —
+#   따옴표 경로는 세기만 하고 아래에서 「이 눈 밖」 으로 찍는다.
+new_files(){
+  awk '/^diff --git /{p=$4} /^new file mode /{sub(/^b\//,"",p); if (p !~ /^"/) print p}' "$TMP"
+}
+
+quoted_new(){
+  awk '/^diff --git /{p=$4} /^new file mode /{if (p ~ /^"/) n++} END{print n+0}' "$TMP"
+}
+
+missing_new(){
+  local f out=""
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    [ -e "$ROOT/$f" ] || out="$out$f
+"
+  done <<EOF
+$(new_files)
+EOF
+  printf '%s' "$out"
+}
+
+# ★ **「붙었다」 고 말하기 전에 「다 있나」 를 묻는다.** 하나라도 없으면 **반쯤**이다.
+#   하나도 안 만드는 패치면 목록이 비고 이 자리는 **아무 일도 안 한다**(§133).
+# ★ **이 눈 밖** : 패치가 **고치는** 파일이 그 뒤 따로 바뀐 것은 여기서 못 가른다 —
+#   그것은 아래 「정방향도 역방향도 안 붙는다」 가지가 든다.
+#
+# ★ **셸에서는 함수 이름도 ASCII 다 — 재서 알았다**(DECISIONS §195). §186 · §188 은
+#   「배시는 **함수 이름**에 한글을 받지만 **변수**에는 안 받는다」 고 적었다. 참말인데
+#   **모자랐다** : 이 저장소는 `shellcheck` 에 관문을 걸어 뒀고, **shellcheck 는 한글
+#   함수 이름을 파싱하지 못한다** — `새파일들(){` 에 SC1036 · SC1088(둘 다 error)을 내고
+#   **거기서 파싱을 멈춘다.** 멈춘 뒤로는 아무것도 안 보므로, 뒤쪽 셸 코드 전체가
+#   **조용히 검사 밖**이 된다(SC2034 가 엉뚱한 줄에 뜨는 것이 그 증상이었다).
+#   이 저장소의 셸 함수 **전부가 이미 ASCII** 였다 — 규약이었는데 적혀 있지 않았다.
+# ★ **변수 이름도 ASCII 다**(§123). `MISS=...` 가 한글이면 대입이 아니라 **명령**으로
+#   읽히고 `bash -n` 은 그것을 문법 오류로 안 본다.
+warn_if_partial(){
+  local GONE QN
+  GONE="$(missing_new)"
+  QN="$(quoted_new)"
+  [ "$QN" = 0 ] || echo "       이 눈 밖 : 따옴표로 싸인 경로 $QN개 — 비 ASCII 이름은 못 본다" >&2
+  [ -n "$GONE" ] || return 0
+  echo "반쯤 붙어 있다 :" >&2
+  printf '%s' "$GONE" | sed 's/^/         /' >&2
+  echo "       영수증과 역방향 검사는 「붙었다」 고 하는데 **위 파일이 없다.**" >&2
+  echo "       앞판을 붙인 뒤 누가 지웠거나, 뒤 패치가 지운 자리다." >&2
+  echo "       되돌리고 처음부터 붙인다 — 추적되는 변경을 되돌린 뒤" >&2
+  echo "       **남아 있는** 새 파일을 이름으로 지우고 다시 이 명령을 돌린다 :" >&2
+  echo "           git restore . && git status --porcelain" >&2
+  exit 1
 }
 
 # ★ **바탕을 먼저 본다 — 아무것도 건드리기 전에**(DECISIONS §129). 바탕이 다르면
@@ -117,6 +210,7 @@ else
   else
     # ★ 이미 붙었으면 나무가 바탕보다 앞선 것이 **정상**이다. 그것부터 가른다.
     if already_applied; then
+      warn_if_partial
       echo "       이미 적용되어 있다. 아무것도 하지 않는다"
       exit 0
     fi
@@ -138,8 +232,24 @@ if ! git apply --check -p1 "$TMP" 2>/tmp/thoth-patch.err; then
   #   파일을 다음 패치가 또 고치면 정방향도 역방향도 안 붙는다. 그때
   #   "저장소가 어긋났다" 로 적으면 맞는 상태를 사고로 읽는다(§61).
   if already_applied; then
+    warn_if_partial
     echo "       이미 적용되어 있다. 아무것도 하지 않는다"
     exit 0
+  fi
+  # ★ **git 이 정확히 말해 준 것을 덮어쓰지 않는다**(DECISIONS §195). 2026-10-16 에
+  #   `error: tools/dependabot.py: already exists in working directory` 가 다섯 줄
+  #   찍혔는데, 그 **바로 아래**에 「패치를 만든 시점과 다른 상태이거나」 를 붙였다.
+  #   바탕은 바로 위에서 **맞다고 찍었는데도** 읽는 사람은 바탕을 의심하게 된다.
+  #   세 갈래는 대응이 다르다(§59) : 바탕이 다르다 · 이미 붙었다 · **앞판 찌꺼기가 남았다.**
+  if grep -q "already exists in working directory" /tmp/thoth-patch.err; then
+    echo "앞판이 만든 파일이 남아 있다 :" >&2
+    sed -n 's/^error: \(.*\): already exists in working directory$/         \1/p' \
+      /tmp/thoth-patch.err >&2
+    echo "       이 패치가 만들려는 파일이 **이미 있다** — 앞판을 반쯤 붙였다 되돌린" >&2
+    echo "       자리다. git reset --hard 는 **추적 안 되는 파일을 안 지운다.**" >&2
+    echo "       위 파일을 이름으로 지운 뒤 다시 이 명령을 돌린다." >&2
+    echo "       git clean 으로 쓸지 않는다 — 지울 것을 정확히 아는 자리다." >&2
+    exit 1
   fi
   echo "붙지 않는다 :" >&2
   sed 's/^/       /' /tmp/thoth-patch.err >&2
