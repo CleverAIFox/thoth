@@ -25,6 +25,16 @@ import json
 import pathlib
 import sys
 
+
+# ★ playwright 판은 `tools/lib/pw.sh` 하나가 들고 **여기서 읽어 쓴다**(DECISIONS §194).
+#   두 곳에 수를 적으면 한쪽만 늙는다(§91).
+import importlib.util as _il
+
+_몫pw = _il.spec_from_file_location("pwpin", pathlib.Path(__file__).resolve().parent / "lib/pw.py")
+_pw = _il.module_from_spec(_몫pw)
+_몫pw.loader.exec_module(_pw)
+핀 = _pw.핀()
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "extension/tests/fixtures/cascade.html"
 
@@ -256,8 +266,8 @@ def main() -> int:
         # ★ **되는 명령을 적는다.** `uv run --with playwright` 는 **임시 환경**에
         #   깔므로, 그 뒤에 `python3` 로 다시 부르면 **똑같이 없다.** 크로미움만
         #   `~/.cache/ms-playwright` 에 남아 영영 안 맞는다(DECISIONS §136).
-        print("  uv run --with playwright python -m playwright install chromium   # 한 번")
-        print("  uv run --with playwright python tools/cascade_check.py           # 그 뒤로는 이렇게 부른다")
+        print(f"  uv run --with {핀} python -m playwright install chromium   # 한 번")
+        print(f"  uv run --with {핀} python tools/cascade_check.py           # 그 뒤로는 이렇게 부른다")
         print("  (시스템 파이썬에 두려면 : pip install --break-system-packages playwright)")
         return 2
 

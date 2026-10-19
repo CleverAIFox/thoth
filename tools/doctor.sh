@@ -586,6 +586,34 @@ else
   printf '%s\n' "$PKG_OUT" | head -6 | sed 's/^/       /'
 fi
 
+# ★ **`git ls-files` 로 대상을 고르는 검사는 추적 안 되는 새 파일을 못 본다**(§194).
+#   2026-10-16 : 이 doctor 가 **전부 초록**을 찍은 바로 뒤, 같은 검사들이 **커밋 훅에서
+#   둘 터졌다** — `tools/lib/pw.sh` 의 shellcheck 두 건과 `test_pw_pin.py` 가 **제
+#   글귀에 걸린** 한 건. 검사가 틀린 게 아니라 **목록**이 틀렸다 : 패치가 만든 새 파일
+#   여섯이 아직 추적되지 않아 `git ls-files` 가 안 들었고, 커밋이 스테이지에 올리는
+#   순간 들어왔다. 그래서 「셸 문법 (21개)」 이 커밋 때 「(22개)」 가 됐다.
+# ★ **doctor 가 초록인데 커밋이 빨간 것이 가장 나쁜 꼴이다.** 거짓 빨강은 사람이
+#   검사를 끄게 만들고(§126), **거짓 초록은 사람이 검사를 안 돌리게 만든다.**
+# ★ **고칠 자리는 `git ls-files` 스무 곳이 아니라 여기 한 곳이다.** `git add -N` 이
+#   **이름만** 올리므로(내용은 스테이지 안 된다) 그 스무 곳이 한꺼번에 보게 된다.
+#   목록마다 `--others` 를 더하는 길은 안 간다 — 그러면 **시험이 기계마다 달라진다**
+#   (§194 ㉠ 이 바로 그 흠이었다). 시험은 추적되는 것만 보고, **사람에게는 알린다.**
+# ★ **FAIL 이 아니라 WARN 이다.** 새 파일이 아직 추적 안 되는 것은 **틀린 상태가
+#   아니다**(§133). 틀린 것은 **그 상태에서 「다 봤다」 고 믿는 것**이다.
+# ★ **이 눈 밖** : gitignore 된 것은 안 센다(`--exclude-standard`) — 저장소에 들어갈
+#   것이 아니다. CI 체크아웃에는 추적 안 되는 파일이 없으므로 이 자리는 거기서 늘 조용하다.
+mapfile -t NEWF < <(git ls-files --others --exclude-standard -- \
+                      '*.sh' '*.py' '*.yml' '*.yaml' '*.js' 2>/dev/null)
+if [ "${#NEWF[@]}" != 0 ]; then
+  warn "추적 안 되는 새 파일 ${#NEWF[@]}개 — 위 검사들이 이것을 아직 안 봤다"
+  printf '       %s\n' "${NEWF[@]}"
+  echo "       이름만 올려 보이게 한다 (내용은 스테이지 안 된다) :"
+  echo "           git add -N ${NEWF[*]}"
+  echo "       그 뒤 bash tools/doctor.sh 를 다시 돌린다"
+else
+  ok "검사 밖에 있는 새 파일 없음"
+fi
+
 echo "== 인프라 =="
 # ★ **형식은 늘 보고 의미는 초기화됐을 때만 본다.** `terraform validate` 는
 #   `init` 을 요구하고 `init` 은 프로바이더를 받는다. 커밋마다 받게 하면 검사가
@@ -892,7 +920,10 @@ fi
 #   깔아라」 는 안내를 찍었다 — 그 명령은 임시 환경에 깔므로 `python3` 쪽은
 #   영영 안 고쳐진다.** 제가 낸 오류를 못 고치는 안내다(DECISIONS §136).
 if command -v uv >/dev/null 2>&1; then
-  CAS_OUT="$(uv run --quiet --with playwright python tools/cascade_check.py 2>&1)"; CAS_RC=$?
+  # ★ **판을 박아 부른다**(DECISIONS §194). 안 박으면 부를 때마다 최신이 와서
+  #   깔린 브라우저와 어긋나고, 이 검사가 **조용히 건너뛰어진다.**
+  . "$ROOT/tools/lib/pw.sh"
+  CAS_OUT="$(uv run --quiet --with "$PW_PIN" python tools/cascade_check.py 2>&1)"; CAS_RC=$?
 else
   CAS_OUT="$(python3 tools/cascade_check.py 2>&1)"; CAS_RC=$?
 fi
@@ -1080,6 +1111,24 @@ else
     #   둘 다 **초록이 아니라 건너뜀**이고, 둘 다 줄을 그대로 보여 준다.
     *) skip "코드 스캐닝이 이 나무를 답하지 못했다"
        printf '%s\n' "$CS_OUT" | sed 's/^/       /' ;;
+  esac
+
+  # ★ **Dependabot 은 또 다른 눈이다**(DECISIONS §194). `code_scanning` 은 CodeQL 경보만
+  #   묻고 `ci_status` 는 워크플로 파일에서 목록을 꺼내는데 **Dependabot 은 파일이 없다.**
+  #   2026-10-15 에 「코드 스캐닝에 열린 경보 없음」 을 찍는 동안 **High 한 건이 떠 있었다.**
+  #   **참말이었고 모자랐다** — §171 과 같은 자리, 다른 눈.
+  # ★ **막는 것은 `runtime` 뿐이다.** `development` 는 사용자에게 안 실리므로 줄에만 적는다 —
+  #   숨기면 그 판단이 매번 사람 머릿속에서만 일어난다.
+  DB_OUT="$(python3 tools/dependabot.py 2>&1)"; DB_RC=$?
+  case "$DB_RC" in
+    # ★ **요약은 맨 끝 줄이다.** `head -1` 로 잡으면 **dev 경보 첫 줄**이 요약 자리에
+    #   오고, 아래 목록이 그 줄을 **한 번 더** 찍는다 — 2026-10-15 에 실제로 그렇게 나왔다.
+    0) ok "$(printf '%s\n' "$DB_OUT" | grep -v '^ *·' | sed 's/^ *//' | tail -1)"
+       printf '%s\n' "$DB_OUT" | grep -E '^ *·|^ +extension|^ +[a-z].*manifest' | sed 's/^/    /' || true ;;
+    1) no "Dependabot 에 사용자에게 닿는 열린 경보가 있다"
+       printf '%s\n' "$DB_OUT" | sed 's/^/    /' ;;
+    *) skip "Dependabot 경보를 묻지 못했다"
+       printf '%s\n' "$DB_OUT" | sed 's/^/       /' ;;
   esac
 fi
 

@@ -126,3 +126,63 @@ def test_apply_patch_가_기획서를_굽게_알려_준다():
     코드 = "\n".join(l for l in sh.split("\n") if not l.lstrip().startswith("#"))
     assert "docs/proposal" in 코드 and "build_proposal.sh" in 코드, \
         "패치가 기획서 생성기를 건드려도 굽는 법을 안 알려 준다"
+
+
+# ── §115 의 관문을 **처음으로** 잰다 (§194 ㉢) ─────────────────────────────
+
+
+def _이진절() -> str:
+    """`ship.sh` 의 새-바이너리 고리를 **소스에서 떼어** 온다.
+
+    ★ **글만 재면 배선을 안 잰다**(§173). `--others` 가 적혀 있나를 묻는 대신 **고리를
+      실제로 돌려** 잡는지 본다. 떼어 쓰므로 `ship.sh` 가 바뀌면 이 시험도 그 코드를 본다.
+    """
+    글 = (ROOT / "tools/ship.sh").read_text(encoding="utf-8")
+    i = 글.index('NEW_BIN=""')
+    j = 글.index("git add -A", i)
+    return "\n".join(l for l in 글[i:j].split("\n") if not l.lstrip().startswith("#"))
+
+
+def _돌린다(터, 준비: str) -> tuple[int, str]:
+    본 = f'die(){{ echo "DIE $*"; exit 3; }}\ncd "{터}"\n{준비}\n{_이진절()}\necho 통과'
+    r = subprocess.run(["bash", "-c", 본], capture_output=True, text=True)
+    return r.returncode, r.stdout + r.stderr
+
+
+def _터(tmp_path) -> pathlib.Path:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    return tmp_path
+
+
+def test_추적_안_되는_새_바이너리를_막는다(tmp_path):
+    # ★ 2026-09-22 에 토큰이 평문으로 든 `infra/tfplan` 이 이 길로 공개 저장소에 나갔다.
+    터 = _터(tmp_path)
+    (터 / "x.bin").write_bytes(b"\x00\x01\x02binary")
+    rc, 글 = _돌린다(터, "")
+    assert rc == 3 and "x.bin" in 글, 글
+
+
+def test_add_N_한_새_바이너리도_막는다(tmp_path):
+    # ★ **내가 권한 명령이 이 관문을 끄는 꼴이었다**(§194 ㉢). `doctor` 가 `git add -N`
+    #   을 권하는데, `-N` 한 파일은 더는 `--others` 가 아니다. 이 시험이 그 구멍을 든다.
+    터 = _터(tmp_path)
+    (터 / "x.bin").write_bytes(b"\x00\x01\x02binary")
+    rc, 글 = _돌린다(터, "git add -N x.bin")
+    assert rc == 3 and "x.bin" in 글, 글
+
+
+def test_새_글파일은_안_막는다(tmp_path):
+    # ★ **거짓 빨강은 사람이 검사를 끄게 만든다**(§126). 패치가 들이는 새 파일은 글이다.
+    터 = _터(tmp_path)
+    (터 / "a.py").write_text("x = 1\n", encoding="utf-8")
+    rc, 글 = _돌린다(터, "git add -N a.py")
+    assert rc == 0 and "통과" in 글, 글
+
+
+def test_docs_아래의_바이너리는_안_막는다(tmp_path):
+    # ★ 기획서 `docs/proposal.docx` 가 그 자리다 — 선언된 예외다.
+    터 = _터(tmp_path)
+    (터 / "docs").mkdir()
+    (터 / "docs/p.docx").write_bytes(b"\x00\x01\x02binary")
+    rc, 글 = _돌린다(터, "")
+    assert rc == 0 and "통과" in 글, 글

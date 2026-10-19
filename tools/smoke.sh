@@ -3,6 +3,18 @@
 # .env 로딩을 건너뛴다. 여기서만 잡히는 결함이 있다.
 #   bash tools/smoke.sh
 set -uo pipefail
+# ★ **빈 값과 「일부러 로컬」 을 가른다**(DECISIONS §194). 2026-10-15 에
+#   `WORKER_URL="$(terraform output …)"` 가 자격증명 만료로 **빈 문자열**을 뱉었고,
+#   이 줄이 조용히 로컬 기본값으로 갔다. 그래서 람다를 때리려던 실행이
+#   **「워커에 닿지 못했다: http://127.0.0.1:8000」** 으로 끝났다 — 읽는 사람은
+#   로컬 워커를 의심하게 되고, **까닭은 URL 이 안 왔다는 것**이었다(§59 의 세 갈래).
+# ★ **안 설정한 것과 빈 값은 다르다.** 안 설정했으면 기본값이 맞다. **설정했는데
+#   비었으면 그것은 사고다** — 그 자리에서 멈춘다.
+if [ "${WORKER_URL+있다}" = "있다" ] && [ -z "$WORKER_URL" ]; then
+  echo "WORKER_URL 이 설정됐는데 비었다 — 로컬 기본값으로 가지 않는다" >&2
+  echo "  값을 만든 명령이 실패했을 수 있다 : bash tools/tf.sh output -raw worker_url" >&2
+  exit 2
+fi
 URL="${WORKER_URL:-http://127.0.0.1:8000}"
 FAIL=0
 ok(){ printf '  \033[32mOK\033[0m   %s\n' "$1"; }

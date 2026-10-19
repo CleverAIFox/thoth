@@ -105,7 +105,19 @@ while IFS= read -r f; do
   [ -n "$f" ] && [ -s "$f" ] || continue
   case "$f" in docs/*) continue ;; esac
   LC_ALL=C grep -qI . "$f" 2>/dev/null || NEW_BIN="$NEW_BIN $f"
-done <<< "$(git ls-files --others --exclude-standard)"
+#
+# ★ **`git add -N` 한 것도 센다**(§194 ㉢). 194 가 `doctor` 에 「추적 안 되는 새 파일을
+#   `git add -N` 으로 보이게 하라」 는 WARN 을 달았다. 그런데 `-N` 한 파일은 더는
+#   `--others` 가 아니다 — **이 관문이 그 자리에서 눈을 감는다.** 내가 권한 명령이
+#   §115 의 관문을 끄는 꼴이라, 권하는 판에서 같이 막는다.
+# ★ **`git diff --cached` 로는 안 보인다 — 재서 알았다.** `-N` 항목은 색인↔HEAD 차이에
+#   **안 뜨고**(git 이 「의도」 로 따로 다룬다) **색인↔작업트리** 차이에 `A` 로 뜬다.
+#   그래서 `git diff --name-only --diff-filter=A` 다. 보통 `git add` 한 것은 색인과
+#   작업트리가 같아 **안 뜬다** — 즉 이 줄이 더 드는 것은 `-N` 항목뿐이다.
+# ★ **이 관문에 시험이 하나도 없었다** — 토큰 평문 plan 이 공개 저장소로 나간 사고를
+#   막는 자리인데. 194b 에서 넷 붙였다(`test_shell_gate.py`).
+done <<< "$(git ls-files --others --exclude-standard
+            git diff --name-only --diff-filter=A)"
 [ -z "$NEW_BIN" ] || die "새 바이너리가 있다:$NEW_BIN — 산출물이면 지우거나 .gitignore 에 넣는다"
 git add -A
 git diff --cached --stat | tail -1

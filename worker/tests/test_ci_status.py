@@ -25,11 +25,22 @@ def test_doctor_가_CI_판정을_본다():
     assert v.index("ci_status.py") > v.index("check_counts.py"), "CI 판정은 마지막에 본다"
 
 
-def _CI():
+def _CI(실물태그: bool = False):
+    """시험용 모듈. **기본은 「HEAD 에 태그 없음」 으로 못 박는다**(DECISIONS §194).
+
+    ★ **시험이 기계의 git 상태를 읽으면 기계마다 다른 답이 나온다.** §194 가 태그
+      가지로도 묻게 만들자, `test_워크플로마다_따로_묻는다` 가 **태그가 붙은 기계에서만**
+      깨졌다 — 내 사본은 태그가 없어 초록이었고 그의 기계는 `v0.1.9` 가 붙어 빨갰다.
+      「이 기계가 초록인 것과 저 기계가 초록인 것은 다른 말이다」(§170)의 **시험판**이다.
+    ★ **실물 git 을 보는 시험만 `실물태그=True` 로 연다.** 그 둘은 「목록이냐」 와
+      「git 아닌 자리에서 빈 목록이냐」 만 묻고 **수를 안 묻는다.**
+    """
     import importlib.util
     s = importlib.util.spec_from_file_location("ci_status", ROOT / "tools/ci_status.py")
     m = importlib.util.module_from_spec(s)
     s.loader.exec_module(m)
+    if not 실물태그:
+        m._헤드_태그 = lambda root=None: []
     return m
 
 
@@ -285,3 +296,102 @@ def test_카나리아가_정규식의_죽음을_본다(monkeypatch):
     with pytest.raises(SystemExit) as e:
         C._canary()
     assert e.value.code == 2
+
+
+# ── 태그 판 ─────────────────────────────────────────────────────────────────
+#
+# ★ **태그 푸시가 띄운 판은 가지에 안 달린다**(DECISIONS §194). 2026-10-15 에 실측했다 :
+#
+#       headBranch "v0.1.9" · event "push" · headSha bb573d5 (= HEAD)
+#
+#   `--branch main` 하나로 물었으므로 `deploy` 는 넉 달 내내 **「판이 하나도 없는
+#   워크플로」** 로 나왔다. 9월 22일의 `cancelled` 한 판도 아무도 못 봤다 —
+#   **실물이 아니라 측정이 비어 있었다.**
+
+
+def _부르개(기록: list, 답: dict):
+    """`gh` 를 흉내낸다. 부른 인자를 `기록` 에 쌓고 `답[가지]` 를 돌려준다."""
+    def 부른다(args):
+        가지 = args[args.index("--branch") + 1] if "--branch" in args else ""
+        기록.append(가지)
+        return 0, json.dumps(답.get(가지, [])), ""
+    return 부른다
+
+
+def _태그판(이름, sha, 결론, 가지, 때="2026-10-15T03:22:47Z"):
+    return {"workflowName": 이름, "headSha": sha, "conclusion": 결론,
+            "status": "completed", "headBranch": 가지, "createdAt": 때,
+            "url": f"https://x/{이름}/{sha}/{가지}"}
+
+
+def test_HEAD_에_태그가_없으면_가지만_묻는다(monkeypatch):
+    # ★ **없는 것을 묻는 길을 세우지 않는다**(§133). 태그가 없으면 질의가 안 는다.
+    m = _CI()
+    monkeypatch.setattr(m, "_헤드_태그", lambda root=None: [])
+    기록 = []
+    m.판들(부른다=_부르개(기록, {}), 파일들=["ci.yml", "deploy.yml"])
+    assert 기록 == ["main", "main"], 기록
+
+
+def test_HEAD_를_가리키는_태그로도_묻는다(monkeypatch):
+    m = _CI()
+    monkeypatch.setattr(m, "_헤드_태그", lambda root=None: ["v0.1.9"])
+    기록 = []
+    m.판들(부른다=_부르개(기록, {}), 파일들=["deploy.yml"])
+    assert 기록 == ["main", "v0.1.9"], 기록
+
+
+def test_태그로만_있는_판이_목록에_들어온다(monkeypatch):
+    # ★ **이것이 §194 가 연 눈이다.** 가지로만 물으면 이 판은 영영 안 보인다.
+    m = _CI()
+    monkeypatch.setattr(m, "_헤드_태그", lambda root=None: ["v0.1.9"])
+    답 = {"main": [], "v0.1.9": [_태그판("deploy", "bb573d5", "success", "v0.1.9")]}
+    것 = m.판들(부른다=_부르개([], 답), 파일들=["deploy.yml"])
+    assert not isinstance(것, str), 것
+    assert [x["workflowName"] for x in 것] == ["deploy"], 것
+
+
+def test_태그_판의_빨강을_안_가린다(monkeypatch):
+    # ★ **9월 22일의 `cancelled` 를 아무도 못 봤다.** 보이게 됐으면 판정에도 들어와야 한다.
+    m = _CI()
+    monkeypatch.setattr(m, "_헤드_태그", lambda root=None: ["v0.1.9"])
+    답 = {"main": [], "v0.1.9": [_태그판("deploy", "bb573d5", "failure", "v0.1.9")]}
+    것 = m.판들(부른다=_부르개([], 답), 파일들=["deploy.yml"])
+    assert 것[0]["conclusion"] == "failure", 것
+
+
+def test_같은_판을_두_번_안_센다(monkeypatch):
+    # ★ 가지와 태그가 **같은 판**을 줄 수 있다. 겹침은 한 번만 센다(이미 있는 규율).
+    m = _CI()
+    monkeypatch.setattr(m, "_헤드_태그", lambda root=None: ["v0.1.9"])
+    하나 = _태그판("deploy", "bb573d5", "success", "v0.1.9")
+    것 = m.판들(부른다=_부르개([], {"main": [하나], "v0.1.9": [하나]}), 파일들=["deploy.yml"])
+    assert len(것) == 1, 것
+
+
+def test_태그_질의가_실패하면_통과가_아니다(monkeypatch):
+    # ★ **못 본 것은 통과가 아니다**(§59). 두 번째 질의가 죽어도 조용히 넘기면 안 된다.
+    m = _CI()
+    monkeypatch.setattr(m, "_헤드_태그", lambda root=None: ["v0.1.9"])
+    def 부른다(args):
+        if "--branch" in args and args[args.index("--branch") + 1] == "v0.1.9":
+            return 1, "", "gh: 권한 없음"
+        return 0, "[]", ""
+    것 = m.판들(부른다=부른다, 파일들=["deploy.yml"])
+    assert isinstance(것, str) and "못 읽었다" in 것, 것
+
+
+def test_헤드_태그는_실물_git_에_묻는다():
+    # ★ **글만 재면 배선을 안 잰다**(§173). 목록이든 빈 것이든 **터지지 않아야** 한다.
+    것 = _CI(실물태그=True)._헤드_태그()
+    assert isinstance(것, list)
+    assert all(isinstance(x, str) and x for x in 것)
+
+
+def test_git_이_아닌_자리에서는_태그가_없다(tmp_path):
+    # ★ **한 번도 안 돌아 본 가지**(§182). `git tag` 가 **실패**하는 길은 내 저장소에서
+    #   영영 안 밟힌다 — 그래서 돌연변이가 거기서 살아남았다(「아무 때나 지어낸다」).
+    #   못 물었으면 **빈 목록**이어야 한다. 지어내면 **없는 가지로 묻게 되고**, 그 질의의
+    #   빈손이 「판이 없다」 로 읽힌다 — 고치려던 바로 그 거짓말이 다시 생긴다.
+    것 = _CI(실물태그=True)._헤드_태그(tmp_path)
+    assert 것 == [], 것

@@ -21,6 +21,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/docs/proposal" || exit 1
 
 # ★ 묶음을 한 곳에 적는다. 셋 다 `figlib` 을 거치므로 matplotlib 이 공통이다.
+. "$ROOT/tools/lib/pw.sh"            # playwright 판의 정본(DECISIONS §194)
 PY_COMMON=(--with matplotlib --with pillow)
 
 # ★ 함수 이름도 ASCII 다. 배시는 받지만 shellcheck 가 못 읽는다(DECISIONS §123 과 같은 자리).
@@ -48,7 +49,7 @@ uv run "${PY_COMMON[@]}" python figures/diagrams.py
 SHOT_FACTS=(.build/fig/f_popup.facts.json .build/fig/f_preview_a.facts.json)
 
 say "화면 — 실제 popup.html · preview.html 을 찍는다"
-if uv run "${PY_COMMON[@]}" --with playwright python figures/shots.py; then
+if uv run "${PY_COMMON[@]}" --with "$PW_PIN" python figures/shots.py; then
   :
 else
   MISSING=""
@@ -56,7 +57,7 @@ else
   if [ -n "$MISSING" ]; then
     echo "  멈춘다 — 크로미움이 없고 **옛 그림도 없다.**$MISSING"
     echo "  .build/ 는 gitignore 라 깨끗한 나무에는 옛것이 없다 — 건너뛸 수가 없다"
-    echo "  깔고 다시 돌린다 : uv run --with playwright python -m playwright install chromium"
+    echo "  깔고 다시 돌린다 : uv run --with \"$PW_PIN\" python -m playwright install chromium"
     exit 1
   fi
   # ★ **여기가 §185 다.** 위까지는 「옛 그림이 **있나**」 만 봤다 — 2026-10-12 에

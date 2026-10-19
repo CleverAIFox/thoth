@@ -91,6 +91,16 @@ jobs:
           # ★ `python3 -m` 으로 부른다. `pip` 와 `python3` 가 다른 환경을
           #   가리키면 깔린 곳과 읽는 곳이 갈린다.
           python3 -c 'import yaml; print("pyyaml", yaml.__version__)'
+      # ★ **캐스케이드 검사가 CI 에서 계속 건너뛰어지고 있었다**(DECISIONS §194).
+      #   러너에는 `~/.cache/ms-playwright` 가 비어 있어 `doctor` 가 「재다 터졌다」 로 넘겼다 —
+      #   **가진 것과 도는 것은 다른 말이다**(§186).
+      # ★ **전체 크로미움(191MiB)은 안 받는다.** 재 보니 그 검사는 **헤드리스 셸만으로 돈다** —
+      #   `playwright==1.63.0`(빌드 1243) 하나로 실제로 돌려서 확인했다. 받는 것은 **120MiB** 다.
+      # ★ **판은 `tools/lib/pw.sh` 하나가 든다**(§194). 여기 수를 또 적으면 한쪽만 늙는다(§91).
+      - name: 브라우저 — 캐스케이드 검사가 쓴다
+        run: |
+          . tools/lib/pw.sh
+          uv run --with "$PW_PIN" python -m playwright install chromium-headless-shell
       - run: bash tools/doctor.sh --repo
       # ★ doctor 는 건너뛴 건수를 WARN 으로만 알린다. CI 에서는 0 이어야 하므로
       #   따로 확인한다 — 등급이 다른 두 자리에서 같은 검사를 쓴다.

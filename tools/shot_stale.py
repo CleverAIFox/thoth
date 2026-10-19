@@ -29,6 +29,16 @@ import pathlib
 import sys
 
 뿌리 = pathlib.Path(__file__).resolve().parent.parent
+
+# ★ playwright 판은 `tools/lib/pw.sh` 하나가 들고 **여기서 읽어 쓴다**(DECISIONS §194).
+#   두 곳에 수를 적으면 한쪽만 늙는다(§91).
+import importlib.util as _il
+
+_몫pw = _il.spec_from_file_location("pwpin", pathlib.Path(__file__).resolve().parent / "lib/pw.py")
+_pw = _il.module_from_spec(_몫pw)
+_몫pw.loader.exec_module(_pw)
+핀 = _pw.핀()
+
 # ★ **자리를 바꿔 끼울 수 있게 둔다.** `main` 의 종료 코드 셋은 **건너뛰는 기계에서만**
 #   밟히므로, 바꿔 끼우지 못하면 영영 안 재진다 — 「한 번도 안 돌아 본 가지」(§182).
 곁 = pathlib.Path(os.environ.get("THOTH_SHOT_FIG") or (뿌리 / "docs/proposal/.build/fig"))
@@ -107,7 +117,7 @@ def main(argv: list[str]) -> int:
         print("  **못 쟀다** — 옛 그림이 무엇을 찍은 것인지 적혀 있지 않다")
         for x in 없는것:
             print(f"      {x}")
-        print("  그림을 다시 찍는다 : uv run --with playwright python -m playwright install chromium")
+        print(f"  그림을 다시 찍는다 : uv run --with {핀} python -m playwright install chromium")
         return 2
 
     막, 못 = 흠(적힌, 지금())
@@ -120,7 +130,7 @@ def main(argv: list[str]) -> int:
         print("  건너뛸 수 없다 — **옛 그림은 지금 화면이 아니다**")
         for x in 막:
             print(f"      {x}")
-        print("  깔고 다시 돌린다 : uv run --with playwright python -m playwright install chromium")
+        print(f"  깔고 다시 돌린다 : uv run --with {핀} python -m playwright install chromium")
         return 1
     print("  옛 그림이 지금 원본을 찍은 것이다 — 건너뛴다")
     return 0

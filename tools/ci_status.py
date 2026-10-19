@@ -46,6 +46,18 @@ def 워크플로파일(root: pathlib.Path | None = None) -> list[str]:
     return [f.name for f in sorted((root / ".github/workflows").glob("*.yml"))]
 
 
+def _헤드_태그(root: pathlib.Path | None = None) -> list[str]:
+    """HEAD 를 가리키는 태그들. **없으면 빈 목록**이고 그러면 아무것도 더 안 묻는다.
+
+    ★ **태그 푸시가 띄운 판은 `headBranch` 가 태그 이름이다**(DECISIONS §194, 실측).
+      `--branch main` 하나로는 그 판이 영영 안 보인다.
+    """
+    root = root or ROOT
+    r = subprocess.run(["git", "tag", "--points-at", "HEAD"],
+                       cwd=root, capture_output=True, text=True)
+    return [x for x in r.stdout.split() if x] if r.returncode == 0 else []
+
+
 def 판들(branch: str = "main", limit: int = 창,
          부른다=None, 파일들: list[str] | None = None) -> list[dict] | str:
     """최근 판 목록(새 것부터) 또는 **왜 못 봤는지**를 적은 글.
@@ -75,6 +87,18 @@ def 판들(branch: str = "main", limit: int = 창,
             return f"`gh` 가 {어디} 에서 JSON 이 아닌 것을 줬다"
         return 것 if isinstance(것, list) else f"`gh` 가 {어디} 에서 목록이 아닌 것을 줬다"
 
+    # ★ **태그 판은 가지에 안 달린다**(DECISIONS §194). `--branch main` 으로만 물으면
+    #   `deploy` 가 **구조적으로 안 보인다** — 2026-10-15 에 실측했다 :
+    #
+    #       headBranch "v0.1.9" · event "push" · headSha bb573d5 (= HEAD)
+    #
+    #   그래서 `deploy` 는 넉 달 내내 **「판이 하나도 없는 워크플로」** 로 나왔고, 9월 22일의
+    #   `cancelled` 한 판도 아무도 못 봤다. **실물이 아니라 측정이 비어 있었다.**
+    # ★ **평평하게 안 묻는다**(세샤트 §295 의 교훈). 가지를 떼고 묻는 길은 **다른 가지의 판**
+    #   까지 끌어와 「이 커밋」 판정을 흐린다. 대신 **HEAD 를 가리키는 태그**만 가지로 더 묻는다 —
+    #   그 태그가 곧 이 커밋이므로 범위가 안 넓어진다.
+    # ★ **HEAD 에 태그가 없으면 안 묻는다.** 없는 것을 묻는 길을 세우지 않는다(§133).
+    태그들 = _헤드_태그()
     좁은것: dict[str, list] = {}
     모은것: list[dict] = []
     for 파일 in 파일들:
@@ -84,6 +108,13 @@ def 판들(branch: str = "main", limit: int = 창,
             return 것
         좁은것[파일] = 것
         모은것 += 것
+        for 태그 in 태그들:
+            더 = _묻는다(["gh", "run", "list", "--workflow", 파일, "--branch", 태그,
+                         "-L", str(limit), "--json", _FIELDS], f"{파일}@{태그}")
+            if isinstance(더, str):
+                return 더
+            좁은것[파일] = 좁은것[파일] + 더
+            모은것 += 더
     # ★ **평평한 질의를 걷어냈다**(세샤트 DECISIONS §295). §294 가 「좁혀 물으면 빈손, 평평하게
     #   물으면 나온다」 를 근거로 둘을 합쳤는데 **그 비교가 다른 시각의 두 관측이었다.**
     #   실제로는 그 판을 **사람이 지웠고** `gh` 는 두 길 다 참말을 하고 있었다.

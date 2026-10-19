@@ -72,7 +72,16 @@ trap 'rm -rf "$VERIFY"' EXIT
 python3 -c "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" \
   "$OUT" "$VERIFY"
 
-ENGINE=echo CACHE=memory python3 - "$VERIFY" <<'EOF'
+# ★ **부른 쉘을 안 읽는다**(DECISIONS §194). 전에는 `ENGINE` · `CACHE` 만 못 박고
+#   나머지는 그대로 물려받았다. 2026-10-15 에 `WORKER_TOKEN` 을 export 해 둔 쉘에서
+#   부르자 핸들러가 인증을 켰고, 아래 탐침은 `headers: {}` 로 부르므로 **401 이 맞는
+#   답**이 됐다 — 그런데 터진 모양은 맨 `AssertionError` 였다. **코드는 멀쩡하고
+#   검사가 제 환경을 안 통제한 것**인데, 읽는 사람에게는 「배포 꾸러미가 깨졌다」 로 보인다.
+# ★ **CI 에는 그 변수가 없어 영영 안 밟히는 가지였다**(§182). 사람 손에서만 터진다.
+# ★ `env -i` 로 전부 끊고 **필요한 것만 도로 넣는다.** 목록을 늘리려면 **왜 필요한지**를
+#   여기 적는다 — 안 적히면 그 줄이 다음 사고의 입구다.
+env -i PATH="$PATH" HOME="$HOME" LANG="${LANG:-C.UTF-8}" \
+    ENGINE=echo CACHE=memory python3 - "$VERIFY" <<'EOF'
 import importlib.abc
 import json
 import sys

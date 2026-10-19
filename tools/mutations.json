@@ -2220,8 +2220,8 @@
    },
    {
     "이름": "곁파일이 없어도 통과로 끝낸다",
-    "전": "        print(\"  그림을 다시 찍는다 : uv run --with playwright python -m playwright install chromium\")\n        return 2",
-    "후": "        print(\"  그림을 다시 찍는다 : uv run --with playwright python -m playwright install chromium\")\n        return 0"
+    "전": "        print(f\"  그림을 다시 찍는다 : uv run --with {핀} python -m playwright install chromium\")\n        return 2",
+    "후": "        print(f\"  그림을 다시 찍는다 : uv run --with {핀} python -m playwright install chromium\")\n        return 0"
    },
    {
     "이름": "팝업 그림이 꼴을 안 본다",
@@ -2509,6 +2509,209 @@
     "이름": "다음 번호 표시를 지운다",
     "전": "<!--plan:다음-->71 이다 — 닫힌 번호를 다시 쓰지 않는다",
     "후": "71 이다 — 닫힌 번호를 다시 쓰지 않는다"
+   }
+  ]
+ },
+ "태그판": {
+  "_왜": "태그 푸시가 띄운 판은 `headBranch` 가 태그 이름이라 `--branch main` 으로는 **구조적으로 안 보인다** — `deploy` 가 넉 달 내내 「판이 하나도 없는 워크플로」 였다(§194, 실측).",
+  "파일": "tools/ci_status.py",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_ci_status.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "태그로 안 묻는다",
+    "전": "        for 태그 in 태그들:",
+    "후": "        for 태그 in []:"
+   },
+   {
+    "이름": "태그 질의 실패를 삼킨다",
+    "전": "            if isinstance(더, str):\n                return 더",
+    "후": "            if isinstance(더, str):\n                더 = []"
+   },
+   {
+    "이름": "HEAD 태그를 아무 때나 지어낸다",
+    "전": "    return [x for x in r.stdout.split() if x] if r.returncode == 0 else []",
+    "후": "    return [x for x in r.stdout.split() if x] if r.returncode == 0 else [\"v0\"]"
+   }
+  ]
+ },
+ "판고정": {
+  "_왜": "`uv run --with playwright` 는 부를 때마다 최신을 푼다 — 깔린 브라우저 빌드와 어긋나는 날 빌드가 죽고 검사가 건너뛰어진다(§194).",
+  "파일": "tools/lib/pw.sh",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_pw_pin.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "핀을 푼다",
+    "전": "PW_PIN=\"playwright==1.64.0\"",
+    "후": "PW_PIN=\"playwright\""
+   },
+   {
+    "이름": "못 보는 것을 안 적는다",
+    "전": "# ★ **이 눈 밖 — CI 에는 브라우저가 아예 없다.**",
+    "후": "# ★ **CI 에는 브라우저가 아예 없다.**"
+   }
+  ]
+ },
+ "빈URL": {
+  "_왜": "`WORKER_URL` 이 **빈 값**일 때 조용히 로컬 기본값으로 가면 「값이 안 왔다」 와 「서버가 안 뜬다」 가 같은 말로 나온다(§194 · §59).",
+  "파일": "tools/smoke.sh",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_smoke_url.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "빈 값도 기본값으로 보낸다",
+    "전": "if [ \"${WORKER_URL+있다}\" = \"있다\" ] && [ -z \"$WORKER_URL\" ]; then",
+    "후": "if false; then"
+   },
+   {
+    "이름": "안 설정한 것까지 막는다",
+    "전": "if [ \"${WORKER_URL+있다}\" = \"있다\" ] && [ -z \"$WORKER_URL\" ]; then",
+    "후": "if [ -z \"${WORKER_URL:-}\" ]; then"
+   }
+  ]
+ },
+ "꾸러미환경": {
+  "_왜": "꾸러미 자가진단이 **부른 쉘**을 읽어, `WORKER_TOKEN` 을 export 한 자리에서 401 로 죽었다 — 코드가 아니라 검사가 제 환경을 안 통제한 것이다(§194).",
+  "파일": "tools/package_lambda.sh",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_smoke_url.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "부른 쉘을 도로 읽는다",
+    "전": "env -i PATH=\"$PATH\" HOME=\"$HOME\" LANG=\"${LANG:-C.UTF-8}\" \\\n    ENGINE=echo CACHE=memory python3 - \"$VERIFY\" <<'EOF'",
+    "후": "ENGINE=echo CACHE=memory python3 - \"$VERIFY\" <<'EOF'"
+   }
+  ]
+ },
+ "의존경보": {
+  "_왜": "`code_scanning` 은 CodeQL 만 묻고 `ci_status` 는 워크플로 파일에서 목록을 꺼내는데 **Dependabot 은 파일이 없다** — 2026-10-15 에 「코드 스캐닝 경보 없음」 을 찍는 동안 High 한 건이 떠 있었다(§194).",
+  "파일": "tools/dependabot.py",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_dependabot.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "범위를 모르면 넘어간다",
+    "전": "        (알릴것 if 범위 == \"development\" else 막을것).append(줄글)",
+    "후": "        (막을것 if 범위 == \"runtime\" else 알릴것).append(줄글)"
+   },
+   {
+    "이름": "닫힌 경보도 센다",
+    "전": "        if (a.get(\"state\") or \"open\") != \"open\":",
+    "후": "        if False:"
+   },
+   {
+    "이름": "고친 판이 없는 것을 안 적는다",
+    "전": "                + (f\" · 고친 판 {고친판}\" if 고친판 else \" · **고친 판이 아직 없다**\"))",
+    "후": "                + (f\" · 고친 판 {고친판}\" if 고친판 else \"\"))"
+   },
+   {
+    "이름": "면제를 번호로 받는다",
+    "전": "        if 이름 in 면제:",
+    "후": "        if a.get(\"number\") in 면제:"
+   }
+  ]
+ },
+ "CI브라우저": {
+  "_왜": "러너에 브라우저가 없어 캐스케이드 검사가 **조용히 건너뛰어졌다** — 가진 것과 도는 것은 다른 말이다(§186 · §194). 재 보니 헤드리스 셸만으로 돈다(191MiB 가 아니라 120MiB).",
+  "파일": ".github/workflows/ci.yml",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_pw_pin.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "브라우저를 안 깐다",
+    "전": "      - name: 브라우저 — 캐스케이드 검사가 쓴다",
+    "후": "      - name: 브라우저 — 나중에 깐다"
+   },
+   {
+    "이름": "전체 크로미움을 받는다",
+    "전": "          uv run --with \"$PW_PIN\" python -m playwright install chromium-headless-shell",
+    "후": "          uv run --with \"$PW_PIN\" python -m playwright install chromium"
+   },
+   {
+    "이름": "판을 워크플로에 또 적는다",
+    "전": "          . tools/lib/pw.sh\n          uv run --with \"$PW_PIN\" python -m playwright install chromium-headless-shell",
+    "후": "          uv run --with playwright==1.64.0 python -m playwright install chromium-headless-shell"
+   }
+  ]
+ },
+ "새파일눈": {
+  "_왜": "`doctor` 가 FAIL 0 을 찍은 바로 뒤 커밋 훅이 둘 터졌다 — 대상을 `git ls-files` 로 고르는 자리 스무 곳이 **추적 안 되는 새 파일을 안 든다**(§194 ㉢). 거짓 초록은 사람이 검사를 안 돌리게 만든다.",
+  "파일": "tools/doctor.sh",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_doctor_hygiene.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "추적 밖을 아예 안 본다",
+    "전": "mapfile -t NEWF < <(git ls-files --others --exclude-standard -- \\",
+    "후": "mapfile -t NEWF < <(git ls-files -- \\"
+   },
+   {
+    "이름": "gitignore 된 것까지 센다",
+    "전": "mapfile -t NEWF < <(git ls-files --others --exclude-standard -- \\",
+    "후": "mapfile -t NEWF < <(git ls-files --others -- \\"
+   },
+   {
+    "이름": "셸만 본다",
+    "전": "                      '*.sh' '*.py' '*.yml' '*.yaml' '*.js' 2>/dev/null)",
+    "후": "                      '*.sh' 2>/dev/null)"
+   },
+   {
+    "이름": "알리는 대신 막는다",
+    "전": "  warn \"추적 안 되는 새 파일 ${#NEWF[@]}개 — 위 검사들이 이것을 아직 안 봤다\"",
+    "후": "  no \"추적 안 되는 새 파일 ${#NEWF[@]}개 — 위 검사들이 이것을 아직 안 봤다\""
+   },
+   {
+    "이름": "고치는 명령을 안 적는다",
+    "전": "  echo \"           git add -N ${NEWF[*]}\"",
+    "후": "  echo \"           이름만 올린다\""
+   }
+  ]
+ },
+ "이진관문": {
+  "_왜": "§115(토큰 평문 plan 이 공개 저장소로 나간 사고)의 관문에 **시험이 하나도 없었다.** 그리고 194 ㉢ 이 권하는 `git add -N` 이 그 관문의 눈을 감긴다 — `-N` 한 파일은 더는 `--others` 가 아니다(§194 ㉢).",
+  "파일": "tools/ship.sh",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_shell_gate.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "add -N 한 것을 안 본다",
+    "전": "done <<< \"$(git ls-files --others --exclude-standard\n            git diff --name-only --diff-filter=A)\"",
+    "후": "done <<< \"$(git ls-files --others --exclude-standard)\""
+   },
+   {
+    "이름": "docs 예외를 없앤다",
+    "전": "  case \"$f\" in docs/*) continue ;; esac",
+    "후": "  case \"$f\" in docs/*) : ;; esac"
+   },
+   {
+    "이름": "빈 파일만 막는다",
+    "전": "  LC_ALL=C grep -qI . \"$f\" 2>/dev/null || NEW_BIN=\"$NEW_BIN $f\"",
+    "후": "  [ -s \"$f\" ] || NEW_BIN=\"$NEW_BIN $f\""
    }
   ]
  }
