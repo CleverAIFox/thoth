@@ -1,6 +1,6 @@
 """후처리 평가 코퍼스를 만든다. **자를 먼저 댄다**(DECISIONS §93 · §107).
 
-  uv run --with kiwipiepy python tools/gen_endings.py
+  . tools/lib/morph.sh && uv run --with "$KIWI_PIN" python tools/gen_endings.py
 
   worker/tests/endings/lexicon.json   용언 목록 — 부류마다 어간이 다르게 활용한다
         → worker/tests/endings/corpus.jsonl   (해요체 원문, 합쇼체 정답) 쌍
@@ -22,6 +22,9 @@
   것이기도 `걸다` 의 것이기도 하다. 문맥 없이는 가를 수 없으므로 그 줄에서 후처리가
   할 수 있는 옳은 일은 **그대로 두거나 둘 중 하나를 고르는 것**이다.
 
+★ **판을 못 박는다**(DECISIONS §196). 2026-10-19 까지 이 도구는 `--with kiwipiepy` 를
+  **핀 없이** 불렀다 — 어느 날 Kiwi 가 올라가면 `정답` 칸이 **조용히 달라진다.** §194 가
+  playwright 에서 고친 그 병이 코퍼스를 **만드는** 자리에 있었다. 정본은 `tools/lib/morph.sh`.
 ★ **Kiwi 는 워커 의존성이 아니다**(아직). 이 도구와 검수만 쓴다. 코퍼스는 저장소에
   들어가므로 검사와 벤치는 Kiwi 없이 돈다.
 """
@@ -174,7 +177,8 @@ def main() -> int:
         from kiwipiepy import Kiwi
         import kiwipiepy
     except ImportError:
-        print("kiwipiepy 가 없다 — uv run --with kiwipiepy python tools/gen_endings.py", file=sys.stderr)
+        print("kiwipiepy 가 없다 — . tools/lib/morph.sh 로 핀을 들이고 부른다 :\n"
+              '      uv run --with "$KIWI_PIN" python tools/gen_endings.py', file=sys.stderr)
         return 2
     rows = build(Kiwi())
     lines = [json.dumps(meta(kiwipiepy.__version__), ensure_ascii=False)]

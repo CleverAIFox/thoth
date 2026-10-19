@@ -14,7 +14,10 @@
 """
 import pathlib
 import re
-import subprocess
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import strip_prose
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PW = ROOT / "tools/lib/pw.sh"
@@ -57,13 +60,13 @@ def _본문(p: pathlib.Path) -> str:
 
 
 def _부르는것() -> list[pathlib.Path]:
-    out = subprocess.run(["git", "ls-files", "*.sh", "*.py", "*.yml"], cwd=ROOT,
-                         capture_output=True, text=True).stdout.split()
+    # ★ **목록 뽑는 자리는 하나다**(DECISIONS §196). `-z` 없이 부르면 git 이 비 ASCII
+    #   경로를 따옴표로 싸고, 그 글자를 경로로 쓰면 **없는 파일**이 된다 — 이 저장소에
+    #   `docs/proposal/수.js` 가 이미 있었다.
     것 = []
-    for rel in out:
-        if rel in ("tools/lib/pw.sh", "tools/lib/pw.py"):
+    for p in strip_prose.추적파일("*.sh", "*.py", "*.yml"):
+        if str(p.relative_to(ROOT)) in ("tools/lib/pw.sh", "tools/lib/pw.py"):
             continue
-        p = ROOT / rel
         if "playwright" in _본문(p):
             것.append(p)
     return 것

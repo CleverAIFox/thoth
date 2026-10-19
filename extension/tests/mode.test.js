@@ -29,6 +29,18 @@ const 읽 = (rel) => fs.readFileSync(path.join(뿌리, rel), "utf8");
 //   §173 의 가드도 같은 정규식을 들고 있어서 **지키려던 구간을 안 보고 있었다.**
 import { 글벗긴다, 코드벗긴다 } from "./strip.js";
 
+// ★ **고정 잠을 판정에 쓰지 않는다**(DECISIONS §196). 조건이 참이 될 때까지 기다리고
+//   상한에 걸리면 **무엇을 기다렸는지** 말하며 죽는다. 잠은 기계 속도를 판정에
+//   들이고, 그러면 **같은 코드가 기계마다 다른 색**을 낸다.
+const 까지기다린다 = async (조건, 말, 상한 = 15000) => {
+  const 끝 = Date.now() + 상한;
+  while (Date.now() < 끝) {
+    if (조건()) return;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  assert.fail(typeof 말 === "function" ? 말() : 말);
+};
+
 const 글 = "A shard stores records for the stream in this one long sentence here.";
 
 /** 저장소를 주고 브로커를 한 판 돌린다.
@@ -165,19 +177,33 @@ test("끄느라 거둔 자리는 다시 켜면 번역된다", need, async () => 
 
   let 껐나 = false;
   const 보낸글 = [];
+  let 첫묶음 = null;
   globalThis.fetch = async (url, init) => {
     const body = JSON.parse(init.body);
     body.texts.forEach((t) => 보낸글.push(t));
-    if (!껐나) { 껐나 = true; await c.api.storage.local.set({ stOff: true }); }
+    if (!껐나) {
+      껐나 = true;
+      첫묶음 = body.texts.length;
+      await c.api.storage.local.set({ stOff: true });
+    }
     await new Promise((r) => setTimeout(r, 60));
     return { ok: true, status: 200,
              json: async () => ({ translations: body.texts.map(() => "echo") }) };
   };
   const b = await loadBroker();
   try {
-    await new Promise((r) => setTimeout(r, 2500));     // 끈 채로 한참 돈다
+    await 까지기다린다(() => 껐나, "첫 요청이 안 나갔다 — 켠 상태를 못 만들었다");
+    // ★ **0 을 통과로 세지 않는다**(§59). 첫 묶음이 12 를 다 담았으면 **순회 한가운데서
+    //   거둘 자리가 없고**, 그러면 이 시험은 아무것도 안 묻는다 — 그런데 **통과한다.**
+    //   2026-10-19 에 그의 기계가 그 갈래로 떨어져 `끊는자리2` 돌연변이가 살아남았고
+    //   내 사본 3/3 은 물었다. **같은 코드가 기계마다 다른 색을 냈다.** 이제 그 갈래는
+    //   초록이 아니라 **이 줄에서 빨강**이다 — 무엇이 어긋났는지 말하면서 죽는다.
+    assert.ok(첫묶음 !== null && 첫묶음 < 12,
+              `첫 묶음이 ${첫묶음}/12 다 — 거둘 자리가 없어 이 시험이 아무것도 안 묻는다`);
+    await new Promise((r) => setTimeout(r, 800));      // 끈 채로 돈다 — 거두는 자리를 지난다
     await c.api.storage.local.set({ stOff: false });   // **다시 켠다**
-    await new Promise((r) => setTimeout(r, 4000));
+    await 까지기다린다(() => 보낸글.length >= 12,
+                       () => `다시 켠 뒤에도 안 나간 자리가 있다 — 보낸 글 ${보낸글.length}/12`);
 
     const 버린것 = doc.querySelectorAll("[data-st-fail]").length;
     assert.equal(버린것, 0, `끄기만 했는데 자리 ${버린것}개가 버려졌다`);

@@ -281,13 +281,13 @@ bash tools/build_proposal.sh     # 잠금 · 그림 셋 · docx · 자물쇠 · 
 
 | 갈래 | 자리 | 보나 |
 |---|---|---|
-| 도구 <!--count:skip_tool-->11곳 | 그 칸에서 `command -v <도구>` 를 묻는다 | **본다** |
-| 범위 <!--count:skip_scope-->7곳 | `$SCOPE` 로 갈린다 | **본다** |
-| 조건 <!--count:skip_cond-->25곳 | 모양이 여섯 가지 | **안 본다** — 하나를 고르면 맞는 코드를 비틀게 된다 |
+| 도구 <!--count:skip_tool-->12곳 | 그 칸에서 `command -v <도구>` 를 묻는다 | **본다** |
+| 범위 <!--count:skip_scope-->8곳 | `$SCOPE` 로 갈린다 | **본다** |
+| 조건 <!--count:skip_cond-->26곳 | 모양이 여섯 가지 | **안 본다** — 하나를 고르면 맞는 코드를 비틀게 된다 |
 | 빚 <!--count:skip_debt-->1곳 | 감싼 것이 없다(무조건이 맞다) | PLAN·DECISIONS 인용을 이미 본다 |
 
-★ **<!--count:skip_seen-->18곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
-「<!--count:skip_all-->44곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
+★ **<!--count:skip_seen-->20곳만 본다는 것을 적어 둔다.** 안 적으면 다음 사람이
+「<!--count:skip_all-->47곳을 다 본다」 로 읽고 **그만큼 믿는다**(§73 — 못 재는
 자리를 좁히고 그 자리를 적는다).
 
 ★ **이 수들은 글자가 아니라 주장이다**(DECISIONS §152). 2026-10-04 에 skip 하나를
@@ -1100,7 +1100,7 @@ VRAM 이 1.4GB 남아 있어도 일부 레이어가 CPU 에 남는다. 볼 것�
 | `worker/tests/endings/lexicon.json` | 용언 108 · 이다 6. 부류 15 — 규칙 · ㄹ탈락 · ㅂ ㄷ ㅅ 르 러 ㅎ 불규칙 · 으탈락 · 하다 · 보조 용언 · 이다 |
 | `worker/tests/endings/corpus.jsonl` | 해요체 → 합쇼체 2,472줄. Kiwi 의 `join` 이 활용했다(생성기 2판) |
 | `worker/tests/endings/hand.jsonl` | 손으로 쓴 43줄. 실사용 문장 · 여러 문장 · 괄호 · 바뀌면 안 되는 줄 |
-| `worker/tests/endings/review.tsv` | 사람이 판정할 283줄(부류 × 문형마다 둘 + 손 전부). **채우지 않았다 — `PLAN #66`** |
+| `worker/tests/endings/review.tsv` | 사람이 판정할 283줄(부류 × 문형마다 둘 + 손 전부). **채우지 않았다 — `PLAN #66`**. `tools/endings_oracle.py` 가 **표를 만든 엔진이 아닌 쪽**(mecab)으로 좁혀 **사람이 볼 줄은 22**다(§196) — 그 자는 `판정` 칸에 **아무것도 안 쓴다** |
 
 ```bash
 python3 tools/bench_endings.py --fails 20                  # Kiwi 없이 돈다
@@ -1697,7 +1697,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->1097건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->1121건을 함께 돌린다.
 
 **등급이 셋이다.**
 

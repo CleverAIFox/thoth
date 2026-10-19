@@ -39,7 +39,7 @@ def test_코퍼스가_용언_목록과_같은_판이다():
     now = hashlib.sha256((DIR / "lexicon.json").read_bytes()).hexdigest()[:16]
     assert meta["lexicon_sha"] == now, (
         "lexicon.json 이 코퍼스를 만든 뒤에 바뀌었다 — "
-        "uv run --with kiwipiepy python tools/gen_endings.py")
+        'uv run --with "$KIWI_PIN" python tools/gen_endings.py')
 
 
 def test_줄마다_필수_칸이_있고_id_가_겹치지_않는다():

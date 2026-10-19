@@ -260,7 +260,11 @@ def cache_rm(text: str) -> list[int]:
 # ★ **다만 수는 못 박는다.** 다음 사람이 `if [ "$SCOPE" != "--repo" ]` 가지를 하나 더
 #   만들고 `skip` 을 안 적으면 **조용히 CI 밖이 는다.** 이 수가 그것을 잡는다 — 늘어도
 #   줄어도 운다(양방향 래칫). 사유를 적으면서 늘리는 것은 **여기 수를 같이 고치는 일**이다.
-SCOPE_BRANCHES = 8
+# ★ 8 → **9** (2026-10-19 · DECISIONS §196). `== 어미 표 ==` 가 늘었다 — 형태소
+#   엔진 둘이 50MB 넘어 **CI 가 판마다 받게 하지 않는다.** 판정식은 가짜 엔진으로
+#   `worker/tests/test_endings_oracle.py` 가 전부 보고, 「실물 표 × 실물 엔진」 을
+#   CI 가 안 본다는 것은 그 절이 **이 눈 밖**으로 적는다.
+SCOPE_BRANCHES = 9
 
 
 def scope_branches(text: str) -> list[int]:
