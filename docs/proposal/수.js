@@ -52,4 +52,12 @@ const 쉼표 = (n) => n.toLocaleString("en-US");
 const 로컬대비배수 = Math.round(기준선.engines.local.speed.sec_per_question
                           / 기준선.engines.bedrock.speed.sec_per_question);
 
-module.exports = { 기준선, 문턱, 체감, 센것, 쉼표, 로컬대비배수 };
+// ★ **판 이름과 판 날짜가 두 곳에 살고 있었다**(DECISIONS §91 · §189). `build.js` 는
+//   `2026-10-14` 를, 표지는 「2026. 10. 03.」 을 들었다 — **같은 문서가 제 날짜를 둘로
+//   말한다.** §189 가 「한 곳에만 적는다」 로 세운 규칙인데 **표지는 그 한 곳이 아니었다.**
+//   여기 두면 `build.js`(docx 속성 · 머리글)와 본문이 **같은 자리**를 읽는다.
+const 판 = { 이름: "3.0", 날짜: "2026-10-20" };
+/** 표지에 찍는 꼴. `2026-10-20` → `판 3.0 · 2026. 10. 20.` */
+const 판글 = `판 ${판.이름} · ${판.날짜.split("-").join(". ")}.`;
+
+module.exports = { 기준선, 문턱, 체감, 센것, 쉼표, 로컬대비배수, 판, 판글 };

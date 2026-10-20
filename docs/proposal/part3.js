@@ -126,7 +126,7 @@ const part3 = [
   H2("권한 모델"),
   ...TBL(["항목", "값", "이유"], [
     ["permissions", "`storage` · `scripting` · `activeTab`", "최소"],
-    ["optional_host_permissions", "`<all_urls>`", "사이트마다 사용자가 켠다. 승인 클릭은 사이트당 두 번 — 설치 시 전 사이트 접근보다 낫다"],
+    ["host_permissions", "`<all_urls>`", "**모든 http(s) 페이지가 이 확장을 지난다**(DECISIONS §177). 승인을 사이트마다 받으면 **수집이 안 돌아서** 옮겼다 — 막는 것은 권한이 아니라 **기본값이 「수집만」** 인 것이다. 번역은 팝업에서 사이트마다 켠다"],
     ["action.default_popup", "`popup.html`", "팝업이 있으면 `onClicked` 가 죽으므로 권한 요청은 팝업에서, `await` 없이 콜백으로"],
     ["content_scripts", "없음", "특별대우를 없애 같은 사실이 세 곳에 살던 것을 지웠다(§14)"],
   ], [2.4, 3.0, 5.0]),

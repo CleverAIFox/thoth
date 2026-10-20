@@ -10,7 +10,8 @@ const { part3 } = require("./part3");
 // ★ **판 이름과 판 날짜를 한 곳에만 적는다**(DECISIONS §189). 머리글 글자와 docx 속성이
 //   따로 살면 한쪽만 늙는다(§57). 그리고 이 날짜가 **벽시계가 아니라는 것**이 요점이다 —
 //   아래를 보라.
-const 판 = { 이름: "3.0", 날짜: new Date("2026-10-14T00:00:00Z") };
+const { 판: 판자료 } = require("./수");
+const 판 = { 이름: 판자료.이름, 날짜: new Date(판자료.날짜 + "T00:00:00Z") };
 
 // ★ **라이브러리가 벽시계를 박는다 — 옵션이 없다**(docx 9.6.1, DECISIONS §189).
 //   `dist/index.cjs` 의 `TimestampElement` 이 `new Date()` 를 그대로 쓴다. `Document` 에

@@ -372,6 +372,17 @@ case "$DOC_RC" in
      printf '%s\n' "$DOC_OUT" | tail -5 | sed 's/^/       /' ;;
 esac
 
+# ★ **결정 기록은 사람 말을 그대로 담지 않는다**(DECISIONS §199). `check_docs` 는 **줄**을
+#   보는데 인용은 **줄을 넘는다** — 그래서 따로 선다. 축은 **말투** 하나이고, 욕설 사전은
+#   말투가 못 가르는 잔여(`?` 없는 해체 의문)를 받치는 그물로만 쓴다.
+SPEECH_OUT="$(python3 tools/check_speech.py 2>&1)"; SPEECH_RC=$?
+case "$SPEECH_RC" in
+  0) ok "발화 인용 (구어 0곳)" ;;
+  1) no "결정 기록에 사람 말이 그대로 들었다"; printf '%s\n' "$SPEECH_OUT" | sed 's/^/       /' ;;
+  *) no "check_speech.py 가 죽었다 (exit $SPEECH_RC)"
+     printf '%s\n' "$SPEECH_OUT" | tail -5 | sed 's/^/       /' ;;
+esac
+
 # ★ **문서 ↔ 실물.** check_docs 가 문서끼리를 본다면 이쪽은 문서가 적은 경로 · 테스트 ·
 #   도구가 실재하는지를 본다(DECISIONS §111 · 하토르 D-0189).
 FSCK_OUT="$(python3 tools/doc_fsck.py 2>&1)"; FSCK_RC=$?

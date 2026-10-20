@@ -60,7 +60,7 @@ PROP = ROOT / "docs/proposal"
 #   `로컬대비배수` 는 두 실측에서 나오는 **환산**이다. 셋 다 정본은 `수.js` 다.
 허용 = {"P", "GAP", "BR", "PART", "H1", "H2", "H3", "B", "NOTE", "CODE", "TBL", "KV",
        "FIGURE", "COVER", "TOC", "NAVY", "RED", "GRAY", "secs", "ROOT", "RNG",
-       "기준선", "문턱", "체감", "센것", "쉼표", "로컬대비배수"}
+       "기준선", "문턱", "체감", "센것", "쉼표", "로컬대비배수", "판글"}
 본문 = ("part1.js", "part2.js", "part3.js")
 _구조분해 = re.compile(r"const\s*\{([^}]*)\}\s*=\s*require\(\"([^\"]+)\"\)")
 _require = re.compile(r"require\(\"([^\"]+)\"\)")

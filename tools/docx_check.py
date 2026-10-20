@@ -394,10 +394,24 @@ def 생성기지문(root: Path) -> dict[str, str]:
 #   글을 코드로 읽는 검사가 되고, 그 족속은 이 저장소에서 열두 번 틀렸다. 여기서 묻는 것은
 #   **`docx` 안에 실제로 무엇이 박혀 있나** 다.
 def 판날짜(root: Path) -> str | None:
-    """`build.js` 가 선언한 판 날짜(`YYYY-MM-DD`). 못 읽으면 None — **없는 것과 다르다**."""
-    m = re.search(r'날짜:\s*new Date\("(\d{4}-\d{2}-\d{2})',
-                  (root / "docs/proposal/build.js").read_text(encoding="utf-8"))
-    return m.group(1) if m else None
+    """선언된 판 날짜(`YYYY-MM-DD`). 못 읽으면 None — **없는 것과 다르다**.
+
+    ★ **정본이 `수.js` 로 옮겼다**(DECISIONS §197). 종전에는 `build.js` 가 날짜를 직접
+      들었고 **표지는 그것과 다른 날짜를 글자로** 들고 있었다 — 같은 문서가 제 날짜를
+      둘로 말했다(§91). 이제 둘 다 `수.js` 를 읽는다.
+    ★ **옛 자리도 그대로 받는다.** 이 자를 바꾸는 판에서 `build.js` 만 보던 가지가
+      **못 읽음(None)** 으로 떨어지면, 그 None 은 「선언이 없다」 로 읽혀 **벽시계 검사가
+      통째로 꺼진 것처럼 보인다.** 둘 다 보고 먼저 찾는 것을 쓴다.
+    """
+    for 자리, 무늬 in (("docs/proposal/수.js", r'날짜:\s*"(\d{4}-\d{2}-\d{2})"'),
+                     ("docs/proposal/build.js", r'날짜:\s*new Date\("(\d{4}-\d{2}-\d{2})')):
+        q = root / 자리
+        if not q.is_file():
+            continue
+        m = re.search(무늬, q.read_text(encoding="utf-8"))
+        if m:
+            return m.group(1)
+    return None
 
 
 def check_wall_clock(root: Path) -> list[str]:
