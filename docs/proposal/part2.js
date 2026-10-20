@@ -154,7 +154,7 @@ const part2 = [
   ...TBL(["ID", "요구사항", "방식"], [
     ["SEC-01", "비밀은 공개 저장소 밖", "worker_token 은 gitignore 된 tfvars · GitHub secret · `.env` 에만. doctor 의 비밀 정규식이 tfplan · tfstate 도 본다"],
     ["SEC-02", "배포 자격증명은 승인 뒤에만", "OIDC `sub` = production Environment. 배포 역할에 IAM 쓰기가 없다"],
-    ["SEC-03", "최소 권한 확장", "`storage` · `scripting` · `activeTab` + `optional_host_permissions`. 설치 시 전 사이트 접근을 요구하지 않는다"],
+    ["SEC-03", "최소 권한 확장", "`storage` · `scripting` · `activeTab` + `host_permissions` `<all_urls>`. **막는 것은 권한이 아니라 기본값**이다 — 기본 모드가 「수집만」 이라 네트워크 0 · DOM 수정 0 · 과금 0 이고, 번역은 팝업에서 사이트마다 켠다(DECISIONS §177)"],
     ["SEC-04", "저작물을 배포하지 않는다", "스크래핑 · 선번역 범위 밖. 쌍 · 평가 표본 · 가중치 커밋 금지(비공개 저장소여도)"],
     ["SEC-05", "사용자를 식별하지 않는다", "캐시 · 카운터 · 쌍 어디에도 사용자 식별자가 없다. 관측 행은 경로를 싣지 않는다"],
     ["SEC-06", "모델 라이선스를 지킨다", "라이선스 대장 · 서빙은 상업 가부 yes 만. 사용 허락 지역 밖(대한민국 제외 라이선스)은 쓰지 않는다"],

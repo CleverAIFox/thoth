@@ -292,6 +292,23 @@ def 쓰는서비스(자원: list[tuple[str, str]]) -> tuple[set[str], list[str]]
     return 본것, sorted(모름)
 
 
+def 으뜸(선언값: dict) -> tuple[str, float] | None:
+    """(가장 비싼 서비스, 그 비중 %). 월 합이 0 이면 `None` — **0 으로 나눈 자리를
+    0% 라고 답하지 않는다**(§59).
+
+    ★ **비중을 선언에 글로 적지 않는 까닭이다.** 2026-10-20 감사가 이 저장소에서
+      그 흠을 찾았다 : `cost.json` 이 Bedrock 을 「전체의 99%」 라고 적고 있었는데
+      그 수는 Cost Explorer 가 과금되기 전 달의 것이었다. **달마다 바뀌는 수를 글로
+      적으면 달이 바뀔 때 글만 늙는다**(§57). 셈해서 찍으면 늙을 자리가 없다.
+    """
+    것들 = 선언값.get("서비스") or {}
+    합 = sum(float(s.get("월") or 0) for s in 것들.values())
+    if 합 <= 0:
+        return None
+    이름, 칸 = max(것들.items(), key=lambda kv: float(kv[1].get("월") or 0))
+    return 이름, float(칸.get("월") or 0) / 합 * 100
+
+
 def 날(s: str) -> _d.date:
     return _d.date.fromisoformat(s)
 
@@ -479,6 +496,16 @@ def _canary() -> None:
         sys.exit(2)
     if not 용량흠([("aws_dynamodb_table", "t", 'billing_mode = "PAY_PER_REQUEST"')]):
         print("    ★ 카나리아가 죽었다 — 온디맨드 테이블을 못 잡는다")
+        sys.exit(2)
+    # ★ **비중을 세는 자도 카나리아가 든다**(§203). 안 들면 셈이 틀려도 조용히 찍힌다 —
+    #   글로 적은 수를 셈으로 바꾼 뜻이 없어진다.
+    # ★ **으뜸을 맨 앞에 두지 않는다** — 앞에 두면 「첫 칸을 집는다」 와 답이 같다
+    둘 = dict(합성, 서비스={"나": {"월": 0.01}, "가": {"월": 0.03}})
+    if 으뜸(둘) != ("가", 75.0):
+        print("    ★ 카나리아가 죽었다 — 으뜸의 비중을 틀리게 센다")
+        sys.exit(2)
+    if 으뜸(dict(합성, 서비스={"가": {"월": 0.0}})) is not None:
+        print("    ★ 카나리아가 죽었다 — 합이 0 인데 비중을 답한다")
         sys.exit(2)
     # ★ **12자리를 글자로 적으면 이 파일이 제 관문에 걸린다** — 「글을 코드로 읽는
     #   검사는 글부터 지운다」 집안의 아홉 번째다(§168 · §180). **지어서** 먹인다.
@@ -740,8 +767,11 @@ def main() -> int:
     것들 = (d.get("서비스") or {}).values()
     합 = sum(float(s.get("월") or 0) for s in 것들)
     달들 = sorted({s.get("잰달") for s in 것들 if s.get("잰달")})
+    # ★ **으뜸의 비중은 여기서 센다** — 선언에 글로 적으면 달이 바뀔 때 글만 늙는다(§203)
+    머리 = 으뜸(d)
     꼬리 = (f"월 ${합:.4f} ({' · '.join(달들) or '잰 달 없음'}) · "
-            f"서비스 {len(d.get('서비스') or {})}개 (잰날 {d.get('잰날', '?')})")
+            + (f"으뜸 {머리[0]} {머리[1]:.0f}% · " if 머리 else "")
+            + f"서비스 {len(d.get('서비스') or {})}개 (잰날 {d.get('잰날', '?')})")
     for x in 알:
         print(f"    · {x}")
     if 막:
