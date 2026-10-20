@@ -242,7 +242,7 @@
  "124": {
   "날짜": "2026-10-01",
   "읽음": true,
-  "지문": "0a6aaedd21f72e22",
+  "지문": "939b102e1e2dfa92",
   "파일": [
    "docs/PLAN.md",
    "docs/proposal/part3.js"
@@ -303,7 +303,7 @@
  "129": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "eae547cc4d982496",
+  "지문": "fe4ab50a98527ff6",
   "파일": [
    "docs/proposal/part1.js",
    "docs/proposal/build.js",
@@ -709,7 +709,7 @@
  "167": {
   "날짜": "2026-10-05",
   "읽음": true,
-  "지문": "84076ebe32762840",
+  "지문": "e81ece33ee41d173",
   "파일": [
    "tools/check_proposal.py",
    "docs/proposal/numbers.json",
@@ -1121,7 +1121,7 @@
  "198": {
   "날짜": "2026-10-20",
   "읽음": false,
-  "지문": "4de1aa1f4334cae2",
+  "지문": "ca3cacf6ac1ab59f",
   "파일": [
    "tools/docx_check.py",
    "docs/proposal/수.js",
@@ -1133,7 +1133,7 @@
  "199": {
   "날짜": "2026-10-20",
   "읽음": true,
-  "지문": "384ffd83285b4e6c",
+  "지문": "e86388fa6e85923f",
   "파일": [
    "tools/check_speech.py",
    "tools/doctor.sh"
@@ -1154,6 +1154,14 @@
   "파일": [
    "worker/tests/test_contract.py",
    "worker/tests/test_engine_http.py"
+  ]
+ },
+ "200": {
+  "날짜": "2026-10-20",
+  "읽음": true,
+  "지문": "9c2073bc6cd39566",
+  "파일": [
+   "docs/proposal/part1.js"
   ]
  },
  "21": {
