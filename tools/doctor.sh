@@ -1101,8 +1101,17 @@ echo "== 문서 건수 =="
 # ★ 재지 못한 이름은 통과가 아니라 SKIP 이다. node 나 uv 가 없는 기계에서
 #   조용히 초록불이 되면 안 된다(DECISIONS §59).
 # shellcheck disable=SC2086
+# ★ **어미 코퍼스 줄도 센다**(DECISIONS §201). MASTER · README 가 그 수를 글자로 들고
+#   있었고 **아무도 안 셌다** — 기획서는 §197 에서 읽어 가게 고쳤는데 이 둘은 남았다.
+#   **첫 줄은 `meta` 머리라 뺀다** — 세는 자가 머리를 세면 늘 하나 많다.
+CORPUS_N="$(python3 -c '
+import json, pathlib
+줄 = [x for x in pathlib.Path("worker/tests/endings/corpus.jsonl").read_text(encoding="utf-8").split("\n") if x.strip()]
+print(len(줄) - (1 if 줄 and json.loads(줄[0]).get("meta") else 0))
+' 2>/dev/null)"
 CNT_OUT="$(python3 tools/check_counts.py \
-             "ext_tests=${EXT_N:-}" "worker_tests=${PY_N:-}" ${SKIP_TALLY} 2>&1)"; CNT_RC=$?
+             "ext_tests=${EXT_N:-}" "worker_tests=${PY_N:-}" \
+             "endings_corpus=${CORPUS_N:-}" ${SKIP_TALLY} 2>&1)"; CNT_RC=$?
 case "$CNT_RC" in
   0) ok "문서가 적은 건수가 실측과 같다" ;;
   # ★ **잡는 것과 고치는 것은 다른 일이다**(DECISIONS §180). 여기까지 오면 `doctor` 는
@@ -1110,8 +1119,8 @@ case "$CNT_RC" in
   #   `ext_tests` 와 `worker_tests` 가 **둘 다** 늙었다. 고치는 길을 **명령으로** 적는다.
   1) no "문서 건수가 실측과 다르다 — 고치려면 아래 줄을 그대로 친다"
      printf '%s\n' "$CNT_OUT" | sed 's/^/    /'
-     printf '       python3 tools/check_counts.py --fix "ext_tests=%s" "worker_tests=%s" %s\n' \
-            "${EXT_N:-}" "${PY_N:-}" "${SKIP_TALLY}" ;;
+     printf '       python3 tools/check_counts.py --fix "ext_tests=%s" "worker_tests=%s" "endings_corpus=%s" %s\n' \
+            "${EXT_N:-}" "${PY_N:-}" "${CORPUS_N:-}" "${SKIP_TALLY}" ;;
   3) printf '%s\n' "$CNT_OUT" | sed 's/^    //' | while IFS= read -r l; do skip "$l"; done ;;
   *) no "check_counts.py 가 죽었다 (exit $CNT_RC)"
      printf '%s\n' "$CNT_OUT" | tail -5 | sed 's/^/       /' ;;

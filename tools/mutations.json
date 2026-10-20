@@ -1715,6 +1715,21 @@
     "이름": "고치고 다시 안 센다",
     "전": "        for x in 고친다(ROOT, measured):\n            print(f\"    고쳤다 — {x}\")",
     "후": "        return 0"
+   },
+   {
+    "이름": "쉼표에서 수를 끊는다",
+    "전": "MARK = re.compile(r\"<!--count:(\\w+)-->\\s*([0-9][0-9,]*)\")",
+    "후": "MARK = re.compile(r\"<!--count:(\\w+)-->\\s*([0-9]+)\")"
+   },
+   {
+    "이름": "어긋난 꼴도 값으로 읽는다",
+    "전": "    return int(글자.replace(\",\", \"\")) if 묶음.match(글자) else None",
+    "후": "    return int(글자.replace(\",\", \"\").rstrip(\",\") or 0)"
+   },
+   {
+    "이름": "고칠 때 적힌 쉼표 꼴을 잃는다",
+    "전": "            새글자 = f\"{잰것:,}\" if (적힌 is not None and \",\" in 글자) else str(잰것)",
+    "후": "            새글자 = str(잰것)"
    }
   ]
  },

@@ -166,3 +166,49 @@ def test_fix_가_고치고_다시_센다(tmp_path, monkeypatch):
     나 = _모래밭(tmp_path / "나", "확장 <!--count:ext_tests-->176건\n")
     monkeypatch.setattr(cc, "ROOT", 나)
     assert cc.main(["--fix", "ext_tests=187"]) == 0, "다 고쳤는데 안 통과한다"
+
+
+# ── 천 단위 쉼표 ──────────────────────────────────────────────────────
+# ★ **2026-10-20 의 그 빨강이다**(DECISIONS §202). 표시 뒤를 `([0-9]+)` 로 끊어서
+#   `2,472` 를 `2` 로 읽고 **「문서 2 · 실측 2472」** 라고 울었다 — 수는 옳았고
+#   **읽는 자가 틀렸다.** 까닭이 거짓인 빨강은 사람을 엉뚱한 곳으로 보낸다.
+
+def test_쉼표_있는_수를_덩어리로_읽는다():
+    """★ **집는 일과 판정하는 일을 안 섞는다** — 덩어리로 집고 꼴은 따로 본다."""
+    assert cc.MARK.findall("어미 코퍼스 <!--count:endings_corpus-->2,472줄 중") == \
+        [("endings_corpus", "2,472")]
+    assert cc.읽는다("2,472") == 2472
+    assert cc.읽는다("1121") == 1121
+    assert cc.읽는다("2,000,000") == 2000000
+
+
+def test_어긋난_꼴은_값이_아니다():
+    """★ **앞자리만 읽어서 값인 척하지 않는다**(§59). `2,47` 을 `247` 로 읽으면
+    **조용히 틀린 주장**이 서고, `2` 로 읽으면 **까닭이 거짓인 빨강**이 선다."""
+    assert cc.읽는다("2,47") is None
+    assert cc.읽는다("12,3456") is None
+    assert cc.읽는다("1,,000") is None
+
+
+def test_어긋난_꼴은_실패다():
+    """★ 못 읽은 자리를 **건너뛰면 주장이 사라진다** — 0 이 목표인 검사의 흔한 죽음."""
+    code, 줄 = cc.compare(found(("README.md", "ext_tests", 9, None)), {"ext_tests": 43})
+    assert code == 1
+    assert "꼴이 어긋났다" in 줄[0]
+
+
+def test_fix_가_적힌_쉼표_꼴을_지킨다(tmp_path):
+    """★ **고치는 자가 문서의 글꼴을 흐트러뜨리면** 다음 사람이 손으로 되돌리고,
+    그러면 이 자가 또 운다. 쉼표로 쓴 자리는 쉼표로, 안 쓴 자리는 안 쓴 채로."""
+    d = _모래밭(tmp_path, "코퍼스 <!--count:endings_corpus-->2,400줄 · "
+                          "확장 <!--count:ext_tests-->200건\n")
+    cc.고친다(d, {"endings_corpus": 2472, "ext_tests": 217})
+    assert (d / "README.md").read_text(encoding="utf-8") == \
+        "코퍼스 <!--count:endings_corpus-->2,472줄 · 확장 <!--count:ext_tests-->217건\n"
+
+
+def test_어긋난_꼴은_쉼표_없이_고친다(tmp_path):
+    """★ 꼴을 못 읽은 자리의 **옛 쉼표를 본보기로 쓰지 않는다** — 본보기가 고장이다."""
+    d = _모래밭(tmp_path, "어긋난 것 <!--count:worker_tests-->1,12건\n")
+    cc.고친다(d, {"worker_tests": 1121})
+    assert "<!--count:worker_tests-->1121건" in (d / "README.md").read_text(encoding="utf-8")
