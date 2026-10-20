@@ -56,6 +56,7 @@ function 굵게(s) {
 
 let 표번 = 0, 그림번 = 0, 자리번 = 0;
 const 제목들 = [];
+const 목차항목 = [];
 const 셀 = (s) => String(s).split("\n").map((l) => {
   const 머리 = /^\[.*\]$/.test(l) || l.startsWith("○ ");
   const 항목 = l.startsWith("- ");
@@ -133,8 +134,16 @@ const 가짜 = {
     + (표.전제 || []).map((s) => `<p class="note">${굵게(s)}</p>`).join("")
     + `</section>`,
   ],
-  TOC: (항목) => [`<nav class="toc"><h2>목차</h2>${항목.map(([x, l]) =>
-    `<p class="l${l ? 1 : 0}">${esc(x)}</p>`).join("")}</nav>`],
+  // ★ **항목을 자료로 들고 있는다.** 곁목차와 맞대려면 같은 글이 필요한데, **만든
+  //   마크업을 도로 파싱하면** 두 가지가 나쁘다 : 한 판짜리 태그 벗기기는 **불완전한
+  //   세척**이고(코드 스캐닝이 물었다 · DECISIONS §171 과 같은 자리), **제가 만든 것을
+  //   다시 읽는** 꼴이라
+  //   꾸밈을 고치면 조용히 깨진다. 받을 때 담아 두면 정규식이 아예 필요 없다.
+  TOC: (항목) => {
+    목차항목.push(...항목.map(([x]) => String(x).replace(/\s+/g, " ").trim()));
+    return [`<nav class="toc"><h2>목차</h2>${항목.map(([x, l]) =>
+      `<p class="l${l ? 1 : 0}">${esc(x)}</p>`).join("")}</nav>`];
+  },
 };
 // ★ **자료는 가짜가 아니라 정본을 그대로 넘긴다**(DECISIONS §180). 여기서 다시 적으면
 //   같은 수가 두 렌더러에 따로 살고 **두 산출물이 갈린 채 둘 다 만들어진다**(§91 · §166).
@@ -281,10 +290,8 @@ hr.pb{border:0;border-top:1px solid var(--line);margin:56px 0}
 const 곁목차 = 제목들.map((h) =>
   `<a class="${esc(h.부 ? "pt" : "")}" href="#${esc(h.id)}">${esc(h.글)}</a>`).join("");
 {
-  const 손 = (toc.join("").match(/<p class="l[01]">([^<]*)<\/p>/g) || [])
-    .map((x) => x.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
   const 실 = 제목들.map((h) => h.글.replace(/\s+/g, " ").trim());
-  const 빠진 = 실.filter((x) => !손.includes(x));
+  const 빠진 = 실.filter((x) => !목차항목.includes(x));
   if (빠진.length) console.error(`  ※ 목차에 없는 제목 ${빠진.length} : ${빠진.slice(0, 4).join(" · ")}`);
 }
 

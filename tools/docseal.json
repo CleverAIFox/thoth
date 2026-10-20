@@ -695,7 +695,7 @@
  "166": {
   "날짜": "2026-10-05",
   "읽음": true,
-  "지문": "c632bf70d316f59a",
+  "지문": "12f0c24beaa54130",
   "파일": [
    "docs/proposal/html.js",
    "docs/proposal/facts.js",
@@ -721,7 +721,7 @@
  "168": {
   "날짜": "2026-10-06",
   "읽음": true,
-  "지문": "892a725d67838942",
+  "지문": "c72054df42243c68",
   "파일": [
    "extension/src/cssaudit.js",
    "extension/src/broker.js",
@@ -770,7 +770,7 @@
  "171": {
   "날짜": "2026-10-07",
   "읽음": true,
-  "지문": "ec6cd32b5f1284a5",
+  "지문": "8f86b7d3fdcac3c7",
   "파일": [
    "docs/proposal/html.js",
    "tools/code_scanning.py",
@@ -1110,7 +1110,7 @@
  "197": {
   "날짜": "2026-10-20",
   "읽음": true,
-  "지문": "8502af65570871e2",
+  "지문": "c930a7d3936ad165",
   "파일": [
    "docs/proposal/html.js",
    "docs/proposal/lib.js",
@@ -1133,7 +1133,7 @@
  "199": {
   "날짜": "2026-10-20",
   "읽음": true,
-  "지문": "e0286baddabecfb1",
+  "지문": "384ffd83285b4e6c",
   "파일": [
    "tools/check_speech.py",
    "tools/doctor.sh"

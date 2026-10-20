@@ -190,6 +190,9 @@ if __name__ == "__main__":
         sys.exit(main())
     except SystemExit:
         raise
-    except Exception as e:  # noqa: BLE001 — 고장을 2 로 번역하는 자리다
+    # 넓게 잡는 자리다 — **고장을 2 로 번역하는 것이 이 블록의 일이다**.
+    # `noqa` 를 안 단다 : 이 저장소의 ruff 는 `BLE` 를 안 켜서 **쓰이지 않는 noqa**
+    # 가 되고 `RUF100` 이 운다(§196 에서 `E402` 로 같은 일을 했다).
+    except Exception as e:
         print(f"    check_speech 가 죽었다 — {type(e).__name__}: {e}", file=sys.stderr)
         sys.exit(2)
