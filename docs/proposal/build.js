@@ -44,10 +44,17 @@ const doc = new Document({
         run: { size: 22, bold: true, font: FONT }, paragraph: { spacing: { before: 220, after: 100 }, outlineLevel: 1 } },
     ],
   },
+  // ★ **표지에는 머리글도 쪽 번호도 없다.** `titlePage` 를 켜면 첫 쪽만 `first` 를 쓴다 —
+  //   빈 것을 주면 표지가 깨끗해진다. 종전에는 제목 위에 「thoth · seshat 기획서 3.0」 이
+  //   같이 찍혀 **표지가 제 이름을 두 번 말하고 있었다.**
   sections: [{
-    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
-    headers: { default: new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [t(`thoth · seshat 기획서 ${판.이름}`, { size: 16, color: "888888" })] })] }) },
-    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
+    properties: { titlePage: true, page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
+    headers: {
+      first: new Header({ children: [new Paragraph({ children: [] })] }),
+      default: new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [t(`thoth · seshat 기획서 ${판.이름}`, { size: 16, color: "888888" })] })] }) },
+    footers: {
+      first: new Footer({ children: [new Paragraph({ children: [] })] }),
+      default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
     children: [...cover, ...toc, ...s1, ...s2, ...part2, ...part3],
   }],
 });

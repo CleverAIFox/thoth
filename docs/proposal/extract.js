@@ -7,9 +7,24 @@
 const libPath = require.resolve("./lib");
 const 블록 = [];
 let 번 = 0;
+// ★ **구조로 넘긴 자료도 글이다**(DECISIONS §166). 종전에는 **맨 위의 문자열만** 모았다.
+//   표지가 `[글, 모양]` 줄 목록이던 동안에는 그것으로 족했는데, 이름 붙은 자료
+//   (`{라벨, 이름, 부제, …}`)로 바뀌자 **글이 하나도 안 잡혔다** — 그러면 「두 렌더러가
+//   같은 글을 받았나」 가 **표지에 대해서는 안 물어진다.** 안 묻는 검사는 초록이다.
+// ★ **배열 인자는 종전대로 둔다.** `TBL(머리, 줄들, 너비)` 의 칸 글은 이 자가 아니라
+//   `check_proposal` 의 산문 대조가 본다 — 여기서 같이 긁으면 **같은 글을 두 자가 세고**
+//   한쪽을 고칠 때 다른 쪽이 조용히 틀린다.
+const 속글 = (x, out) => {
+  if (typeof x === "string") out.push(x);
+  else if (Array.isArray(x)) for (const y of x) 속글(y, out);
+  else if (x && typeof x === "object") for (const y of Object.values(x)) 속글(y, out);
+  return out;
+};
 const 담기 = (종류) => (...a) => {
   번++;
-  블록.push({ n: 번, 종류, 글: a.filter((x) => typeof x === "string") });
+  const 글 = [];
+  for (const x of a) { if (typeof x === "string") 글.push(x); else if (x && !Array.isArray(x) && typeof x === "object") 속글(x, 글); }
+  블록.push({ n: 번, 종류, 글 });
   return [{ 종류, n: 번 }];   // ★ 펼침(...)으로 쓰는 자리가 있어 배열을 낸다
 };
 const 가짜 = {};

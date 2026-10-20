@@ -2,7 +2,7 @@
 // 10pt · 표 머리 D9E2F3 · 제목 1F3864 · 이름 C00000.
 const D = require("docx");
 const { Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ShadingType, AlignmentType,
-  BorderStyle, PageBreak, ImageRun, VerticalAlign, HeadingLevel } = D;
+  BorderStyle, PageBreak, ImageRun, VerticalAlign, HeadingLevel, TabStopType } = D;
 
 const FONT = "맑은 고딕";
 const MONO = "Consolas";
@@ -12,8 +12,10 @@ const NAVY = "1F3864", RED = "C00000", HEAD = "D9E2F3", SUB = "F2F2F2", GRAY = "
 //   (`html.js`)가 같은 것을 쓰고, 베끼면 한쪽만 늙는다.
 const { ROOT, SEP, RNG, secs, 그림 } = require("./facts");
 
+// ★ `sp` 는 **자간**이다(1/20 pt). 표지의 작은 라벨에만 쓴다 — 본문에 자간을 주면
+//   줄바꿈 자리가 갈려 두 렌더러의 글자가 달라 보인다.
 const t = (text, o = {}) => new TextRun({ text, font: o.mono ? MONO : FONT, size: o.size || 20, bold: o.bold,
-  color: o.color, italics: o.it });
+  color: o.color, italics: o.it, characterSpacing: o.sp });
 
 // **굵게** · `코드` 를 런으로 가른다
 function runs(s, o = {}) {
@@ -122,9 +124,52 @@ function FIGURE(name, caption, widthIn = 6.5) {
 const 가운데 = (글, o) => new Paragraph({ alignment: AlignmentType.CENTER,
   spacing: { after: o.after ?? 60 }, children: [t(글, o)] });
 
-/** 표지. `줄` 은 `[글, 모양]` 들이고 모양은 `t()` 가 아는 것 + `after`. */
-const COVER = (줄) => [new Paragraph({ children: [], spacing: { before: 1500 } }),
-                       ...줄.map(([글, o]) => 가운데(글, o || {}))];
+/** 가로선 하나. `안쪽` 으로 좌우를 밀면 **짧은 가운데 선**이 된다. */
+const 선 = (o = {}) => new Paragraph({ children: [],
+  indent: { left: o.안쪽 || 0, right: o.안쪽 || 0 },
+  border: { bottom: { style: BorderStyle.SINGLE, size: o.굵기 || 6, color: o.color || NAVY, space: 1 } },
+  spacing: { before: o.before || 0, after: o.after || 0 } });
+
+/** 표지와 전제. **앞장은 한 덩어리다** — 표지 · 전제 · 목차가 각각 제 쪽을 가진다.
+ *
+ *  ★ **표지에 본문이 있으면 그것은 표지가 아니다.** 종전에는 쪽 나눔이 없어서 전제
+ *    여섯 줄이 제목 바로 밑에 붙었고, 첫 쪽이 **제목 반 · 깨알 반**이었다. 쪽 나눔
+ *    하나가 고치는 것을 글자 크기로 고치려 들면 끝이 없다.
+ *  ★ **위계는 크기가 아니라 차이로 만든다.** 종전에는 「프로젝트 기획서」(22pt)와
+ *    「thoth · seshat」(28pt)이 **엇비슷해서 둘 다 제목으로 읽혔다.** 라벨은 작게
+ *    눕히고(10pt · 자간) 이름만 크게 세운다 — 둘의 크기 차가 클수록 서로 안 싸운다.
+ *  ★ **가운데 정렬한 긴 문장은 읽기 나쁘다.** 줄마다 시작점이 달라 눈이 매번 왼쪽
+ *    끝을 다시 찾는다. `한줄` 은 **쓰는 쪽이 끊어서** 넘긴다 — 자동 줄바꿈에 맡기면
+ *    글꼴 판이 바뀔 때마다 균형이 갈린다.
+ *  ★ **메타는 표로 읽힌다.** 날짜 · 판 · 소속 · 작성자를 같은 크기 두 줄로 뭉치면
+ *    무엇이 무엇인지 안 보인다. 이름표를 네이비로 눕히고 값만 검게 세운다.
+ */
+const COVER = (표) => [
+  GAP(2600),
+  가운데(표.라벨, { size: 20, bold: true, color: NAVY, sp: 60, after: 420 }),
+  가운데(표.이름, { size: 80, bold: true, color: RED, after: 60 }),
+  선({ 안쪽: 3000, 굵기: 8, after: 300 }),
+  가운데(표.부제, { size: 26, bold: true, after: 160 }),
+  ...(표.한줄 || []).map((글, i, a) => 가운데(글, { size: 18, color: GRAY, after: i === a.length - 1 ? 0 : 20 })),
+  GAP(4700),
+  // ★ **가운데 정렬로는 이름표가 안 맞는다.** 줄마다 따로 가운데를 잡아 「판 · 기간 ·
+  //   소속 · 작성」 이 지그재그로 흔들린다. **탭 자리**로 이름표는 오른쪽 끝을, 값은
+  //   왼쪽 끝을 맞춘다 — 표를 쓰지 않고 두 칸을 만드는 법이다.
+  ...(표.메타 || []).map(([이름, 값]) => new Paragraph({
+    tabStops: [{ type: TabStopType.RIGHT, position: 4500 }, { type: TabStopType.LEFT, position: 4760 }],
+    spacing: { after: 90 },
+    children: [t("\t", {}), t(이름, { size: 18, bold: true, color: NAVY, sp: 20 }), t("\t", {}), t(값, { size: 19 })] })),
+  선({ 안쪽: 2200, 굵기: 4, color: "C9CFD8", before: 300 }),
+  // ★ **판은 한 낱말로 붙여 적는다.** `docx_check` 의 STRUCTURE 가 「`판 3.0`」 을 **글자
+  //   그대로** 찾는다(DECISIONS §116 · §129) — 「12장짜리 2.0 으로 되돌아갔나」 를 묻는 자다.
+  //   메타 표의 탭 자리에 넣으면 사이에 탭이 들어가 **그 글자가 사라진다.** 판과 날짜는
+  //   사람 정보가 아니라 **문서의 신원**이라 표 밖, 선 아래가 제자리이기도 하다.
+  ...(표.판 ? [가운데(표.판, { size: 17, color: GRAY, after: 0 })] : []),
+  BR(),
+  P(표.전제제목 || "전제", { size: 26, bold: true, color: NAVY, after: 60 }),
+  선({ 굵기: 4, color: "C9CFD8", after: 220 }),
+  ...(표.전제 || []).flatMap((s) => [NOTE(s), GAP(70)]),
+];
 
 /** 목차. `항목` 은 `[글, 깊이]` — 깊이 0 은 부, 1 은 장.
  *  ★ **필드 목차를 쓰지 않는다.** 웹 뷰어는 필드를 갱신하지 못해 빈 쪽이 된다. */
@@ -140,4 +185,4 @@ const TOC = (항목) => [BR(),
 const 수 = require("./수");
 
 module.exports = {
-  ...수, ROOT, RNG, secs, D, t, runs, P, GAP, BR, PART, H1, H2, H3, B, NOTE, CODE, TBL, KV, FIGURE, COVER, TOC, W, NAVY, RED, GRAY, FONT };
+  ...수, ROOT, RNG, secs, D, t, runs, P, GAP, BR, PART, H1, H2, H3, B, NOTE, CODE, TBL, KV, FIGURE, COVER, TOC, 선, W, NAVY, RED, GRAY, FONT };

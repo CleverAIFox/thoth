@@ -54,7 +54,8 @@ function 굵게(s) {
   }).join("");
 }
 
-let 표번 = 0, 그림번 = 0;
+let 표번 = 0, 그림번 = 0, 자리번 = 0;
+const 제목들 = [];
 const 셀 = (s) => String(s).split("\n").map((l) => {
   const 머리 = /^\[.*\]$/.test(l) || l.startsWith("○ ");
   const 항목 = l.startsWith("- ");
@@ -83,11 +84,21 @@ const 가짜 = {
   P: (s, o = {}) => [`<p${o.indent ? ' class="ind"' : ""}>${굵게(s)}</p>`],
   GAP: () => ['<div class="gap"></div>'],
   BR: () => ['<hr class="pb">'],
-  PART: (s) => [`<h1 class="part">${esc(s)}</h1>`],
-  H1: (s) => [`<h2>${굵게(s)}</h2>`],
-  H2: (s) => [`<h3>□ ${굵게(s)}</h3>`],
+  // ★ **곁목차를 손 목록에서 만들지 않는다.** `TOC` 는 **사람이 적은 목록**이라 본문과
+  //   어긋날 수 있고, 어긋나도 아무도 안 운다. 곁목차는 **실제로 찍힌 제목**에서 만든다 —
+  //   없는 자리로는 못 가고, 제목이 늘면 저절로 따라온다(seshat DECISIONS §302 와 같은 꼴).
+  PART: (s) => { const id = `p${++자리번}`; 제목들.push({ id, 글: s.trim(), 부: true });
+                 return [`<h1 class="part" id="${esc(id)}">${esc(s)}</h1>`]; },
+  H1: (s) => { const id = `p${++자리번}`; 제목들.push({ id, 글: String(s).replace(/[*`]/g, "").trim(), 부: false });
+               return [`<h2 id="${esc(id)}">${굵게(s)}</h2>`]; },
+  // ★ **`□` 는 워드의 글머리다.** docx 는 글자로 찍을 수밖에 없지만 화면에는 **모양으로
+  //   그릴 수단이 있다** — 없는 것을 흉내내지 않는 것과 같은 자리다. 글자를 안 넣으므로
+  //   두 렌더러 대조도 그대로다(대조는 블록이 받은 **글**을 본다).
+  H2: (s) => [`<h3>${굵게(s)}</h3>`],
   H3: (s) => [`<h4>${굵게(s)}</h4>`],
-  B: (s, lvl = 0) => [`<p class="b l${lvl}">${lvl ? "– " : "- "}${굵게(s)}</p>`],
+  // ★ **글머리도 모양으로 그린다**(`□` 와 같은 자리). docx 는 글자로 찍을 수밖에 없고
+  //   화면에는 수단이 있다 — 글자를 안 넣으므로 두 렌더러 대조는 그대로다.
+  B: (s, lvl = 0) => [`<p class="b l${lvl}">${굵게(s)}</p>`],
   NOTE: (s) => [`<p class="note">${굵게(s)}</p>`],
   CODE: (lines) => [`<pre>${lines.map((l) => esc(l || " ")).join("\n")}</pre>`],
   TBL: 표,
@@ -105,7 +116,23 @@ const 가짜 = {
     return [`<figure><img alt="${esc(facts.join(SEP))}" src="data:image/png;base64,${data.toString("base64")}">`
             + 캡 + `</figure>`];
   },
-  COVER: (줄) => [`<section class="cover">${줄.map(([글]) => `<p>${esc(글)}</p>`).join("")}</section>`],
+  // ★ **두 번째 렌더러도 앞장을 세 덩어리로 낸다**(DECISIONS §166). docx 는 쪽으로,
+  //   HTML 은 구획으로 가른다 — 「없는 것을 흉내내지 않는다」 라 쪽 나눔은 `<hr class="pb">`
+  //   하나로 족하고, 보이는 위계는 docx 와 같은 차례여야 한다.
+  COVER: (표) => [
+    `<section class="cover">`
+    + `<p class="label">${esc(표.라벨)}</p>`
+    + `<h1 class="mark">${esc(표.이름)}</h1>`
+    + `<p class="sub">${esc(표.부제)}</p>`
+    + `<p class="lede">${(표.한줄 || []).map(esc).join("<br>")}</p>`
+    + `<dl class="meta">${(표.메타 || []).map(([n, v]) => `<dt>${esc(n)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`
+    + (표.판 ? `<p class="stamp">${esc(표.판)}</p>` : "")
+    + `</section>`,
+    `<hr class="pb">`,
+    `<section class="pre"><h2>${esc(표.전제제목 || "전제")}</h2>`
+    + (표.전제 || []).map((s) => `<p class="note">${굵게(s)}</p>`).join("")
+    + `</section>`,
+  ],
   TOC: (항목) => [`<nav class="toc"><h2>목차</h2>${항목.map(([x, l]) =>
     `<p class="l${l ? 1 : 0}">${esc(x)}</p>`).join("")}</nav>`],
 };
@@ -124,42 +151,142 @@ const 몸 = [...cover, ...toc, ...s1, ...s2, ...part2, ...part3].join("\n");
 //   「16진 색은 네 자리라 안 걸린다」 고 적고 있었는데 **세 자리 꼴을 안 봤다.**
 //   자를 느슨하게 하는 대신 **글자를 맞춘다** — 느슨해진 자는 다음에 진짜를 놓친다.
 const 꾸밈 = `
-:root { --navy:#1f3864; --red:#c00000; --gray:#555555; --head:#d9e2f3; --sub:#f2f2f2; --line:#8ea9db; }
-* { box-sizing:border-box }
-body { margin:0; background:#eef1f5; color:#111111;
-  font:10.5pt/1.75 "맑은 고딕","Malgun Gothic",-apple-system,system-ui,sans-serif; }
-main { max-width:900px; margin:0 auto; padding:48px 56px 80px; background:#ffffff;
-  box-shadow:0 1px 3px rgba(0,0,0,.12); }
-p { margin:0 0 6px } p.ind { margin-left:14px }
-h1.part { font-size:17pt; color:var(--navy); text-align:center; border-bottom:1.5px solid var(--navy);
-  padding-bottom:8px; margin:40px 0 18px }
-h2 { font-size:14.5pt; margin:22px 0 10px } h3 { font-size:11.5pt; margin:16px 0 7px }
-h4 { font-size:10.5pt; color:var(--navy); margin:11px 0 5px }
-p.b { margin:0 0 4px; padding-left:14px; text-indent:-14px }
-p.b.l1 { padding-left:30px; text-indent:-14px }
-p.note { font-size:9pt; color:var(--gray); margin:0 0 6px }
-code { font:9.5pt/1.5 Consolas,ui-monospace,monospace; color:#7a2e0e }
-pre { font:8.5pt/1.5 Consolas,ui-monospace,monospace; background:#f3f4f6; padding:9px 11px;
-  margin:0 0 10px; overflow-x:auto; white-space:pre }
-table { width:100%; border-collapse:collapse; margin:0 0 12px; font-size:9pt; table-layout:fixed }
-th,td { border:.5pt solid var(--line); padding:4px 7px; vertical-align:middle; word-break:break-word }
-th { background:var(--head); text-align:center } td.rh { background:var(--sub); font-weight:700 }
-td .ci { padding-left:12px; text-indent:-12px }
-p.cap { font-size:9pt; font-weight:700; color:var(--navy); margin:8px 0 4px }
-figure { margin:12px 0 16px; text-align:center } figure img { max-width:100%; height:auto }
-figcaption { font-size:9pt; color:var(--gray); margin-top:5px }
-.gap { height:7px } hr.pb { border:0; border-top:1px dashed #cfd6e0; margin:26px 0 }
-.cover { text-align:center; padding:90px 0 40px } .cover p { margin:0 0 10px }
-.toc { margin:0 0 28px } .toc h2 { color:var(--navy) } .toc p.l0 { font-weight:700; color:var(--navy); margin-top:12px }
-.toc p.l1 { padding-left:20px }
-.hd { background:#0e1116; color:#e6ebf2; padding:16px 24px }
-.hd h1 { margin:0; font-size:12.5pt }
-.hd p { margin:5px 0 0; color:#8b97a8; font-size:9pt; max-width:900px }
-.hd a { color:#6fa8dc } .hd code { color:#9ec5fe }
-@media print { .hd { display:none } }
-@media (max-width:760px) { main { padding:28px 16px 60px } body { font-size:11pt } }
-@media print { body { background:#ffffff } main { box-shadow:none; max-width:none; padding:0 } hr.pb { page-break-after:always; border:0 } }
+/* ★ **웹판은 docx 를 흉내내지 않는다**(DECISIONS §166 의 그 원칙을 모양에도 적용한다).
+   머리말은 일찍이 「쪽 번호·머리말·꼬리말은 없다 — 없는 것을 흉내내지 않는다」 고 적어
+   뒀는데, **색과 글꼴과 선은 docx 값을 그대로 베끼고 있었다** — 표 머리 D9E2F3, 칸마다
+   실선, 맑은 고딕, 단위가 pt, 그리고 회색 바탕 위에 **종이 한 장을 그리는 그림자**까지.
+   화면에서 쪽은 없는 것이므로 종이도 없는 것이다. 정본은 그대로 \`docs/proposal.docx\` 다.
+   ★ **그물은 안 탄다.** 글꼴은 **깔려 있으면 쓰고 없으면 물러나는** 목록으로만 적는다 —
+   한 파일로 열리는 것이 이 산출물의 계약이다. */
+:root{
+  --ink:#171c24; --dim:#5d6876; --faint:#8b94a3; --bg:#ffffff; --panel:#f6f8fa;
+  --line:#e2e7ee; --rule:#cbd3de; --navy:#1b4f8a; --red:#b3242b; --mark:#7a2e0e;
+  --measure:46rem;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink:#e4e9f0; --dim:#9aa5b4; --faint:#6f7988; --bg:#0f1318; --panel:#161b22;
+    --line:#242b35; --rule:#333c48; --navy:#7fb0e6; --red:#e8707a; --mark:#d9a07a;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.78 "Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo",
+       "Noto Sans KR","맑은 고딕","Malgun Gothic",system-ui,sans-serif;
+  -webkit-text-size-adjust:100%}
+.hd{border-bottom:1px solid var(--line);padding:18px 24px;background:var(--panel)}
+.hd h1{margin:0;font-size:1rem;font-weight:700;letter-spacing:-.01em}
+.hd p{margin:6px 0 0;color:var(--dim);font-size:.8125rem;line-height:1.6;max-width:62rem}
+.hd a{color:var(--navy)}
+.wrap{display:grid;grid-template-columns:16rem minmax(0,1fr);gap:0;align-items:start}
+/* 곁목차 — 실제 제목에서 만든다 */
+.side{position:sticky;top:0;max-height:100vh;overflow-y:auto;padding:26px 14px 40px;
+  border-right:1px solid var(--line);font-size:.8125rem}
+.side b{display:block;margin:0 0 10px;padding-left:10px;color:var(--faint);
+  font-size:.6875rem;font-weight:700;letter-spacing:.14em}
+.side a{display:block;padding:4px 10px;border-radius:5px;color:var(--dim);text-decoration:none;
+  line-height:1.45}
+.side a:hover{background:var(--panel);color:var(--ink)}
+.side a.pt{margin-top:12px;color:var(--navy);font-weight:700}
+main{max-width:66rem;margin:0 auto;padding:36px 40px 120px;min-width:0}
+main>p,main>.b,main>.note,main>.ind{max-width:var(--measure)}
+p{margin:0 0 .7em}
+p.ind{margin-left:1em}
+h1.part{margin:72px 0 26px;padding-bottom:12px;border-bottom:2px solid var(--navy);
+  font-size:1.5rem;font-weight:800;color:var(--navy);letter-spacing:-.015em}
+h2{margin:48px 0 14px;font-size:1.25rem;font-weight:700;letter-spacing:-.01em;scroll-margin-top:16px}
+h3{position:relative;margin:34px 0 10px;padding-left:.85em;font-size:1.0625rem;font-weight:700;color:var(--ink)}
+h3::before{content:"";position:absolute;left:0;top:.42em;width:.3em;height:.9em;background:var(--navy);border-radius:1px}
+h4{margin:20px 0 6px;font-size:.9375rem;font-weight:700;color:var(--navy)}
+p.b{position:relative;margin:0 0 .4em;padding-left:1.15em;max-width:var(--measure)}
+p.b::before{content:"";position:absolute;left:.3em;top:.78em;width:.34em;height:1.5px;
+  background:var(--faint)}
+p.b.l1{padding-left:2.3em}
+p.b.l1::before{left:1.45em;width:.26em}
+p.note{margin:0 0 .6em;color:var(--dim);font-size:.875rem;line-height:1.7;max-width:var(--measure)}
+code{font:.875em/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--mark);
+  background:var(--panel);padding:.08em .34em;border-radius:4px}
+pre{margin:0 0 1em;padding:14px 16px;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;overflow-x:auto;white-space:pre;
+  font:.8125rem/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+/* ★ **표는 가로선만 쓴다.** 칸마다 선을 두르면 종이의 꼴이고, 화면에서는 **글보다 격자가
+   먼저 읽힌다.** 머리는 바탕색 대신 **글자 꼴**로 가른다. */
+table{width:100%;border-collapse:collapse;margin:0 0 1.2em;font-size:.875rem;
+  table-layout:fixed;line-height:1.6}
+th,td{padding:10px 12px;vertical-align:top;text-align:left;word-break:break-word;
+  border-bottom:1px solid var(--line)}
+th{border-bottom:1.5px solid var(--rule);color:var(--dim);font-size:.75rem;font-weight:700;
+  letter-spacing:.06em;white-space:nowrap}
+tbody tr:last-child td{border-bottom:1.5px solid var(--rule)}
+td.rh{font-weight:700;color:var(--ink);background:transparent}
+td .ch{font-weight:700;margin-top:.3em}
+td .ci{padding-left:.9em;text-indent:-.9em}
+p.cap{margin:1.4em 0 .4em;color:var(--dim);font-size:.8125rem;font-weight:700}
+figure{margin:1.4em 0 1.8em;text-align:center}
+figure img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px}
+figcaption{margin-top:.6em;color:var(--dim);font-size:.8125rem}
+.gap{height:.5em}
+hr.pb{border:0;border-top:1px solid var(--line);margin:56px 0}
+/* 표지 */
+.cover{text-align:center;padding:72px 0 24px}
+.cover .label{margin:0 0 20px;font-size:.75rem;font-weight:700;letter-spacing:.42em;color:var(--navy)}
+.cover .mark{margin:0;font-size:clamp(2.4rem,6vw,3.4rem);font-weight:800;color:var(--red);
+  letter-spacing:-.02em;border:0}
+.cover .mark::after{content:"";display:block;width:220px;height:2px;margin:16px auto 22px;
+  background:var(--navy)}
+.cover .sub{margin:0 0 12px;font-size:1.125rem;font-weight:700;max-width:none}
+.cover .lede{margin:0 auto;max-width:40rem;color:var(--dim);font-size:.9375rem;line-height:1.8}
+.cover .meta{display:grid;grid-template-columns:auto auto;justify-content:center;
+  column-gap:18px;row-gap:9px;margin:60px 0 0;text-align:left;font-size:.875rem}
+.cover .meta dt{color:var(--navy);font-weight:700;text-align:right;letter-spacing:.06em}
+.cover .meta dd{margin:0}
+.cover .stamp{margin:28px auto 0;padding-top:16px;max-width:28rem;border-top:1px solid var(--line);
+  color:var(--faint);font-size:.75rem}
+.pre h2{margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--rule);
+  font-size:1.125rem;color:var(--navy)}
+.pre .note{margin:0 0 1em}
+/* 본문 안 목차(사람이 적은 것) — 곁목차와 다른 물건이라 모양도 다르게 둔다 */
+.toc{margin:0 0 2em;padding:20px 22px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;max-width:var(--measure)}
+.toc h2{margin:0 0 10px;font-size:1rem;color:var(--navy)}
+.toc p{margin:0;font-size:.875rem}
+.toc p.l0{margin-top:12px;font-weight:700;color:var(--navy)}
+.toc p.l1{padding-left:1.1em;color:var(--dim)}
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr}
+  .side{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line);
+    padding:16px 18px;display:flex;flex-wrap:wrap;gap:2px}
+  .side b{width:100%;padding-left:0}
+  .side a{padding:4px 8px}
+  .side a.pt{margin-top:0}
+  main{padding:24px 18px 80px}
+}
+@media print{
+  :root{--ink:#111111;--dim:#555555;--bg:#ffffff;--panel:#f4f6f8;--line:#c9d1dc;--rule:#9aa6b5;
+        --navy:#1f3864;--red:#c00000}
+  .hd,.side{display:none}
+  .wrap{display:block}
+  main{max-width:none;padding:0}
+  hr.pb{page-break-after:always;border:0;margin:0}
+  h1.part{page-break-before:always}
+  table{font-size:9pt} th,td{padding:4px 7px}
+}
 `.trim();
+
+// ★ **곁목차는 본문이 실제로 낸 제목에서 만든다.** 사람이 적은 `TOC` 와 어긋날 수 있고,
+//   어긋나면 **클릭해도 없는 자리로 간다.** 여기서 만들면 그 일이 구조적으로 안 생긴다.
+// ★ **어긋난 것은 말한다.** 막지는 않는다 — 목차 글은 줄여 적는 자리가 있어서 **다른 것이
+//   곧 틀린 것은 아니다.** 다만 **말없이 넘어가지는 않는다**(DECISIONS §46 과 같은 꼴).
+const 곁목차 = 제목들.map((h) =>
+  `<a class="${esc(h.부 ? "pt" : "")}" href="#${esc(h.id)}">${esc(h.글)}</a>`).join("");
+{
+  const 손 = (toc.join("").match(/<p class="l[01]">([^<]*)<\/p>/g) || [])
+    .map((x) => x.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
+  const 실 = 제목들.map((h) => h.글.replace(/\s+/g, " ").trim());
+  const 빠진 = 실.filter((x) => !손.includes(x));
+  if (빠진.length) console.error(`  ※ 목차에 없는 제목 ${빠진.length} : ${빠진.slice(0, 4).join(" · ")}`);
+}
 
 const out = process.argv.find((x, i) => i >= 2 && !x.startsWith("--"))
   || path.join(ROOT, "site/proposal.html");
@@ -179,9 +306,12 @@ fs.writeFileSync(out, `<!DOCTYPE html>
      <a href="./proposal.docx" download>원본 내려받기</a> ·
      <a href="https://github.com/CleverAIFox/thoth">저장소</a></p>
 </header>
+<div class="wrap">
+<aside class="side"><b>차례</b>${곁목차}</aside>
 <main>
 ${몸}
 </main>
+</div>
 </body>
 </html>
 `);

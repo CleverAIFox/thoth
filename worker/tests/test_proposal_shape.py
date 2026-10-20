@@ -140,6 +140,14 @@ def _가짜_생성기(tmp_path: pathlib.Path, part1: str) -> pathlib.Path:
         shutil.copy(ROOT / "docs/proposal" / f, d / f)
     (d.parent / "bench").mkdir(exist_ok=True)
     shutil.copy(ROOT / "docs/bench/baseline.json", d.parent / "bench" / "baseline.json")
+    # ★ **`수.js` 가 이제 저장소를 직접 센다**(DECISIONS §197) — 용어집 항목 · 어미 코퍼스
+    #   줄 · 월 상한. 모래밭에 그 자리가 없으면 `require` 가 죽고, 화면에는 또 **「본문이
+    #   끝까지 안 돈다」** 로만 보인다. **읽는 자리가 늘면 모래밭도 같이 늘어야 한다.**
+    for 쪽, 받는곳 in (("worker/app/glossary/aws.json", "worker/app/glossary"),
+                      ("worker/tests/endings/corpus.jsonl", "worker/tests/endings"),
+                      ("worker/app/guard.py", "worker/app")):
+        (d.parent.parent / 받는곳).mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / 쪽, d.parent.parent / 쪽)
     (d / "part1.js").write_text(part1, encoding="utf-8")
     for f in ("part2.js", "part3.js"):
         (d / f).write_text(f'const {{ P }} = require("./lib");\n'
