@@ -200,7 +200,7 @@ ticks = [D(START)] + [D(f"2026-{m:02d}-01") for m in (8, 9, 10)] + [D(first)]
 a0.set_xticks([d.toordinal() for d in ticks]); a0.set_xticklabels([d.strftime("%m-%d") for d in ticks], fontsize=7)
 a0.set_yticks([]); a0.spines[["top", "right", "left"]].set_visible(False)
 a0.set_xlim(D(START).toordinal() - 1, D(끝).toordinal() + 1)
-PUSH = "2026-09-19"
+PUSH = "2026-09-12"   # DECISIONS §204 가 쟀다 — 전환과 같은 날
 a0.axvline(D(PUSH).toordinal(), color=RED, lw=0.8, ls=":")
 a0.text(D(PUSH).toordinal(), 3.75, "첫 푸시", color=RED, fontsize=6.8, ha="center")
 a0.set_ylim(0.4, 4.1)
