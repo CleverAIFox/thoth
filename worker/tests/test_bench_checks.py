@@ -4,6 +4,7 @@
   일부러 위반을 만들어 잡히는지, 정상을 넣어 안 잡히는지 양쪽을 본다.
 """
 import importlib.util
+import json
 import pathlib
 
 _spec = importlib.util.spec_from_file_location(
@@ -788,3 +789,79 @@ def test_지금_골든셋은_조용하다():
     import pathlib as _p
     g = lambda n: _j.loads((_p.Path(__file__).parent / "golden" / n).read_text(encoding="utf-8"))
     assert bench.particle_fails(g("cases.json"), g("terms.json")) == []
+
+
+# ── 환산 비용이 잰 토큰에서 나온다 (DECISIONS §205) ──────────────────────
+# ★ **2026-10-20 감사가 「$0.59 의 근거가 재현 안 된다」 고 짚었다.** 재 보니 산수는
+#   맞았고 **감사가 분모를 잘못 잡았다** — 입력 비의 분모는 원문자가 아니라 **프롬프트
+#   머리까지 센 실제 입력 문자**다. 종전 주석이 그 가름을 「문자」 와 「원문자」 라는
+#   **글자 하나 차이**로만 적고 있었다. **뜻이 한 글자에 걸려 있으면 그것은 안 적힌 것과
+#   같다** — 꼼꼼히 읽은 사람이 놓쳤다는 것이 증거다.
+# ★ 그래서 **글로 적던 비를 지우고 여기서 센다.** 셈하면 읽는 사람이 분모를 고를 일이 없다.
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+BASE = json.loads((ROOT / "docs/bench/baseline.json").read_text(encoding="utf-8"))
+
+
+def _골든원문자() -> int:
+    """골든셋 원문 글자 수. **파일에서 센다** — 적힌 수를 믿지 않는다."""
+    cs = json.loads((ROOT / "worker/tests/golden/cases.json").read_text(encoding="utf-8"))
+    return sum(len(u["text"]) for q in cs for u in q["units"])
+
+
+def test_골든_문자수가_실제_케이스와_같다():
+    """★ 환산이 이 수에 걸려 있다. 적힌 수와 파일이 갈리면 아래 둘이 조용히 틀린다."""
+    assert BASE["golden"]["chars"] == _골든원문자()
+    assert BASE["golden"]["units"] == sum(
+        len(q["units"]) for q in json.loads(
+            (ROOT / "worker/tests/golden/cases.json").read_text(encoding="utf-8")))
+
+
+def test_골든_한판_값이_잰_토큰과_단가의_곱이다():
+    """★ **여기가 성립해야 아래가 뜻이 있다.** 실측 토큰 × 인용 단가다."""
+    c = BASE["engines"]["bedrock"]["cost"]
+    b3 = BASE["engines"]["bedrock"]["batch_survey"]["3"]
+    값 = (b3["in_tok"] * c["usd_per_1m_input"]
+          + b3["out_tok"] * c["usd_per_1m_output"]) / 1e6
+    assert round(값, 5) == c["golden_run_usd"]["3"]
+
+
+def test_udemy_쪽값과_월상한이_잰_토큰에서_나온다():
+    """★ **입력과 출력의 분모가 다르다** — 입력은 실제 입력 문자, 출력은 원문자다.
+    이 시험이 그 가름을 코드로 든다. 주석으로 적으면 또 한 글자에 걸린다."""
+    from app import guard
+    c = BASE["engines"]["bedrock"]["cost"]
+    b3 = BASE["engines"]["bedrock"]["batch_survey"]["3"]
+    기 = c["extrapolated"]["_basis"]
+
+    골든원 = _골든원문자()
+    골든실입력 = 골든원 + 기["prompt_head_chars"] * b3["requests"]
+    입력비 = b3["in_tok"] / 골든실입력          # 토큰 / 실제 입력 문자
+    출력비 = b3["out_tok"] / 골든원             # 토큰 / 원문자
+
+    쪽 = (기["actual_input_chars"] * 입력비 * c["usd_per_1m_input"]
+          + 기["udemy_src_chars"] * 출력비 * c["usd_per_1m_output"]) / 1e6
+    assert round(쪽, 5) == c["extrapolated"]["udemy_page_usd"], f"쪽값 {쪽:.6f}"
+
+    달 = guard.MAX_CHARS / 기["udemy_src_chars"] * 쪽
+    assert round(달, 2) == c["extrapolated"]["monthly_cap_usd"], f"월값 {달:.4f}"
+
+
+def test_basis_의_실제입력이_원문과_머리의_합이다():
+    """★ **셋이 서로 맞는지 본다.** 하나만 고치면 나머지와 갈린다(§57)."""
+    기 = BASE["engines"]["bedrock"]["cost"]["extrapolated"]["_basis"]
+    요청 = BASE["engines"]["bedrock"]["batch_survey"]["3"]["requests"]
+    assert 기["actual_input_chars"] == 기["udemy_src_chars"] + 기["prompt_head_chars"] * 요청
+
+
+def test_basis_가_MASTER_의_실측표와_같다():
+    """★ **MASTER §7-0-1 이 같은 수를 사람 눈으로 든다.** 둘을 묶지 않으면 한쪽만 늙는다."""
+    기 = BASE["engines"]["bedrock"]["cost"]["extrapolated"]["_basis"]
+    글 = (ROOT / "docs/MASTER.md").read_text(encoding="utf-8")
+    표 = 글[글.index("### 7-0-1."):]
+    표 = 표[:표.index("\n★")]
+    for 이름, 값 in (("문항 한 페이지", 기["udemy_src_chars"]),
+                     ("프롬프트 머리", 기["prompt_head_chars"]),
+                     ("실제 입력", 기["actual_input_chars"])):
+        assert f"| {이름} | {값:,}자" in 표, f"{이름} 이 표와 다르다 — 표가 드는 것과 {값:,}"
