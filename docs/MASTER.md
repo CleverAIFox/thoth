@@ -1104,7 +1104,7 @@ VRAM 이 1.4GB 남아 있어도 일부 레이어가 CPU 에 남는다. 볼 것�
 | `worker/tests/endings/lexicon.json` | 용언 108 · 이다 6. 부류 15 — 규칙 · ㄹ탈락 · ㅂ ㄷ ㅅ 르 러 ㅎ 불규칙 · 으탈락 · 하다 · 보조 용언 · 이다 |
 | `worker/tests/endings/corpus.jsonl` | 해요체 → 합쇼체 <!--count:endings_corpus-->2,472줄. Kiwi 의 `join` 이 활용했다(생성기 2판) |
 | `worker/tests/endings/hand.jsonl` | 손으로 쓴 43줄. 실사용 문장 · 여러 문장 · 괄호 · 바뀌면 안 되는 줄 |
-| `worker/tests/endings/review.tsv` | 사람이 판정할 283줄(부류 × 문형마다 둘 + 손 전부). **채우지 않았다 — `PLAN #66`**. `tools/endings_oracle.py` 가 **표를 만든 엔진이 아닌 쪽**(mecab)으로 좁혀 **사람이 볼 줄은 22**다(§196) — 그 자는 `판정` 칸에 **아무것도 안 쓴다** |
+| `worker/tests/endings/review.tsv` | 밖에서 판정할 283줄(부류 × 문형마다 둘 + 손 전부). **볼 줄 22 를 2026-10-21 에 외부 LLM 이 채웠다 — DECISIONS §206**. `tools/endings_oracle.py` 가 **표를 만든 엔진이 아닌 쪽**(mecab)으로 좁혀 **밖에서 볼 줄은 22**였다(§196) — 그 자는 `판정` 칸에 **아무것도 안 쓰고**, 이미 판정된 줄은 다시 안 묻는다(§206) |
 
 ```bash
 python3 tools/bench_endings.py --fails 20                  # Kiwi 없이 돈다
@@ -1701,7 +1701,7 @@ bash tools/doctor.sh --repo   # 저장소 불변식만 (커밋 훅이 쓰는 범
 
 비밀값 · `.env` 키 정합 · 셸 오염 · 훅 배선 · 홈 규약 · 산출물 · 엔진 전제 ·
 모델 위생 · 셸 문법 · 파이썬 린트 · 문서 규약 · 문서 건수를 검사하고, 확장
-테스트와 워커 테스트 <!--count:worker_tests-->1137건을 함께 돌린다.
+테스트와 워커 테스트 <!--count:worker_tests-->1141건을 함께 돌린다.
 
 **등급이 셋이다.**
 
