@@ -212,3 +212,33 @@ def test_어긋난_꼴은_쉼표_없이_고친다(tmp_path):
     d = _모래밭(tmp_path, "어긋난 것 <!--count:worker_tests-->1,12건\n")
     cc.고친다(d, {"worker_tests": 1121})
     assert "<!--count:worker_tests-->1121건" in (d / "README.md").read_text(encoding="utf-8")
+
+
+# ── Lambda 꾸러미 파일 수 ──────────────────────────────────────────────
+# ★ **크기가 아니라 파일 수를 묶는다**(DECISIONS §204). 바이트는 코드가 바뀔 때마다
+#   움직여서 묶으면 매 커밋이 빨개진다 — **참말인 빨강이고 사람이 관문을 끈다.**
+#   파일 수는 **패키저가 무엇을 담는지의 주장**이고, 그것이 조용히 바뀌면 배포가 깨진다
+#   (§145 가 그 자리에서 났다 — `restore.json` 과 `particle.json` 이 zip 에 없었다).
+
+def _pkg():
+    import sys
+    sys.path.insert(0, str(ROOT / "tools/lib"))
+    import pkg
+    return pkg
+
+
+def test_lambda_파일_수가_패키저와_같다():
+    """★ 문서가 적은 수를 **패키저가 센 수**와 댄다. zip 을 만들지 않는다 —
+    검사가 산출물을 만들면 **상태를 바꾸는 검사**가 된다."""
+    import pathlib
+    센것 = len(_pkg().files(pathlib.Path(ROOT)))
+    적힌 = [n for _, nm, _, n in cc.claims(ROOT) if nm == "lambda_files"]
+    assert 적힌, "lambda_files 표시가 문서에 없다 — 묶어 놓고 안 적으면 묶은 것이 아니다"
+    assert all(x == 센것 for x in 적힌), f"문서 {적힌} · 실측 {센것}"
+
+
+def test_doctor_가_lambda_files_를_넘긴다():
+    """★ **안 넘기면 「못 잼」 으로 조용히 통과한다**(§59). 표시만 달고 아무도 안 세면
+    그 주장은 영영 안 읽힌다 — §201 이 어미 코퍼스에서 겪은 그 자리다."""
+    sh = (ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
+    assert "lambda_files=${PKG_N" in sh, "doctor 가 lambda_files 를 안 넘긴다"
