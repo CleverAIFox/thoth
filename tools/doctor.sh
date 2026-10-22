@@ -1117,9 +1117,16 @@ sys.path.insert(0, "tools/lib")
 import pkg
 print(len(pkg.files(pathlib.Path("."))))
 ' 2>/dev/null)"
+# ★ **돈도 묶는다**(DECISIONS §207). `baseline.json` 이 셈한 값이고 시험이 그 셈을
+#   붙든다 — 문서 넷이 같은 수를 들고 있었는데 묶는 자가 없어서 고칠 때마다 한 칸 남았다.
+CAP_USD="$(python3 -c '
+import json
+print(json.load(open("docs/bench/baseline.json"))["engines"]["bedrock"]["cost"]["extrapolated"]["monthly_cap_usd"])
+' 2>/dev/null)"
 CNT_OUT="$(python3 tools/check_counts.py \
              "ext_tests=${EXT_N:-}" "worker_tests=${PY_N:-}" \
-             "endings_corpus=${CORPUS_N:-}" "lambda_files=${PKG_N:-}" ${SKIP_TALLY} 2>&1)"; CNT_RC=$?
+             "endings_corpus=${CORPUS_N:-}" "lambda_files=${PKG_N:-}" \
+             "monthly_cap_usd=${CAP_USD:-}" ${SKIP_TALLY} 2>&1)"; CNT_RC=$?
 case "$CNT_RC" in
   0) ok "문서가 적은 건수가 실측과 같다" ;;
   # ★ **잡는 것과 고치는 것은 다른 일이다**(DECISIONS §180). 여기까지 오면 `doctor` 는
@@ -1127,8 +1134,8 @@ case "$CNT_RC" in
   #   `ext_tests` 와 `worker_tests` 가 **둘 다** 늙었다. 고치는 길을 **명령으로** 적는다.
   1) no "문서 건수가 실측과 다르다 — 고치려면 아래 줄을 그대로 친다"
      printf '%s\n' "$CNT_OUT" | sed 's/^/    /'
-     printf '       python3 tools/check_counts.py --fix "ext_tests=%s" "worker_tests=%s" "endings_corpus=%s" "lambda_files=%s" %s\n' \
-            "${EXT_N:-}" "${PY_N:-}" "${CORPUS_N:-}" "${PKG_N:-}" "${SKIP_TALLY}" ;;
+     printf '       python3 tools/check_counts.py --fix "ext_tests=%s" "worker_tests=%s" "endings_corpus=%s" "lambda_files=%s" "monthly_cap_usd=%s" %s\n' \
+            "${EXT_N:-}" "${PY_N:-}" "${CORPUS_N:-}" "${PKG_N:-}" "${CAP_USD:-}" "${SKIP_TALLY}" ;;
   3) printf '%s\n' "$CNT_OUT" | sed 's/^    //' | while IFS= read -r l; do skip "$l"; done ;;
   *) no "check_counts.py 가 죽었다 (exit $CNT_RC)"
      printf '%s\n' "$CNT_OUT" | tail -5 | sed 's/^/       /' ;;

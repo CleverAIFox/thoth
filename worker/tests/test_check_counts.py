@@ -242,3 +242,55 @@ def test_doctor_가_lambda_files_를_넘긴다():
     그 주장은 영영 안 읽힌다 — §201 이 어미 코퍼스에서 겪은 그 자리다."""
     sh = (ROOT / "tools/doctor.sh").read_text(encoding="utf-8")
     assert "lambda_files=${PKG_N" in sh, "doctor 가 lambda_files 를 안 넘긴다"
+
+
+# ── 소수 (DECISIONS §207) ─────────────────────────────────────────────────
+# ★ **돈은 건수가 아니다.** `$0.60` 같은 자리가 문서 넷에 있었는데 묶는 자가 없어서
+#   §205 가 둘을 고치고, §206 이 셋째를, §207 이 넷째를 **하나씩** 찾았다.
+#   **세는 자가 없는 수는 고칠 때마다 한 칸씩 남는다.**
+
+def test_소수를_값으로_읽는다():
+    assert cc.MARK.findall("월 상한 **$<!--count:monthly_cap_usd-->0.60**") == \
+        [("monthly_cap_usd", "0.60")]
+    assert cc.읽는다("0.60") == 0.6
+    assert cc.읽는다("1,234.5") == 1234.5
+    assert isinstance(cc.읽는다("12"), int), "정수는 정수로 남는다"
+
+
+def test_어긋난_소수는_값이_아니다():
+    """★ 앞자리만 읽어서 값인 척하지 않는다(§59)."""
+    assert cc.읽는다("0.6.0") is None
+    assert cc.읽는다("0.") is None
+    assert cc.읽는다(".6") is None
+
+
+def test_소수_자릿수를_지키며_고친다(tmp_path):
+    """★ **적힌 자릿수가 뜻이다.** `0.60` 을 `0.6` 으로 갈아 쓰면 사람이 되돌리고,
+    그러면 이 자가 또 운다 — 쉼표를 지키는 것과 같은 까닭이다."""
+    d = _모래밭(tmp_path, "월 **$<!--count:monthly_cap_usd-->0.59** 다\n")
+    cc.고친다(d, {"monthly_cap_usd": 0.6})
+    # ★ 표시는 `$` 와 숫자 **사이**에 산다 — 마크다운에서는 안 보이고 `$0.60` 으로 읽힌다
+    assert (d / "README.md").read_text(encoding="utf-8") == \
+        "월 **$<!--count:monthly_cap_usd-->0.60** 다\n"
+
+
+def test_소수와_정수가_같은_줄에서_안_섞인다(tmp_path):
+    d = _모래밭(tmp_path, "확장 <!--count:ext_tests-->200건 · 월 $<!--count:monthly_cap_usd-->0.59\n")
+    cc.고친다(d, {"ext_tests": 217, "monthly_cap_usd": 0.6})
+    assert (d / "README.md").read_text(encoding="utf-8") == \
+        "확장 <!--count:ext_tests-->217건 · 월 $<!--count:monthly_cap_usd-->0.60\n"
+
+
+def test_실측도_소수를_받는다():
+    """★ **한쪽만 넓히면 반만 넓힌 것이다**(§207). 표시를 소수까지 받게 해 놓고
+    `parse_args` 를 `int()` 로 두었더니 도구가 죽었다."""
+    assert cc.parse_args(["monthly_cap_usd=0.6", "ext_tests=217"]) == \
+        {"monthly_cap_usd": 0.6, "ext_tests": 217}
+
+
+def test_못_읽는_소수도_터진다():
+    """★ `test_숫자가_아니면_죽는다` 의 소수 짝. **넓힌 자리의 반대쪽을 같이 본다** —
+    `__main__` 이 그 예외를 2 로 번역하므로 여기서 삼키면 안 된다(§232)."""
+    with pytest.raises(ValueError):
+        cc.parse_args(["monthly_cap_usd=0.6.0"])
+    assert cc.parse_args(["monthly_cap_usd="]) == {}, "빈 값은 '못 쟀다' 로 남는다"

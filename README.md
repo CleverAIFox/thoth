@@ -269,11 +269,11 @@ python3 tools/engine_conformance.py https://<서버> --model <이름>
 
 | | |
 |---|---|
-| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->217건 · 워커 <!--count:worker_tests-->1141건 |
+| 확장 · 워커 | 돈다. 확장 <!--count:ext_tests-->217건 · 워커 <!--count:worker_tests-->1147건 |
 | 번역 품질 | 45유닛 골든셋에서 위반 4. 실사이트 확인 완료 |
 | 속도 | 문항당 5.3초. 체감 지연 없음 |
 | 배포 | Lambda · Function URL · DynamoDB · IAM 이 서 있다 |
-| 비용 실측 | 45유닛 한 판 $0.00293 · 월 상한 전부 $0.60(환산). **제약이 아니다** |
+| 비용 실측 | 45유닛 한 판 $0.00293 · 월 상한 전부 $<!--count:monthly_cap_usd-->0.60(환산). **제약이 아니다** |
 | 자동화 | 태그를 밀면 배포된다. 배포본 드리프트를 CI 가 본다 |
 | UI | 사이트에서 테마와 색을 재어 맞춘다. Pretendard 를 싣는다 |
 | 엔진 | `bedrock` · Nova Lite. **로컬(ollama)은 내렸다** — 속도 때문이다 |

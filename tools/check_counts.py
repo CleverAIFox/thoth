@@ -55,19 +55,32 @@ KNOWN = {
     #   움직여서 묶으면 매 커밋이 빨개진다 — 그것은 참말인 빨강이고 사람이 관문을 끈다.
     #   **파일 수는 패키저가 무엇을 담는지의 주장**이고 그것이 조용히 바뀌면 배포가 깨진다.
     "lambda_files": "Lambda zip 에 담기는 파일 수 — tools/lib/pkg.py::files",
+    # ★ **건수가 아닌 첫 이름이다**(DECISIONS §207). 돈은 소수로 적히고, 이 자리는
+    #   `baseline.json` 이 셈한 값을 `doctor` 가 넘긴다 — 문서 넷이 같은 수를 들고 있었고
+    #   묶는 자가 없어서 고칠 때마다 한 칸씩 남았다.
+    "monthly_cap_usd": "월 상한을 다 태웠을 때의 환산 비용 — baseline.json 의 cost.extrapolated",
 }
 
 # ★ **쉼표까지 한 덩어리로 집는다.** `([0-9]+)` 로 끊으면 `2,472` 에서 `2` 만 집고
 #   그것이 **값으로 둔갑한다** — 2026-10-20 에 「문서 2 · 실측 2472」 로 났다.
 #   덩어리로 집고 꼴은 `묶음` 이 따로 본다. **집는 일과 판정하는 일을 안 섞는다.**
-MARK = re.compile(r"<!--count:(\w+)-->\s*([0-9][0-9,]*)")
-묶음 = re.compile(r"^(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)$")
-"""옳은 꼴. 세 자리마다 쉼표이거나, 쉼표가 아예 없다."""
+MARK = re.compile(r"<!--count:(\w+)-->\s*([0-9][0-9,]*(?:\.[0-9]+)?)")
+묶음 = re.compile(r"^(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?$")
+"""옳은 꼴. 세 자리마다 쉼표이거나 쉼표가 아예 없고, 소수점 아래가 붙을 수 있다."""
 
 
-def 읽는다(글자: str) -> int | None:
-    """표시 뒤의 수. **꼴이 어긋나면 `None`** — 「못 읽었다」 는 값이 아니다(§59)."""
-    return int(글자.replace(",", "")) if 묶음.match(글자) else None
+def 읽는다(글자: str) -> float | int | None:
+    """표시 뒤의 수. **꼴이 어긋나면 `None`** — 「못 읽었다」 는 값이 아니다(§59).
+
+    ★ **소수도 받는다**(DECISIONS §207). 돈은 건수가 아니라 소수로 적힌다 —
+      `$0.60` 같은 자리가 넷인데 **묶는 자가 없어서** §205 가 둘, §206 이 셋째를,
+      이 절이 넷째를 하나씩 찾았다. **세는 자가 없는 수는 고칠 때마다 한 칸씩 남는다.**
+    ★ **소수점 아래 자릿수는 글자가 든다** — `0.60` 과 `0.6` 은 같은 값이고, 고칠 때
+      적힌 자릿수를 지킨다(쉼표를 지키는 것과 같은 까닭)."""
+    if not 묶음.match(글자):
+        return None
+    민것 = 글자.replace(",", "")
+    return float(민것) if "." in 민것 else int(민것)
 
 
 def claims(root: Path) -> list[tuple[str, str, int, int | None]]:
@@ -113,15 +126,23 @@ def compare(found: list[tuple[str, str, int, int | None]],
     return 0, ([f"주장 {okn}건이 실측과 같다"] if okn else ["표시된 주장이 없다"])
 
 
-def parse_args(argv: list[str]) -> dict[str, int]:
-    out = {}
+def parse_args(argv: list[str]) -> dict[str, float | int]:
+    """넘어온 실측. **읽는 쪽과 같은 꼴을 받는다**(DECISIONS §207).
+
+    ★ **한쪽만 넓히면 반만 넓힌 것이다.** 표시를 소수까지 받게 해 놓고 여기를 `int()` 로
+      두었더니 `monthly_cap_usd=0.6` 에서 도구가 죽었다 — **넓힌 자리의 반대쪽을 같이 본다.**
+    """
+    out: dict[str, float | int] = {}
     for a in argv:
         k, _, v = a.partition("=")
         # ★ 빈 값은 '재지 못했다' 로 본다. 셸에서 변수가 비면 `이름=` 이 그대로
         #   넘어오는데, 그것을 0 으로 읽으면 못 잰 것이 0건으로 둔갑한다.
         if not v.strip():
             continue
-        out[k.strip()] = int(v)
+        # ★ **안 읽히면 그대로 터뜨린다** — `__main__` 이 그것을 2 로 번역한다(§232).
+        #   여기서 삼키면 그 이름이 「못 잼」 으로 둔갑해 대조를 안 하고 넘어간다(§59).
+        s = v.strip()
+        out[k.strip()] = float(s) if "." in s else int(s)
     return out
 
 
@@ -154,7 +175,9 @@ def 고친다(root: Path, measured: dict[str, int]) -> list[str]:
             # ★ **적힌 꼴을 지킨다.** 쉼표로 쓰던 자리를 `2472` 로 갈아 쓰면 **고치는 자가
             #   문서의 글꼴을 흐트러뜨린다** — 다음 사람이 손으로 쉼표를 되돌리고, 그러면
             #   이 자가 또 운다. 꼴이 어긋난 자리(`적힌` 이 `None`)는 쉼표 없이 쓴다.
-            새글자 = f"{잰것:,}" if (적힌 is not None and "," in 글자) else str(잰것)
+            자리 = len(글자.split(".")[1]) if "." in 글자 else 0
+            새글자 = (f"{잰것:,.{자리}f}" if "," in 글자 else f"{잰것:.{자리}f}") if 자리 \
+                else (f"{잰것:,.0f}" if (적힌 is not None and "," in 글자) else f"{잰것:.0f}")
             고침.append(f"{f.name} {이름} {글자} → {새글자}")
             return m.group(0)[: m.start(2) - m.start(0)] + 새글자
         새 = MARK.sub(바꾼다, 글)
@@ -181,6 +204,14 @@ def _canary() -> None:
         print("    ★ 카나리아가 죽었다 — 어긋난 꼴을 값으로 읽는다"); sys.exit(2)
     if 읽는다("1121") != 1121:
         print("    ★ 카나리아가 죽었다 — 쉼표 없는 수를 못 읽는다"); sys.exit(2)
+    # ★ **소수** — 돈은 건수가 아니다(§207). 묻는 입력이 쓰는 입력보다 좁으면 §202 가 또 난다
+    if MARK.findall("$<!--count:x-->0.60**") != [("x", "0.60")]:
+        print("    ★ 카나리아가 죽었다 — 소수를 못 집는다"); sys.exit(2)
+    if 읽는다("0.60") != 0.6 or 읽는다("1,234.5") != 1234.5:
+        print("    ★ 카나리아가 죽었다 — 소수를 못 읽는다"); sys.exit(2)
+    # 반대 통제 — 어긋난 소수를 값으로 읽지 않는다
+    if 읽는다("0.6.0") is not None or 읽는다("0.") is not None:
+        print("    ★ 카나리아가 죽었다 — 어긋난 소수를 값으로 읽는다"); sys.exit(2)
 
 def main(argv: list[str] | None = None) -> int:
     _canary()
