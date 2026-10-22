@@ -240,3 +240,164 @@ def test_도장_자리를_손으로_안_적는다():
     """★ **같은 것이 두 곳에 살면 한쪽만 늙는다**(§283). `SEAL` 하나에서 끌어낸다 —
     사본은 그 자리가 다르다(세샤트는 `data/docseal.json`)."""
     assert DS._도장자리 == DS.SEAL.relative_to(DS.ROOT).as_posix()
+
+
+# ★ **아래는 세샤트에서 왔다**(DECISIONS §163). 그쪽 §316 · §320 · §321 · §322 다.
+#   **둘은 안 가져왔다** — 갈린 자리를 적는다(세샤트 §296) :
+#     · `test_그_둘이_이제_묶인다` 는 그 저장소의 절 둘(세샤트 §210 · §211)을 든다
+#     · `test_저장소의_절이_실제로_걸음으로_좁혀졌다` 는 「좁혀진 절 15 이상」 을 묻는데
+#       **이 저장소는 0 이다** — `doctor.sh` 는 검사가 산문처럼 이어져 걸음 단위가 없고,
+#       아무 강제자 줄도 「단계」 라는 표식을 안 쓴다(세샤트 §322). 그것이 맞는 상태다.
+# ───────────────── 셸 · 워크플로 지문(세샤트 DECISIONS §316) ─────────────────
+
+_셸 = ("step scope   uv run python tools/check_scope.py\n"
+       "step dead    uv run python tools/check_dead.py\n")
+
+
+def test_셸_주석_한_줄에_지문이_안_갈린다():
+    """★ **약을 `.py` 에만 먹이고 있었다**(세샤트 DECISIONS §316).
+
+    실측 : `verify.sh` 에 주석 한 줄을 더하면 절 **스물**이 무효가 됐고, `check_docs.py` 에
+    같은 것을 더하면 **0** 이었다. `verify.sh` 는 절반이 주석인 파일이다.
+    """
+    assert DS._셸_지문(_셸) == DS._셸_지문("# 설명을 고쳤다\n" + _셸 + "\n   \n")
+
+
+def test_셸의_뜻이_바뀌면_지문이_갈린다():
+    """★ **다 같게 만들면 도장이 아니다.** 안 가르는 쪽이 더 나쁘다."""
+    assert DS._셸_지문(_셸) != DS._셸_지문(_셸.replace("check_scope", "check_dead"))
+
+
+def test_줄_안쪽의_우물정은_안_건드린다():
+    """★ `${X#...}` 와 조각 주소가 거기 산다 — **온줄 주석만** 뗀다."""
+    a = 'echo "${BR#papers/}"\n'
+    assert DS._셸_지문(a) != DS._셸_지문('echo "${BR}"\n')
+
+
+def test_들여쓰기는_센다():
+    """★ **셸에서는 안 지지만 YAML 에서는 진다** — 떼면 거짓 초록이다."""
+    assert DS._셸_지문("a: 1\n  b: 2\n") != DS._셸_지문("a: 1\nb: 2\n")
+
+
+def test_옆_걸음이_늘어도_내_걸음은_그대로다():
+    """★ **이것이 §316 의 전부다.** 걸음 하나가 붙었다고 스무 절을 다시 읽을 까닭이 없다."""
+    늘린것 = _셸 + "step 새것   uv run python tools/새것.py\n"
+    assert DS._셸_지문(_셸, "scope") == DS._셸_지문(늘린것, "scope")
+
+
+def test_내_걸음이_바뀌면_운다():
+    """★ **좁히는 것과 꺼 두는 것은 다르다.** 제 걸음은 여전히 문다."""
+    바뀐것 = _셸.replace("step scope   uv run python tools/check_scope.py",
+                       "step scope   uv run python tools/check_scope.py --list")
+    assert DS._셸_지문(_셸, "scope") != DS._셸_지문(바뀐것, "scope")
+
+
+def test_걸음이_사라지면_없다다():
+    """★ **짚은 이름이 사라진 것 자체가 다시 볼 까닭이다**(파이썬 쪽과 같은 규칙)."""
+    assert DS._셸_지문(_셸, "없는걸음") == "없다"
+
+
+def test_if_else_안의_걸음도_찾는다():
+    """★ **§315 가 바로 이 무늬에서 넘어졌다** — 여기서 되풀이하지 않는다."""
+    글 = ('if [ "${CI:-}" = "true" ]; then NAMES+=("ci")\n'
+          "else step ci   uv run python tools/ci_status.py; fi\n")
+    assert DS._셸_몸(글, "ci") is not None
+    assert "ci_status.py" in DS._셸_몸(글, "ci")
+
+
+def test_함수도_찾는다():
+    글 = 'shellcheck_step() {\n  local X=1\n  echo "$X"\n}\nstep a  b\n'
+    몸 = DS._셸_몸(글, "shellcheck_step")
+    assert 몸 is not None and 몸.startswith("shellcheck_step() {") and 몸.endswith("}")
+    assert "step a" not in 몸, "함수 밖까지 먹으면 좁힌 뜻이 없다"
+
+
+def test_강제자_줄이_적어_둔_걸음_이름을_읽는다():
+    """★ **스물한 절을 고쳐 적지 않았다** — 뜻은 이미 그 줄에 있었고 읽는 쪽이 빠져 있었다."""
+    assert DS._셸걸음("강제자 — `tools/doctor.sh` 의 `scope` 단계") == {"tools/doctor.sh": ["scope"]}
+    assert DS._셸걸음("`tools/doctor.sh` 의 `shellcheck_step` 과 `check_prose` 단계") == \
+        {"tools/doctor.sh": ["shellcheck_step", "check_prose"]}
+    assert DS._셸걸음("`tools/doctor.sh` 의 `deadchecks` 단계") == {"tools/doctor.sh": ["deadchecks"]}
+    # ★ **「단계」 가 표식이다**(세샤트 DECISIONS §322) — 없으면 걸음으로 안 읽는다.
+    assert DS._셸걸음("`tools/doctor.sh` 의 `PKG_N`") == {}
+
+
+def test_이름을_안_댄_줄에서는_걸음을_안_지어낸다():
+    """★ **좁히지 못한 것은 넓게 둔다** — 지어내면 안 무는 자리가 생긴다."""
+    assert DS._셸걸음("강제자 — `tools/doctor.sh` 의 두 갈래") == {}
+    assert DS._셸걸음("강제자 — `tools/doctor.sh`") == {}
+
+
+def test_카나리아가_산다():
+    assert DS._canary() is None, "카나리아는 말없이 돌아온다 — 죽으면 SystemExit 다"
+
+
+# ───────── 주석 머리가 꼴마다 다르다(세샤트 DECISIONS §320) ─────────
+
+def test_js_는_슬래시_둘로_뗀다():
+    """★ **이 저장소에 `.js` 가 없다 — 사본(토트)이 쓴다**(thoth §163).
+
+    토트에서 재니 `extension/src/broker.js` 에 **주석 한 줄**이 절 **8** 을 무효로 만들었다.
+    여기서 안 물으면 그 길은 **영영 안 물린다.**
+    """
+    assert DS._셸_지문("// 설명\nconst a = 1;\n", 머리="//") == DS._셸_지문("const a = 1;\n", 머리="//")
+
+
+def test_꼴을_안_가르면_안_뗀다():
+    """★ **`#` 로 `//` 를 떼면 아무것도 안 떼고 초록이 된다** — 가르는 것이 값이다."""
+    assert DS._셸_지문("// 설명\nconst a = 1;\n") != DS._셸_지문("const a = 1;\n")
+
+
+def test_js_의_뜻이_바뀌면_운다():
+    assert DS._셸_지문("const a = 1;\n", 머리="//") != DS._셸_지문("const a = 2;\n", 머리="//")
+
+
+def test_주소의_슬래시_둘은_안_건드린다():
+    """★ `https://` 가 거기 산다 — **온줄만** 뗀다."""
+    assert DS._셸_지문('const u = "https://a.b";\n', 머리="//") != DS._셸_지문("\n", 머리="//")
+
+
+def test_표가_꼴마다_머리를_든다():
+    """★ **목록이 좁으면 그 줄들이 조용히 안 세어진다**(`지목확장` 과 같은 까닭)."""
+    assert DS.주석머리[".sh"] == "#" and DS.주석머리[".js"] == "//"
+    assert {".sh", ".yml", ".yaml", ".js", ".tf"} <= set(DS.주석머리)
+    assert ".md" not in DS.주석머리 and ".json" not in DS.주석머리, \
+        "글자가 곧 내용인 꼴은 들면 안 된다 — 주석을 떼면 뜻이 준다"
+
+
+# ───────── 못 푸는 걸음 이름(세샤트 DECISIONS §321) ─────────
+
+def test_없는_걸음은_파일_전체에_묶인다(tmp_path):
+    """★ **좁히려다 꺼 버리는 자리다**(세샤트 DECISIONS §321).
+
+    없는 이름에 묶으면 지문이 `"없다"` 로 **굳고**, 그 뒤로 그 파일을 아무리 고쳐도
+    영영 안 운다. 사본(토트)의 강제자 줄이 「`tools/doctor.sh` 의 `PKG_N`」 처럼 적는데
+    그 파일에 `step PKG_N` 이 없다 — 그대로 옮겼으면 그쪽 절들이 통째로 잠들었다.
+
+    ★ **합성으로 묻는다**(세샤트 DECISIONS §322) — 제 저장소의 파일을 읽으면 **사본에서 거짓으로
+      죽는다.** 카나리아가 실제로 그렇게 죽었다.
+    """
+    샘 = tmp_path / "x.sh"
+    샘.write_text("step docseal  uv run python tools/docseal.py\n", encoding="utf-8")
+    assert not DS._걸음이있나(샘, "없는걸음이다")
+    assert DS._걸음이있나(샘, "docseal")
+
+
+def test_못_읽는_파일은_없다로_센다(tmp_path):
+    """읽기가 실패한 것과 **걸음이 없는 것**은 같은 처리다 — 둘 다 넓게 묶는다."""
+    assert not DS._걸음이있나(tmp_path / "없는파일.sh", "x")
+
+
+def test_파일_이름은_걸음으로_안_읽는다():
+    """★ 「`tools/make_patch.sh` 의 `mined.jsonl` 예외」 는 **자리**이지 걸음이 아니다."""
+    assert DS._셸걸음("강제자 — `tools/make_patch.sh` 의 `mined.jsonl` 예외") == {}
+    assert DS._셸걸음("강제자 — `tools/doctor.sh` 의 `docseal` 단계") == {"tools/doctor.sh": ["docseal"]}
+
+
+def test_저장소에_못_푸는_걸음이_없다():
+    """★ **실측으로 둘이 `tools/` 를 빠뜨려 강제자로 아예 안 묶여 있었다**(§210 · §211).
+
+    그 줄들은 「verify.sh 가 지킨다」 고 적어 두고 도장은 그것을 안 물고 있었다.
+    """
+    난것 = DS.안풀리는_걸음()
+    assert 난것 == [], 난것
