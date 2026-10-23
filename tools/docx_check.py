@@ -61,6 +61,14 @@ RETIRED = [
     ("품질은 아직 누구도 이기지 못했다", "쟀고 순위가 났다 — 배포본이 뜻에서 가장 낫다(seshat §229)"),
     ("신경망 지표 — 검토 중", "검토가 끝났고 기각했다 — ollama LLM 판정이 ρ 로 0.22 앞선다(seshat §254)"),
     ("torch 는 별도 의존성 그룹", "`torch` · `transformers` 를 통째로 뺐다(seshat §254)"),
+    # ── §209 에서 폐기한 권한·토글 흐름 ──
+    # ★ **기획서가 맞았고 코드가 틀렸던 자리다.** 본문은 「번역은 팝업에서 사이트마다
+    #   켠다」 고 세 곳에 적고 있었는데 구현은 전역 칸 하나였다 — **둘을 대조하는 자가
+    #   없어서** 그 어긋남이 조용했다. 그림의 글자는 `facts()` 가 묻는데 **본문의 주장은
+    #   아무도 안 봤다.** 되돌아올 문장을 여기 적어 둔다.
+    ("이 사이트에서 켜기", "권한 요청 UI 를 지웠다 — `host_permissions` 가 `<all_urls>` 라 그 버튼은 장식이었다(DECISIONS §209)"),
+    ("오리진 부여", "사이트마다 권한을 받던 흐름이 사라졌다 — 켜는 것은 권한이 아니라 번역 지도다(DECISIONS §209)"),
+    ("표시 토글", "「표시」 가 아니라 **번역**이고(§177) 전역이 아니라 **사이트 단위**다(DECISIONS §209)"),
     ("워커 392", "테스트 건수를 기획서가 손으로 적던 자리 — 정본은 저장소 `README` 이고 `check_counts.py` 가 실측과 대조한다"),
     ("묻지 않는다. 결정적으로", "「모델에게 판정을 묻지 않는다」 는 **자리를 적어야 하는 문장**이었다 — "
                              "번역 경로에서는 참이고 평가 경로에서는 반대다(DECISIONS §66 · seshat §262)"),
@@ -187,6 +195,12 @@ def truths(root: Path) -> list[tuple[str, str]]:
         (f"{len(book)}항목", "glossary/aws.json 항목 수"),
     ]
     out += [(e, "engine.py 엔진 분기") for e in engines]
+    # ★ **팝업 글자를 코드에서 읽어 묶는다**(DECISIONS §209). 손으로 적으면 UI 를 고칠
+    #   때 기획서가 조용히 늙는다 — 2026-10-23 에 번역이 사이트 단위가 되었는데 본문은
+    #   권한 흐름을 그대로 적고 있었고 **아무도 안 울었다.**
+    html = (root / "extension/popup.html").read_text(encoding="utf-8")
+    for m in re.finditer(r'<input type="checkbox" id="(show|killall)">\s*\n\s*<span>([^<]+)</span>', html):
+        out.append((m.group(2).strip(), f"popup.html 의 `{m.group(1)}` 라벨"))
     return out
 
 

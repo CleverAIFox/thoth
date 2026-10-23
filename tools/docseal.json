@@ -126,7 +126,7 @@
  "112": {
   "날짜": "2026-09-22",
   "읽음": true,
-  "지문": "b37b12a82d667f20",
+  "지문": "093a4a6da56e0c68",
   "파일": [
    "tools/docx_check.py",
    "worker/tests/test_docx_check.py",
@@ -242,7 +242,7 @@
  "124": {
   "날짜": "2026-10-01",
   "읽음": true,
-  "지문": "e94edb2af0d249cc",
+  "지문": "ef4b30007acf2432",
   "파일": [
    "docs/PLAN.md",
    "docs/proposal/part3.js"
@@ -303,7 +303,7 @@
  "129": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "2aaf96c175a3e782",
+  "지문": "10659481ae60d1f4",
   "파일": [
    "docs/proposal/part1.js",
    "docs/proposal/build.js",
@@ -709,7 +709,7 @@
  "167": {
   "날짜": "2026-10-05",
   "읽음": true,
-  "지문": "9655f0f5cee6b628",
+  "지문": "b1865c3ba0239b1f",
   "파일": [
    "tools/check_proposal.py",
    "docs/proposal/numbers.json",
@@ -1015,7 +1015,7 @@
  "189": {
   "날짜": "2026-10-14",
   "읽음": false,
-  "지문": "abdad4987beeafc8",
+  "지문": "daabe3756dcfc1f8",
   "파일": [
    "tools/docx_check.py",
    "docs/proposal/build.js",
@@ -1121,7 +1121,7 @@
  "198": {
   "날짜": "2026-10-20",
   "읽음": false,
-  "지문": "e95ba8903b9f922e",
+  "지문": "cf774f23a08e60c9",
   "파일": [
    "tools/docx_check.py",
    "docs/proposal/수.js",
@@ -1159,7 +1159,7 @@
  "200": {
   "날짜": "2026-10-20",
   "읽음": true,
-  "지문": "9e21285a984a3dde",
+  "지문": "95e7fbba308cb648",
   "파일": [
    "docs/proposal/part1.js"
   ]
@@ -1188,7 +1188,7 @@
  "203": {
   "날짜": "2026-10-21",
   "읽음": false,
-  "지문": "dc78892e2476a70a",
+  "지문": "f853f0d29e1a5be7",
   "파일": [
    "tools/cost_check.py",
    "tools/cost.json",
@@ -1258,7 +1258,7 @@
  "209": {
   "날짜": "2026-10-23",
   "읽음": false,
-  "지문": "e29f6e1bc5b17265",
+  "지문": "fe15d66229adca63",
   "파일": [
    "extension/src/지문.js",
    "extension/src/broker.js",
@@ -1275,6 +1275,18 @@
   "파일": [
    "tools/mutate_gate.py",
    "worker/tests/test_check_static.py"
+  ]
+ },
+ "210": {
+  "날짜": "2026-10-23",
+  "읽음": false,
+  "지문": "481a44fa1ffd5c65",
+  "파일": [
+   "tools/docx_check.py",
+   "docs/proposal/part1.js",
+   "docs/proposal/part2.js",
+   "docs/proposal/part3.js",
+   "worker/tests/test_docx_check.py"
   ]
  },
  "22": {
@@ -1883,7 +1895,7 @@
  "94": {
   "날짜": "2026-09-16",
   "읽음": true,
-  "지문": "7ebee342330990f4",
+  "지문": "ca8417a8f4562a32",
   "파일": [
    "docs/bench/baseline.json",
    "tools/bench_golden.py",
