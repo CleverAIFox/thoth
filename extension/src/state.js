@@ -12,6 +12,16 @@ export const ORIGIN_UNSUPPORTED = "unsupported";
 export const ORIGIN_MISSING = "missing";
 export const ORIGIN_GRANTED = "granted";
 
+/** 탭 URL 의 호스트명. http(s) 가 아니면 빈 문자열(DECISIONS §209).
+ *
+ * ★ **번역 지도의 열쇠다.** 경로는 안 쓴다 — 강의·사용자 식별자가 섞여
+ *   지도가 개인 기록이 된다(§131 과 같은 결).
+ */
+export function 호스트(url) {
+  if (typeof url !== "string" || !url.startsWith("http")) return "";
+  try { return new URL(url).hostname; } catch { return ""; }
+}
+
 /** 탭 URL 에서 권한 요청에 쓸 오리진 패턴. 만들 수 없으면 빈 문자열. */
 export function originPattern(url) {
   if (typeof url !== "string" || !url.startsWith("http")) return "";

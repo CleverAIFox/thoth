@@ -702,10 +702,15 @@
   }
 
   // 토글은 DOM 요소를 두지 않는다. 고정 위치 버튼은 사이트마다 남의 UI 를 가린다.
-  const KEY = "stOff";
+  //
+  // ★ **열쇠가 둘이다**(DECISIONS §209). `stOff` 는 **마스터 차단**이고, 실제로
+  //   이 사이트에서 번역하는가는 `st번역사이트` 지도가 정한다. 판정은 `지문.js`
+  //   에 **한 번만** 적혀 있다 — 여기서 다시 적으면 한쪽만 늙는다(§91).
+  const { 사이트키, 차단키, 번역할까, 뒤집는다 } = ST.사이트;
+  const HOST = location.hostname;
 
-  const 적용 = (off) => {
-    번역끔 = !!off;
+  const 적용 = (설정) => {
+    번역끔 = !번역할까(HOST, 설정);
     // ★ **이미 선 상자는 숨겨야 한다.** ①에서 끊으면 새 상자가 안 서지만, 켠 뒤에
     //   끄면 **먼저 선 것들이 남는다.** `html.st-off` 는 그 한 줄로 남는다 —
     //   종전에는 이것이 끄기의 **전부**였다.
@@ -714,9 +719,9 @@
 
   // ★ **칸이 비면 번역을 안 켠다.** 첫 설치가 모든 사이트를 번역하면서 시작하지
   //   않는다. `!!stOff` 였다면 `undefined` 가 「번역 켬」 이 된다.
-  chrome.storage.local.get([KEY, "stBatch"]).then(({ stOff, stBatch }) => {
-    적용(stOff === undefined ? true : stOff);
-    const n = Number(stBatch);
+  chrome.storage.local.get([차단키, 사이트키, "stBatch"]).then((s) => {
+    적용(s);
+    const n = Number(s.stBatch);
     if (Number.isInteger(n) && n >= 1) MAX_BATCH = Math.min(n, MAX_BATCH_CAP);
   });
 
@@ -724,17 +729,27 @@
   //   **직접 클래스를 뒤집고** 저장소에도 썼다 — 길이 둘이었다. ①에서 끊는 지금
   //   그 길은 **번역을 안 끈다**(클래스만 뒤집으니 워커는 계속 맞는다). 저장소가
   //   정본이고 브로커는 그것만 본다. **값을 맞추는 규칙 대신 길을 하나로 만든다.**
+  // ★ **바뀐 칸만 보고 판정하지 않는다.** 판정이 두 열쇠를 함께 보므로 하나가
+  //   바뀌어도 **둘 다 다시 읽어야** 한다 — `newValue` 만 넘기면 나머지 한쪽이
+  //   옛 값으로 굳는다.
   chrome.storage.onChanged?.addListener((c, area) => {
-    if (area !== "local" || !c[KEY]) return;
-    적용(c[KEY].newValue);
-    console.log("[st] 번역", 번역끔 ? "끔 — 수집만 돈다" : "켬");
+    if (area !== "local" || !(c[차단키] || c[사이트키])) return;
+    chrome.storage.local.get([차단키, 사이트키]).then((s) => {
+      적용(s);
+      console.log(`[st] ${HOST} 번역`, 번역끔 ? "끔 — 수집만 돈다" : "켬");
+    });
   });
 
   document.addEventListener("keydown", (e) => {
     // e.key 는 레이아웃과 데드키에 흔들린다. 물리 키로 본다.
     if (!e.altKey || e.ctrlKey || e.metaKey || e.code !== "KeyK") return;
+    // ★ **이 사이트만 뒤집는다**(DECISIONS §209). 종전에는 전역 하나를 뒤집어서
+    //   다른 탭의 번역까지 같이 꺼지고 켜졌다 — 그 조합을 쓰는 사이트에서 한 번
+    //   눌리면 **아무 데서나 전역이 뒤집혔다.**
     // ★ **쓰기만 한다.** 적용은 `onChanged` 가 한다 — 팝업에서 눌러도 같은 길이다.
-    chrome.storage.local.set({ [KEY]: !번역끔 });
+    chrome.storage.local.get([사이트키]).then((s) => {
+      chrome.storage.local.set({ [사이트키]: 뒤집는다(HOST, s[사이트키]) });
+    });
   });
 
   const debounce = (fn, ms) => {

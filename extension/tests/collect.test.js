@@ -154,8 +154,16 @@ test("지문.js 가 그것을 읽는 자들보다 먼저 실린다", () => {
   }
 });
 
-test("어댑터만 실어도 경계가 선다", async () => {
-  await harness.loadAdapters(["generic"]);          // ★ **브로커는 안 싣는다.** 그게 요점이다
+test("어댑터만 실어도 경계가 선다", () => {
+  // ★ **jsdom 없이도 돈다**(DECISIONS §209). 종전에는 `harness` 를 거쳤는데 그 모듈
+  //   임포트가 jsdom 에 달려 있어, jsdom 이 없으면 `harness` 가 `null` 이 되고 이
+  //   줄이 **TypeError 로 터졌다** — 이 시험만 `need` 표시를 안 달았기 때문이다.
+  //   `need` 를 다는 쪽은 **건너뛴 시험이 CI 에서 한 번도 안 도는 길**이고(§192),
+  //   이 판정에는 DOM 이 필요 없다. 그래서 파일 둘을 **직접** 평가한다.
+  // ★ **브로커는 안 싣는다.** 그게 요점이다 — 어댑터만으로 경계가 서야 한다.
+  globalThis.ST = { adapters: [] };
+  new Function(읽("src/지문.js"))();
+  new Function(읽("src/adapters/generic.js"))();
   // ★ **오늘 터진 자리다.** `generic.js` 가 행 경계를 `ST.꼴` 에서 읽게 되자,
   //   `loadAdapters` 만 부르는 검사 여섯이 `closest(undefined)` 로 **던졌다.**
   //   배선이 끊기면 터지는 쪽이라 조용하지는 않았지만, **같은 끊김을 다시 겪지

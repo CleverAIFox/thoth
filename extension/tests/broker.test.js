@@ -186,7 +186,7 @@ test("브로커가 호스트와 어댑터 이름을 넘긴다", need, async () =
 // ★ **모드를 밝혀 적는다**(DECISIONS §177). 기본값은 **수집만**이라 `fakeChrome()`
 //   으로 두면 브로커가 **워커를 아예 안 부른다** — 여기서 보려는 것은 번역이 꽂히는
 //   자리이므로 번역을 켠 저장소를 준다. 「무엇을 재는 중인가」 가 호출부에 보인다.
-  globalThis.chrome = fakeChrome({ stOff: false }).api;
+  globalThis.chrome = fakeChrome({ ...harness.번역켬() }).api;
   const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
   globalThis.fetch = f;
   const b = await loadBroker();
@@ -266,7 +266,7 @@ test("배치 기본값이 실측 최적점이다", need, async () => {
 // ★ **모드를 밝혀 적는다**(DECISIONS §177). 기본값은 **수집만**이라 `fakeChrome()`
 //   으로 두면 브로커가 **워커를 아예 안 부른다** — 여기서 보려는 것은 번역이 꽂히는
 //   자리이므로 번역을 켠 저장소를 준다. 「무엇을 재는 중인가」 가 호출부에 보인다.
-  globalThis.chrome = fakeChrome({ stOff: false }).api;
+  globalThis.chrome = fakeChrome({ ...harness.번역켬() }).api;
   const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
   globalThis.fetch = f;
   const b = await loadBroker();
@@ -294,7 +294,7 @@ test("그룹이 없는 본문은 낱개로 나간다", need, async () => {
 // ★ **모드를 밝혀 적는다**(DECISIONS §177). 기본값은 **수집만**이라 `fakeChrome()`
 //   으로 두면 브로커가 **워커를 아예 안 부른다** — 여기서 보려는 것은 번역이 꽂히는
 //   자리이므로 번역을 켠 저장소를 준다. 「무엇을 재는 중인가」 가 호출부에 보인다.
-  globalThis.chrome = fakeChrome({ stOff: false }).api;
+  globalThis.chrome = fakeChrome({ ...harness.번역켬() }).api;
   const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
   globalThis.fetch = f;
   const b = await loadBroker();
@@ -344,7 +344,7 @@ test("멈춘 브로커는 정말 멈춘다 — 다음 판을 안 훑는다", nee
   await loadAdapters(["generic"]);
   const 본문 = "A whole sentence that is long enough to be collected here now.";
   const doc = makeDoc(`<p>${본문}</p>`);
-  globalThis.chrome = fakeChrome({ stOff: false }).api;
+  globalThis.chrome = fakeChrome({ ...harness.번역켬() }).api;
   const f = fakeFetch([{ ok: true, body: { translations: "echo" } }]);
   globalThis.fetch = f;
   const b = await loadBroker();

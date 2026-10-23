@@ -86,7 +86,7 @@ test("저장소가 비면 워커를 한 번도 안 부른다", need, async () =>
 
 test("번역을 켜면 워커로 간다", need, async () => {
   // ★ 끈 쪽만 재면 **영영 번역 안 되는 확장**도 초록이다(§152 의 양방향).
-  const { f, b } = await 올린다({ stOff: false });
+  const { f, b } = await 올린다({ ...harness.번역켬() });
   try {
     assert.ok(f.calls.length >= 1, "켠 채로도 요청이 안 나간다");
   } finally { b.stop(); }
@@ -96,7 +96,7 @@ test("끄면 새 글이 들어와도 요청이 안 나간다", need, async () =>
   // ★ **`stDone` 으로 가려지는 자리다**(§175 와 같은 모양). 이미 번역한 단위는
   //   다시 안 나가므로 「끈 뒤 요청 수가 그대로」 는 **끄지 않아도 참**이다.
   //   그래서 끈 뒤에 **새 문단을 넣고** 센다.
-  const { c, f, b, doc } = await 올린다({ stOff: false });
+  const { c, f, b, doc } = await 올린다({ ...harness.번역켬() });
   try {
     const 전 = f.calls.length;
     assert.ok(전 >= 1, "켠 상태를 못 만들었다");
@@ -133,7 +133,7 @@ test("순회 한가운데서 꺼도 남은 묶음이 안 나간다", need, async
     html += "</div>";
   }
   makeDoc(html);
-  const c = fakeChrome({ stOff: false });
+  const c = fakeChrome({ ...harness.번역켬() });
   globalThis.chrome = c.api;
 
   const 부름 = [];
@@ -172,7 +172,7 @@ test("끄느라 거둔 자리는 다시 켜면 번역된다", need, async () => 
     html += "</div>";
   }
   const doc = makeDoc(html);
-  const c = fakeChrome({ stOff: false });
+  const c = fakeChrome({ ...harness.번역켬() });
   globalThis.chrome = c.api;
 
   let 껐나 = false;
@@ -218,13 +218,19 @@ test("끄느라 거둔 자리는 다시 켜면 번역된다", need, async () => 
 test("Alt+K 가 저장소를 거쳐 적용된다", need, async () => {
   // ★ **길을 하나로 둔다**(DECISIONS §173). 쓰기는 저장소에만, 적용은 `onChanged`
   //   에서만 한다 — 그래야 팝업에서 눌러도 **같은 한 길**이다.
-  const { c, b, doc, win } = await 올린다({ stOff: false });
+  // ★ **이 사이트만 뒤집는다**(DECISIONS §209). 종전에는 전역 `stOff` 를 뒤집어서
+  //   **다른 탭의 번역까지** 같이 꺼지고 켜졌다 — 그 조합을 쓰는 사이트에서 한 번
+  //   눌리면 아무 데서나 전역이 뒤집혔고, 그것이 「자동으로 꺼진다」 의 정체였다.
+  const { c, b, doc, win } = await 올린다({
+    ...harness.번역켬(), st번역사이트: { localhost: true, "남.example": true },
+  });
   try {
-    assert.equal(c.store.stOff, false);
     doc.dispatchEvent(new win.KeyboardEvent("keydown",
       { altKey: true, code: "KeyK", bubbles: true }));
     await new Promise((r) => setTimeout(r, 50));
-    assert.equal(c.store.stOff, true, "저장소에 안 썼다");
+    assert.equal(c.store.st번역사이트.localhost, undefined, "이 사이트를 저장소에서 안 껐다");
+    assert.equal(c.store.st번역사이트["남.example"], true, "남의 사이트까지 같이 껐다");
+    assert.equal(c.store.stOff, undefined, "마스터 차단을 건드렸다");
     assert.ok(doc.documentElement.classList.contains("st-off"),
               "onChanged 를 안 듣는다 — 눌러도 안 꺼진다");
   } finally { b.stop(); }
@@ -247,15 +253,60 @@ test("끊는 자리가 수집 뒤이고 꽂기·워커 앞이다", () => {
   assert.ok(자리.끊음 < 자리.워커, "워커를 부른 뒤에 끊으면 과금이 난다");
 });
 
-test("기본값이 꺼진 쪽이고 팝업이 같은 뜻으로 적었다", () => {
+test("코드벗긴다 가 문자열 안의 주석표를 안 걷는다", () => {
+  // ★ **음성 단언은 너무 많이 벗기는 것을 못 잡는다**(DECISIONS §209). 종전 시험은
+  //   벗긴 코드에 **있어야 할 글자**를 찾았고(양성), 그래서 `strip.js` 가 문자열 안의
+  //   `/*` 를 주석으로 읽기 시작하면 바로 울었다. 이 판이 그 단언을 「없어야 할 글자」
+  //   로 바꾸자 **`주석걷기` 돌연변이 넷이 살아남았다** — 가드가 조용히 죽었다.
+  //   그래서 그 자리를 **직접** 문다.
+  const 벗김 = 코드벗긴다('const re = "a /* b */ c";\n// 진짜 주석\nconst x = 1;\n');
+  assert.match(벗김, /a \/\* b \*\/ c/, "문자열 안의 /* 를 주석으로 읽었다");
+  assert.match(벗김, /const x = 1;/, "주석 뒤를 통째로 먹었다");
+  assert.ok(!/진짜 주석/.test(벗김), "줄 주석을 안 걷었다");
+});
+
+test("기본값이 꺼진 쪽이고 판정이 한 곳에만 산다", () => {
   // ★ **같은 사실이 두 곳에 살면 한쪽만 고쳐진다**(§91 · §173). 팝업이 「켬」 을
   //   보여 주고 브로커가 수집만 도는 어긋남은 **아무것도 안 터지고 거짓말만 한다.**
+  // ★ **그래서 판정을 글자로 안 묻고 함수로 묻는다**(DECISIONS §209). 종전에는
+  //   `stOff === undefined ? true : stOff` 라는 **글자**를 양쪽에서 찾았다 —
+  //   글자가 같아도 뜻이 갈릴 수 있고, 뜻이 같아도 글자가 달라지면 운다.
   const broker = 코드벗긴다(읽("src/broker.js"));
   assert.match(broker, /let 번역끔 = true;/,
                "기본이 번역이면 첫 순회가 모든 사이트를 내보낸다");
-  assert.match(broker, /stOff === undefined \? true : stOff/, "빈 칸을 번역 켬으로 읽는다");
-  assert.match(코드벗긴다(읽("src/popup.js")), /stOff === undefined \? false : !s\.stOff/,
-               "팝업이 빈 칸을 켬으로 그린다");
+  assert.match(broker, /ST\.사이트/, "브로커가 판정을 제 손으로 다시 적는다");
+  assert.ok(!/stOff === undefined/.test(broker), "브로커에 옛 전역 판정이 남았다");
+
+  const popup = 코드벗긴다(읽("src/popup.js"));
+  assert.match(popup, /globalThis\.ST\.사이트/, "팝업이 열쇠 글자를 제 손으로 적는다");
+  assert.ok(!/stOff === undefined/.test(popup), "팝업에 옛 전역 판정이 남았다");
+
+  // 정본 함수 자체의 기본값
+  const ST = {};
+  new Function("globalThis", 읽("src/지문.js"))({ ST });
+  assert.equal(ST.사이트.번역할까("mail.google.com", {}), false, "빈 칸이 번역 켬이다");
+  assert.equal(ST.사이트.번역할까("", { st번역사이트: { "": true } }), false,
+               "호스트를 못 읽은 탭이 번역된다");
+});
+
+test("한 사이트를 켜도 남의 사이트는 안 켜진다", () => {
+  // ★ **2026-10-23 에 난 일이다**(DECISIONS §209). `stOff` 가 **전역 하나**라
+  //   어디서든 한 번 켜면 **지메일도 사내 시스템도 같이 켜졌다** — 그날 AWS 초대
+  //   메일 본문이 그렇게 워커로 나갔다. 권한은 수집을 위한 것이지 번역 허락이 아니다.
+  const ST = {};
+  new Function("globalThis", 읽("src/지문.js"))({ ST });
+  const { 번역할까, 뒤집는다 } = ST.사이트;
+
+  const 켠뒤 = 뒤집는다("udemy.com", {});
+  assert.equal(번역할까("udemy.com", { st번역사이트: 켠뒤 }), true);
+  assert.equal(번역할까("mail.google.com", { st번역사이트: 켠뒤 }), false,
+               "한 사이트를 켜니 남의 사이트도 켜졌다");
+
+  // 마스터 차단은 지도보다 세다
+  assert.equal(번역할까("udemy.com", { stOff: true, st번역사이트: 켠뒤 }), false);
+
+  // 끌 때는 칸을 **지운다** — 빈 칸이 기본이라 `false` 를 남기면 뜻이 둘이 된다
+  assert.deepEqual(뒤집는다("udemy.com", 켠뒤), {});
 });
 
 test("팝업이 번역을 제 손으로 끄지 않는다", () => {
@@ -265,7 +316,9 @@ test("팝업이 번역을 제 손으로 끄지 않는다", () => {
   const popup = 코드벗긴다(읽("src/popup.js"));
   assert.ok(!/st-off/.test(popup), "팝업이 클래스를 직접 뒤집는다");
   assert.ok(!/executeScript/.test(popup), "팝업이 탭에 코드를 꽂아 끈다");
-  assert.match(popup, /storage\.local\.set\(\{\s*stOff/, "저장소에 안 쓴다");
+  // ★ 사이트 토글은 지도에, 마스터 차단은 `stOff` 에 쓴다(DECISIONS §209).
+  assert.match(popup, /storage\.local\.set\(\{\s*\[사이트키\]/, "사이트 지도를 저장소에 안 쓴다");
+  assert.match(popup, /storage\.local\.set\(\{\s*\[차단키\]/, "마스터 차단을 저장소에 안 쓴다");
   assert.match(코드벗긴다(읽("src/broker.js")), /storage\.onChanged\?\.addListener/,
                "브로커가 저장소 변화를 안 듣는다");
 });

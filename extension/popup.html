@@ -6,22 +6,27 @@
 <!-- ★ 인라인 스크립트를 쓰지 않는다. MV3 의 기본 CSP 가 script-src 'self'
      이므로 인라인은 실행되지 않고, 팝업이 통째로 조용히 죽는다. -->
 <main>
+  <!-- ★ **권한 버튼을 지웠다**(DECISIONS §209). `host_permissions` 가 `<all_urls>`
+       이므로 크롬이 설치 때 전부 승인한다 — `permissions.contains` 는 **언제나
+       참**이라 그 줄은 「이 사이트에서 켜져 있다」만 띄우는 **장식**이었다. -->
   <section id="site" class="row">
     <span id="site-state" class="state">…</span>
-    <button id="enable" hidden>이 사이트에서 켜기</button>
   </section>
 
   <!-- ★ **「표시」 가 아니라 「번역」 이다**(DECISIONS §177). 종전 글자는 정직했지만
        사람은 「번역 끔」 으로 읽었고, 실제로는 상자만 숨고 **워커 호출과 과금이
-       그대로 돌았다.** 끄면 수집까지만 돈다 — 그래서 글자도 그렇게 적는다. -->
+       그대로 돌았다.** 끄면 수집까지만 돈다 — 그래서 글자도 그렇게 적는다.
+       ★ **그리고 이 토글은 이 사이트만 바꾼다**(DECISIONS §209). 종전에는 전역
+       하나라 한 사이트에서 켜면 **지메일도 같이 켜졌다.** -->
   <section class="row">
     <label class="toggle">
       <input type="checkbox" id="show">
-      <span>번역</span>
+      <span>이 사이트에서 번역</span>
     </label>
     <kbd>Alt+K</kbd>
   </section>
-  <p class="hint">끄면 <strong>수집까지만</strong> 돈다 — 워커를 부르지 않는다.</p>
+  <p class="hint">끄면 <strong>수집까지만</strong> 돈다 — 워커를 부르지 않는다.
+     <strong>수집은 모든 사이트에서 늘 돌고</strong> 번역은 켠 사이트에서만 돈다.</p>
 
   <section class="row">
     <button id="check">연결 확인</button>
@@ -41,6 +46,12 @@
     <label>엔드포인트
       <input type="url" id="endpoint" placeholder="http://127.0.0.1:8000/translate">
     </label>
+    <!-- ★ **마스터 차단**(DECISIONS §209). 켜면 **어느 사이트에서도** 번역하지
+         않는다 — 사이트 지도보다 세다. 급할 때 한 칸으로 멈추는 자리다. -->
+    <label class="toggle">
+      <input type="checkbox" id="killall">
+      <span>모든 사이트에서 번역 끔</span>
+    </label>
     <label>토큰
       <input type="password" id="token" placeholder="워커가 요구할 때만">
     </label>
@@ -58,6 +69,10 @@
      `ST.쓸주소` 가 `popup.js` 가 돌 때 이미 서 있다.
      ★ **`client.js` 는 최상위에 정의뿐이다** — 부수효과가 없어 팝업에서 실어도
      아무 일도 안 일어난다. 그 자리는 `extension/tests/popup.test.js` 가 문다. -->
+<!-- ★ **판정의 정본을 팝업도 싣는다**(DECISIONS §209). 안 실으면 팝업이 열쇠
+     글자와 기본값을 **제 손으로 다시 적어야** 하고, 그 둘이 갈리면 팝업은
+     「켬」 을 그리고 브로커는 수집만 도는 거짓말이 된다(§173). -->
+<script src="src/지문.js"></script>
 <script src="src/config.local.js"></script>
 <script src="src/client.js"></script>
 <script type="module" src="src/popup.js"></script>

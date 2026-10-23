@@ -15,9 +15,13 @@ from PIL import Image, ImageChops, ImageOps
 from figlib import OUT, ROOT
 
 EXT = ROOT / "extension"
+# ★ **두 장을 가르는 것이 권한에서 「이 사이트에서 켰나」 로 바뀌었다**(DECISIONS §209).
+#   종전에는 `permissions.contains` 를 `true`/`false` 로 갈랐는데, 권한이 `<all_urls>` 라
+#   **그 값이 화면을 안 바꾼다** — 그대로 두면 **같은 상태를 두 장 찍고** 그림이 조용히
+#   뜻을 잃는다. 이제 `st번역사이트` 지도로 가른다.
 MOCK = """
-window.chrome={storage:{local:{get:async()=>({stOff:false,stEndpoint:'https://****.lambda-url.ap-northeast-2.on.aws/translate',stToken:'tok'}),set:async()=>{}}},
-tabs:{query:async()=>[{id:1,url:'%s'}]},permissions:{contains:async()=>%s,request:(o,cb)=>cb(true)},
+window.chrome={storage:{local:{get:async()=>({st번역사이트:%s,stEndpoint:'https://****.lambda-url.ap-northeast-2.on.aws/translate',stToken:'tok'}),set:async()=>{}}},
+tabs:{query:async()=>[{id:1,url:'%s'}]},permissions:{contains:async()=>true,request:(o,cb)=>cb(true)},
 runtime:{getURL:s=>s,sendMessage:()=>{},lastError:null},scripting:{executeScript:async()=>{}}};
 window.fetch=async()=>new Response(JSON.stringify({status:'ok',version:'0.1.0',engine:'bedrock',cache:'ddb',auth:true}),
   {status:200,headers:{'content-type':'application/json'}});
@@ -48,10 +52,11 @@ async def shoot():
             await pg.goto(f"file://{EXT}/preview.html")
             await pg.wait_for_timeout(800)
             await pg.screenshot(path=str(OUT / "shot_preview.png"), **찍기)
-            for name, url, granted, adv in [("on", "https://www.udemy.com/course/x/learn/quiz/1", "true", False),
-                                            ("off", "https://example.com/quiz", "false", True)]:
+            for name, url, 지도, adv in [
+                    ("on", "https://www.udemy.com/course/x/learn/quiz/1", "{'www.udemy.com':true}", False),
+                    ("off", "https://example.com/quiz", "{}", True)]:
                 pg = await b.new_page(viewport={"width": 340, "height": 420}, device_scale_factor=2)
-                await pg.add_init_script(MOCK % (url, granted))
+                await pg.add_init_script(MOCK % (지도, url))
                 await pg.goto("http://127.0.0.1:8765/popup.html")
                 await pg.wait_for_timeout(700)
                 if adv:
@@ -100,7 +105,10 @@ a, b = trim(OUT / "shot_popup_on.png"), trim(OUT / "shot_popup_off.png")
 s = Image.new("RGB", (a.width + b.width + 60, max(a.height, b.height)), "white")
 s.paste(a, (0, 0)); s.paste(b, (a.width + 60, 0)); s.save(OUT / "f_popup.png")
 원본지문("f_popup")
-facts("f_popup", ["file:extension/popup.html~이 사이트에서 켜기", "file:extension/src/popup.js~아직 권한이 없다"])
+# ★ **권한 줄이 사라졌다**(DECISIONS §209). `host_permissions` 가 `<all_urls>` 라
+#   `permissions.contains` 는 언제나 참이고, 그 줄은 **장식**이었다. 이 화면의
+#   사실은 이제 **사이트 단위 번역 토글**과 **지금 모드**다.
+facts("f_popup", ["file:extension/popup.html~이 사이트에서 번역", "file:extension/src/popup.js~수집만"])
 p = Image.open(OUT / "shot_preview.png")
 p.crop((0, 0, p.width, min(p.height, 2050))).save(OUT / "f_preview_a.png")
 원본지문("f_preview_a")

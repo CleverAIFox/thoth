@@ -33,6 +33,16 @@ import { JSDOM } from "jsdom";
 }
 
 /** 어댑터 파일을 읽어 `globalThis.ST` 에 등록시킨다. */
+/** 시험이 「이 사이트에서 번역 켬」 을 만드는 **한 가지 길**(DECISIONS §209).
+ *
+ * ★ **번역은 이제 사이트 단위다.** 종전에는 `{ stOff: false }` 하나로 켰는데 그
+ *   전역 칸이 **모든 사이트를 같이 켜던** 바로 그 결함이다. 시험이 그 옛 꼴을
+ *   그대로 쓰면 고친 뒤에도 **옛 계약을 붙들어** 초록이 거짓이 된다.
+ * ★ 기본 호스트는 jsdom 의 기본 주소(`localhost`)다. `만든다({url})` 로 주소를
+ *   바꿨으면 그 호스트를 넘긴다.
+ */
+export const 번역켬 = (host = "localhost") => ({ st번역사이트: { [host]: true } });
+
 export async function loadAdapters(names) {
   const { readFileSync } = await import("node:fs");
   const { fileURLToPath } = await import("node:url");
@@ -61,7 +71,12 @@ export async function loadAdapters(names) {
  * 실제 호스트로 잴 때 쓴다.
  */
 export function makeDoc(html, opts = {}) {
-  const dom = new JSDOM(`<!doctype html><body>${html}</body>`, opts.url ? { url: opts.url } : {});
+  // ★ **주소 없는 문서는 실제 배경이 아니다**(DECISIONS §209 · §173). jsdom 의 기본은
+  //   `about:blank` 이고 거기서 `location.hostname` 은 **빈 문자열**이다 — 콘텐츠
+  //   스크립트가 그런 탭에서 도는 일은 없다. 번역이 **사이트 단위**가 되자 그 빈
+  //   호스트가 「어디서도 안 켜진다」 가 되어 켠 상태를 **만들 수 없었다.**
+  const dom = new JSDOM(`<!doctype html><body>${html}</body>`,
+                        { url: opts.url || "http://localhost/" });
   const win = dom.window;
 
   // ★ 프로토타입에 정의한다. 개별 요소에 붙이면 나중에 만들어지는 요소가

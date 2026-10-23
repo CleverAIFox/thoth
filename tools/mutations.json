@@ -1316,13 +1316,8 @@
     "후": "    if (false) { 수집만한다(units, ad); return; }"
    },
    {
-    "이름": "빈 칸을 번역 켬으로 읽는다",
-    "전": "    적용(stOff === undefined ? true : stOff);",
-    "후": "    적용(!!stOff);"
-   },
-   {
     "이름": "저장소 변화를 안 받는다",
-    "전": "    if (area !== \"local\" || !c[KEY]) return;",
+    "전": "    if (area !== \"local\" || !(c[차단키] || c[사이트키])) return;",
     "후": "    if (true) return;"
    },
    {
@@ -1332,13 +1327,48 @@
    },
    {
     "이름": "Alt+K 가 저장소를 안 거치고 제 손으로 뒤집는다",
-    "전": "    chrome.storage.local.set({ [KEY]: !번역끔 });",
-    "후": "    적용(!번역끔);"
+    "전": "      chrome.storage.local.set({ [사이트키]: 뒤집는다(HOST, s[사이트키]) });",
+    "후": "      적용({});"
    },
    {
     "이름": "수집을 세지 않는다",
     "전": "    ST.수집.push(rec);",
     "후": "    void rec;"
+   },
+   {
+    "이름": "바뀐 칸만 보고 판정한다 — 나머지 한쪽이 옛 값으로 굳는다",
+    "전": "    chrome.storage.local.get([차단키, 사이트키]).then((s) => {",
+    "후": "    Promise.resolve({ [차단키]: c[차단키]?.newValue }).then((s) => {"
+   }
+  ]
+ },
+ "사이트모드": {
+  "파일": "extension/src/지문.js",
+  "시험": [
+   "bash",
+   "-c",
+   "cd extension && node --test tests/mode.test.js"
+  ],
+  "돌연변이": [
+   {
+    "이름": "빈 지도를 번역 켬으로 읽는다 — 새 사이트가 첫 순회에 나간다",
+    "전": "    return !!(지도 && 지도[host] === true);",
+    "후": "    return !지도 || 지도[host] !== false;"
+   },
+   {
+    "이름": "마스터 차단을 안 본다",
+    "전": "    if (s[차단키] === true) return false;",
+    "후": "    if (false) return false;"
+   },
+   {
+    "이름": "호스트를 못 읽은 탭에서도 번역한다",
+    "전": "    if (!host) return false;",
+    "후": "    if (false) return false;"
+   },
+   {
+    "이름": "끌 때 칸을 지우지 않고 false 를 남긴다 — 뜻이 둘이 된다",
+    "전": "    if (m[host] === true) delete m[host];   // 끌 때는 **지운다** — 빈 칸이 기본이다",
+    "후": "    if (m[host] === true) m[host] = false;"
    }
   ]
  },
