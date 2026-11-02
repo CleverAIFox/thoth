@@ -1,10 +1,21 @@
-# ★ **세샤트의 `tools/docseal.py` 에서 왔다. 정본은 세샤트다**(DECISIONS §163).
-#   고칠 것이 있으면 거기서 고치고 다시 옮긴다. 이 저장소에서 갈린 자리는 셋뿐이다 —
-#   **셋을 여기 적는다**(세샤트 §296 — 「사본이다」 만 적어 두면 다음 사람이 통째로 덮는다).
+# ★ **세샤트의 `tools/docseal.py` 에서 왔다. 정본은 세샤트다**(DECISIONS §163 · 이 저장소 §212).
+#   고칠 것이 있으면 거기서 고치고 다시 옮긴다. **갈린 자리를 전부 여기 적는다**(세샤트 §296 — 「사본이다」 만
+#   적어 두면 다음 사람이 통째로 덮는다). 2026-11-02 에 정본과 `diff` 를 떴다.
+#   **선언돼 있던 셋** :
 #     · 도장 파일이 `tools/docseal.json` 이다. 세샤트는 `data/docseal.json` — 이쪽에
 #       `data/` 가 없고, 선언 자료는 `tools/mutations.json` 처럼 자 옆에 산다
 #     · 강제자가 `tools/doctor.sh` 다. 세샤트는 `tools/verify.sh`
 #     · 아래 `★` 들의 `§N` 은 **세샤트의 절 번호**다. 이쪽에서 그 번호는 딴 절이다
+#   **선언돼 있지 않았던 것 — 「셋뿐이다」 는 거짓이었다** :
+#     · 이 사본은 정본의 **§323 · §324 · §325 · §327 이전**이다. `tools/docseal_refs.py` 가 없고,
+#       `.md` 는 **통째로** 문다(`_문서절` · `문서대장` · `접힌문서` · `대장절` · `안풀리는_문서절` ·
+#       `_행조각` · `_대장절을_뺀다` 가 없다). 대장 표와 `_셸_몸` · `_셸걸음` · `_걸음이있나` 가 본체 안에 산다.
+#       실측으로 값이 있다 : 기간 표현 몇 낱말을 고친 커밋(4ee441a)이 **절 27 의 지문을 바꿨고
+#       그중 18 이 MASTER · PLAN 을 통째로 짚은 절이다**(정본은 절 하나만 물어 그 소음이 없다). 맞추는 일은 `PLAN` 에 열었다 — 맞추면 MASTER 를 짚은
+#       절의 지문이 한꺼번에 바뀌어 그 절들을 다시 읽어야 해서 이 판에 섞지 않았다.
+#     · `_canary` 가 정본보다 `.md` 절 시험 다섯을 덜 든다. 같은 까닭이다.
+#   **글자까지 같은 옆 파일** : `tools/docseal_grain.py`(입자 · 잠금 파일 가드 · 세샤트 §330) — 이 파일은
+#   정본에서 그대로 받았고 이 사본의 훅 셋(`import` · `로직_지문` 의 접기 · `_한_문서` 의 가드 · `_canary`)만 이쪽에 산다.
 #   ★ **MASTER 축의 봉인 열셋은 이 저장소가 §163 에서 박았다.** 기계는 사본이고 **글은
 #     이쪽 것**이다 — `docs/MASTER.md` 의 `봉인 — ` 줄을 본다.
 """문서 절과 **그 절이 강제자로 지목한 코드**에 정합 도장을 찍는다(seshat DECISIONS §211).
@@ -42,6 +53,11 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SEAL = ROOT / "tools/docseal.json"
+
+# ★ **입자는 옆 파일이다**(세샤트 DECISIONS §330). `tests` 가 `spec_from_file_location` 으로 이 파일을
+#   읽으므로 옆 파일 자리를 길에 넣어야 한다.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import docseal_grain as 낟알
 DEC = ROOT / "docs/DECISIONS.md"
 #: 도장 파일의 저장소 상대 자리. **강제자로 들 수 없는 유일한 파일이다**(seshat DECISIONS §300)
 _도장자리 = SEAL.relative_to(ROOT).as_posix()
@@ -145,9 +161,9 @@ def 로직_지문(p: pathlib.Path, 이름: str = "") -> str:
     """
     글 = p.read_text(encoding="utf-8")
     if p.suffix in 주석머리:
-        return _셸_지문(글, 이름 if p.suffix == ".sh" else "", 주석머리[p.suffix])
+        return _셸_지문(낟알.접는다(글, p.name), 이름 if p.suffix == ".sh" else "", 주석머리[p.suffix])
     if p.suffix != ".py":
-        return _짧게(글)
+        return _짧게(낟알.접는다(글, p.name))
     나무: ast.AST = ast.parse(글)
     if 이름:
         # ★ **강제자가 이름을 짚으면 그 몸만 잰다**(seshat DECISIONS §211). 파일로 재면 `check_docs.py` 를
@@ -332,6 +348,7 @@ def _한_문서(글: str, 앞: str, 머리: re.Pattern, 뽑는다, 표시: str) 
         끝 = 자리[i + 1][0] if i + 1 < len(자리) else len(글)
         본문 = 글[s:끝]
         줄 = 뽑는다(본문)
+        낟알.잠금이면_죽는다(줄, 지목, f"{표시}{번호}")
         파일: list[str] = []
         안풀린것: list[str] = []
         걸음표 = _셸걸음(줄)
@@ -545,6 +562,7 @@ def _canary() -> None:
     if _셸_지문("// 설명\nconst a = 1;\n") == _셸_지문("const a = 1;\n"):
         print("    ★ 카나리아가 죽었다 — `#` 로 `//` 를 뗀다(꼴을 안 가른다)")
         sys.exit(2)
+    낟알._canary(지목)                      # ★ 입자 · 잠금 파일(세샤트 DECISIONS §330)
     if set(주석머리) < {".sh", ".yml", ".js"}:
         print(f"    ★ 카나리아가 죽었다 — 주석 머리 표가 좁다 : {sorted(주석머리)}")
         sys.exit(2)

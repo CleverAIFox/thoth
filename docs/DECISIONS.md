@@ -13601,7 +13601,7 @@ AssertionError: {'statusCode': 401, ...}
 `.github/workflows/ci.yml` 의 `브라우저 — 캐스케이드 검사가 쓴다` ·
 `tools/dependabot.py` 의 `판정` · `tools/doctor.sh` 의 `DB_RC` · `NEWF` ·
 `tools/ship.sh` 의 `NEW_BIN` ·
-`extension/package-lock.json` 의 `source-map-js` 1.2.2
+`extension/package.json`
 
 ---
 
@@ -15051,3 +15051,110 @@ PLAN #66 은 「`판정` 칸은 **사람**의 것」 이라고 적었다. 사람
 ### 붙은 가드
 
 강제자 — `tools/check_speech.py` · `tools/doctor.sh` 의 어미 표 단계.
+
+## §212. 도장이 봇의 주간 일과에 울고 있었다 — 입자를 고쳤고, 사본이 정본보다 뒤처져 있었다
+
+**2026-11-02** — Dependabot PR 셋과 seshat PR 하나가 같은 답을 냈다(seshat §330 이 표를 든다).
+
+| PR | 바뀐 파일 | 깨진 도장 |
+|---|---|---|
+| #7 jsdom 30.1.1 → 30.1.3 | `extension/package-lock.json` **하나** | **1** — §194 |
+| #8 actions ×3 | `.github/workflows/*.yml` **뿐** | **7** |
+| #9 uv group ×4 | `worker/uv.lock` · `pyproject.toml` | **0** · 4/4 초록 |
+
+**깨진 도장 수는 그 PR 이 만진 봉인 파일 수다.** 코드의 뜻도 절의 주장도 안 바뀌었다 — 바뀐 것은 액션의 커밋 해시와 잠금 파일의 판본 숫자뿐이다.
+`stamp --only …` 로 초록을 만들면 주마다 되풀이된다. 고친 것은 도장이 아니라 **지문의 입자**다.
+
+### 고친 것 — 정본(seshat §330)과 같은 글자
+
+- **`uses:` 는 `소유자/저장소@메이저`** 까지만 문다. 해시 · 마이너 · 패치는 접는다. 소유자와 메이저는 남긴다.
+- **SHA 고정은 도장이 안 본다.** `check_static.py` 의 `액션이 SHA 로 고정됐다`(`unpinned_uses`)가 이미 본다 — 같은 수를 두 곳에 적지 않는다(§57 · §91).
+  그 검사는 **판본 주석이 없는 SHA 고정도 잡는다**(「판 주석이 없다」). 지금 `uses:` **스물한 줄**(ci 9 · proposal 5 · deploy 4 · drift 3) 중 걸리는 것은 **0** 이다(`check_static.py` 통과로 잰 값).
+- **잠금 파일은 봉인 대상이 될 수 없다.** 강제자 줄이 잠금 파일을 들면 `docseal` 이 **도구 고장(rc 2)** 으로 죽는다. 이 저장소에서 **실물로 물렸다** — 가드를 들이자마자
+  `§194 가 잠금 파일을 강제자로 든다 : ['extension/package-lock.json']` 으로 죽었다.
+- **§194 를 읽고 고쳤다.** 그 절 「덤」 은 `source-map-js` 1.2.1 이 High(이벤트 루프 DoS)이고 `jsdom → css-tree` 가 끌어오는 dev 의존이라, **`package.json` 을 안 건드리고 잠금만
+  1.2.2 로 올렸다**고 적었다. 마지막 강제자 줄은 그래서 `extension/package-lock.json 의 source-map-js 1.2.2` 였다 — **판본 주장**이다. 주장은 사실이다(경보 #4 가 `fixed` 이고 잠금이 1.2.2).
+  그러나 도장이 그것을 지킬 수는 없다 : 판본은 봇이 바꾸는 값이고, 바뀔 때마다 이 절이 울면 「다시 봐야 한다」 가 소음이 된다. 그래서 **`extension/package.json`** 으로 바꿨다(강제자 줄은 표기라
+  추가만을 안 건드린다). **잃은 것이 있다** : 전이 의존성의 판본 하한은 이제 도장이 아니라 **Dependabot 경보 · `npm ci` · CI 의 `잠금` 걸음**이 지킨다. 꾸러미 이름 집합만 지문으로 뜨는 길은 안 갔다 —
+  기계를 더 얹을 값이 이 한 절에는 없다.
+- ★ **PR #7 은 잠금 하나가 아니었다** : `gh pr view 7 --json files` 로 재니 `extension/package.json` 도 한 줄(`jsdom` `^30.1.1` → `^30.1.3`) 바꾼다. `.json` 을 통째로 물면 §194 를
+  `package.json` 으로 옮겨도 **같은 PR 이 같은 절을 다시 깼다.** 그래서 입자에 `package.json` 을 더했다(seshat §335) : 의존성 칸은 **이름만** 문다 — 범위 숫자는 접고, 키를 지우거나 더하면 깨진다.
+  정본과 같은 글자로 받았다.
+
+### 돌연변이 · 증거 — 임시 사본에서 새 식으로 전부 찍은 뒤
+
+| | 변이 | 결과 |
+|---|---|---|
+| 1 | `actions/checkout@…` → `evil/checkout@…` | **깨진다**(절 4) |
+| 2 | `# v7.0.1` → `# v8.0.0` | **깨진다**(절 4) |
+| 3 | `uses:` 줄 삭제 | **깨진다**(시험 `test_도장입자_3`, seshat 쪽 시험과 같다) |
+| 4 | 워크플로 네 개의 SHA 만 다른 40자로(주석 그대로) | **안 깨진다** — `docseal` rc 0 |
+| 5 | `package.json` 의 `devDependencies` 키 하나 바꿈 | **깨진다** — §194 |
+| 6 | `package-lock.json` 의 jsdom 판본 숫자만 bump | **안 깨진다** — `docseal` rc 0 |
+| 6′ | **PR #7 그대로** : 잠금 + `package.json` 의 `jsdom` 범위 `^30.1.1` → `^30.1.3` | **안 깨진다** — `docseal` rc 0 (아래 출력) |
+
+`tools/mutations.json` 에 **`도장입자` 10 · `GitHub설정선언` 4** 를 더했다(전부 살아남음 0). `MIN_돌연변이` **407 → 421**, `MIN_가드` 80 → 82. `worker/tests/test_docseal_grain.py` 가 위 1~6 을 긍정으로 문다.
+
+### N7 — 정본과 사본을 `diff` 로 떴다
+
+정본(seshat)과 이 사본은 **갈려 있었다.** 머리말은 「갈린 자리는 셋뿐」 이라고 적었으나 **거짓이었다.**
+
+| | |
+|---|---|
+| 선언된 셋 | 도장 파일 자리(`tools/docseal.json`) · 강제자 파일(`doctor.sh`) · 절 번호가 seshat 것 |
+| **선언 안 된 것** | 사본은 정본의 **§323 · §324 · §325 · §327 이전**이다 — `docseal_refs.py` 가 없고 `.md` 를 **통째로** 문다(`_문서절` · `문서대장` · `접힌문서` · `대장절` · `안풀리는_문서절` · `_행조각` · `_대장절을_뺀다` 없음). `_canary` 도 `.md` 절 시험을 덜 든다 |
+| 값 | 기간 표현 몇 낱말을 고친 커밋(`4ee441a`)이 **절 27 의 지문을 바꿨고 그중 18 이 MASTER · PLAN 을 통째로 짚은 절**이다. 정본은 절 하나만 물어 이 소음이 없다 |
+
+**한 일** : 머리말을 **갈린 자리 전부**로 다시 썼고(`tools/docseal.py`), 입자 코드는 사본이 아니라 **정본과 같은 글자**의 옆 파일 `tools/docseal_grain.py` 로 받았다(`DECISIONS §N` 앞에 `seshat` 만 달았다 — 이 저장소의
+같은 번호와 충돌하기 때문이고, 그것이 입자 파일의 유일한 갈림이다). 훅 셋(`import` · 접기 · 가드 · 카나리아)만 이쪽 본체에 산다.
+**안 한 일** : §323 · §325 를 이쪽으로 옮기지 않았다. 옮기면 MASTER · PLAN 을 짚은 절의 지문이 한꺼번에 바뀌어 그 절들을 다시 읽어야 한다 — 입자 고침과 한 판에 섞으면 읽은 것과 찍은 것이
+섞인다(§217). `PLAN #71` 에 열었다. 「나중에 합친다」 로 넘긴 것이 아니라 **갈린 자리를 전부 적고 입자는 양쪽에 같이 고쳤다.**
+
+### 읽고 찍었다
+
+이 판의 편집이 만든 무효는 **아흔여덟 절**이었다. 원인은 둘로 갈린다 — 지문 식이 바뀐 워크플로 절 일곱(§55 · §98 · §112 · §125 · §126 · §193 · §194)과, **이쪽이 `doctor.sh` · `mutations.json` ·
+MASTER · PLAN 을 통째로 짚는 절이 많아서** 생긴 나머지다(`doctor.sh` 를 짚는 절은 모두 예순일곱이고, `--repo` 가지 하나를 더하자 그중 대부분이 울었다). 이것이 위 N7 의 값이다.
+**일곱은 본문을 읽고 `--read` 로 찍었다** — 일곱 다 **지금도 참이다**(`ci.yml` 의 `골든셋 러너가 끝까지 도는가` · `확장 검사가 건너뛰이지 않았는지` · 워커 건너뜀 단언 ·
+`브라우저 — 캐스케이드 검사가 쓴다` 단계가 실재하고, `proposal.yml` 이 `--deploy` 를 돌고, `deploy.yml` 이 `tags: ["v*"]` 와 `environment: production` 이다. §125 의 「`uses:` 스물한 자리」
+도 센 값과 같다). **나머지 아흔한 절은 본문을 다시 읽지 않았다** : 바뀐 것이 전부 추가분(`doctor.sh` 의 가지 · 선언 둘 · 돌연변이 열하나 · 문서의 행과 수)임을 파일마다 대조하고
+`--read` 없이 찍었다. 읽음 표시는 이전 값 그대로라 **그 표시가 이번 편집을 읽었다는 뜻이 아니다**(§217). 미날인 §211 은 이 판 전부터 미날인이고 읽지 않았으므로 안 찍었다.
+
+### 배운 것
+
+★ **사본의 「갈린 자리는 N 뿐」 은 `diff` 를 뜬 날에만 참이다.** 정본이 두 번 앞서가는 동안 머리말은 그대로 셋이었다.
+★ **가드는 만들자마자 실물에 물려야 산다.** 잠금 파일 가드가 §194 를 그 자리에서 잡았다 — 합성 시험만이었으면 이 절은 한 달 더 비어 있었다.
+★ **판본 주장을 도장으로 지키려 하면 봇과 싸운다.** 판본 하한은 경보와 `npm ci` 의 몫이다.
+
+강제자 — `tools/docseal.py` · `tools/docseal_grain.py` · `worker/tests/test_docseal_grain.py` · `worker/tests/test_docseal.py` · `tools/mutations.json` ·
+`tools/mutate_gate.py` · `extension/package.json`.
+
+## §213. `SKIP (GitHub 설정이다)` 는 선언만 하고 있었다 — 쓰임에서 선언을 강제한다
+
+**2026-11-02** — seshat 의 `papers` 를 저장소 설정 하나가 죽였다(seshat §332). 이 저장소에는 `papers` 가 없지만 **같은 구멍이 있었다** : `doctor` 의
+`SKIP 배포 게이트 (GitHub 설정이다)` · `SKIP 합친 가지 자동 삭제 (GitHub 설정이다)` 는 `--repo` 에서 **재지 않는다고만** 적는다. 설정을 재는 쪽(`env_protection.py` · 합친 가지 `gh api`)은
+이 기계에서 돌지만, **워크플로가 설정에 기댄다는 사실 자체**는 어디에도 안 적혔다.
+
+- `tools/check_gh.py` 를 정본(seshat §331)에서 받았다. 이 저장소의 워크플로(`ci` · `deploy` · `drift` · `proposal`)에는 `gh pr create` · `gh pr merge` · `gh issue …` ·
+  `gh api -X …` 가 **하나도 없다**(재서 확인했다) — 그래서 **`선언` 표가 비어 있다.** 비어 있어도 장식이 아니다 : 새 워크플로가 PR 을 여는 순간 **선언이 없다고 운다.**
+  종료 코드는 0 맞다 · 1 어긋남 · 2 고장 · **3 못 쟀다**.
+- `doctor` 에 `--repo` 가지를 하나 더했다(**9 → 10**, `SCOPE_BRANCHES`) : `--repo` 에서는 선언 전수(`--static`)를 **망 없이** 돌고 판정한다. 실측은 `skip "GitHub 설정 실측 (권한이다 —
+  GITHUB_TOKEN 은 admin 이 아니다)"` 로 적었다 — **도구가 아니라 권한**이다. 깔면 사라지는 skip 이 아니고 CI 에서는 영원히 못 잰다. 갈래는 기존 어휘 `범위` 로 두고 근거 글에 「권한」 을 적었다
+  (갈래 어휘를 넓히지 않았다). 이 기계에서 못 재면(3) `조건` 으로 `skip` 한다 — 통과가 아니다.
+- 합성 응답 카나리아(`_selftest`) + 가짜 `gh` 로 읽는 길 끝까지 건 시험 27건.
+
+★ **밖** : 쓰임 무늬에 든 꼴만 센다. 배포 게이트(`environment: production`)는 `env_protection.py` 가 이미 읽는다 — 중복해서 선언하지 않았다.
+
+### 못 쟀거나 미룬 것
+
+- 판본 주석 없는 `uses:` 건수 **0**(위). 태그 0 이라 못 재는 배포 뒤처짐 : CI 의 얕은 checkout 에서 나는 말이고 이 기계에서는 `v0.1.10` 을 읽는다 — **안 건드렸다.**
+- 기준선(`PLAN #59`) · AWS Secrets Manager 과금 · Athena · 이력 재작성 · 공개 범위는 사용자 결정이라 손대지 않았다.
+- **공개 유지 전수(T2)와 같은 집안인 서술을 찾았으나 고치지 않았다** : `README.md` 10 줄 · `docs/PLAN.md` 43 줄 · `docs/MASTER.md` 214 줄 · `tools/docx_check.py` 231 줄과
+  `worker/tests/test_docx_check.py` 79 · 224 줄이 seshat 를 **「비공개」** 라고 부른다. seshat 는 공개다(`gh repo view` 로 재서 확인). 기획서(`docs/proposal/*`)와 `external:seshat — 비공개`
+  사실 선언은 `proposal.docx` 와 묶여 있어 T2 가 같이 본다.
+
+### 배운 것
+
+★ **서로 다른 저장소가 같은 병을 앓는다면 도구도 같아야 한다.** 다만 정본은 한 곳이다(seshat) — 이쪽의 갈림은 `선언` 표 하나다.
+★ **빈 표를 가진 관문도 값이 있다.** 값은 지금의 선언이 아니라 **다음 워크플로가 선언 없이 설정에 기대는 것을 막는 것**이다.
+
+강제자 — `tools/check_gh.py` · `worker/tests/test_check_gh.py` · `tools/doctor.sh` 의 `GHD_RC` · `GHS_RC` · `tools/check_skips.py` · `tools/check_static.py` 의 `SCOPE_BRANCHES`.
