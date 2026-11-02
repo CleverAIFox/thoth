@@ -112,7 +112,7 @@ def test_도장입자_5_매니페스트_키를_지우면_깨진다(tmp_path):
 def test_도장입자_6_잠금_판본만_바뀌어도_봉인은_안_깨진다():
     """잠금 파일이 봉인 밖이라 어느 절의 지문에도 안 든다 — 판본 숫자는 지문의 재료가 아니다."""
     for 절 in DS.절들():
-        assert not any("lock" in f.split("::")[0].rsplit("/", 1)[-1] for f in 절["파일"])
+        assert not any(f.split("::")[0].rsplit("/", 1)[-1] in DG.잠금이름 for f in 절["파일"])
 
 
 # ───────── package.json 은 이름은 문다 · 범위는 접는다(seshat DECISIONS §335) ─────────
