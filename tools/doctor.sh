@@ -420,14 +420,11 @@ case "$DOCX_RC" in
   #   린터를 로컬 SKIP · CI 단언으로 가르는 것과 같은 꼴이다(DECISIONS §54 · §63).
   # ★ 2026-10-03 에 이 가지가 없어서 **`doctor` 초록 → 밀기 → CI 빨강**이 났다.
   #   그때 상태는 stdout 의 `WARN` 문자열뿐이었고 `0) ok` 가 그것을 통째로 버렸다.
-  3) if [ "${CI:-}" = "true" ]; then
-       no "기획서가 생성기보다 낡았다 — CI 는 넘어가지 않는다"
-     else
-       # ★ **마크다운 백틱을 쌍따옴표 안에 쓰면 쉘이 명령으로 읽는다**(DECISIONS §182).
-       #   이 줄이 그랬다 — `기획서 배포` 를 실행하고 `command not found` 를 뱉고,
-       #   메시지에는 **빈칸**이 박혔다. 글을 적으려면 **작은따옴표**를 쓴다.
-       warn "기획서가 생성기보다 낡았다 — 미는 날 '기획서 배포' 가 멈춘다"
-     fi
+  # ★ **2026-11-02 로컬도 FAIL 이다.** 전에는 로컬 WARN · CI FAIL 이었다 — 위 이유(다시 쓰는 중)가 있었지만
+  #   `charts.py` 이름표 한 줄을 더한 커밋이 **로컬 doctor 「이상 없음」 으로 통과하고 main CI 만 빨갛게 됐다**
+  #   (c71d77f). 같은 판정이 두 등급이면 느슨한 쪽이 거짓 초록을 준다 — 로컬을 조였다. 다시 쓰는 중이면
+  #   `build_proposal.sh` 로 굽고 커밋한다(굽는 데 몇 분이다). §194 「손에서만 터지는 셋」 의 거울상이다.
+  3) no "기획서가 생성기보다 낡았다 — 굽고 나서 커밋한다 : bash tools/build_proposal.sh"
      printf '%s\n' "$DOCX_OUT" | sed 's/^/       /' ;;
   *) no "docx_check.py 가 죽었다 (exit $DOCX_RC)"
      printf '%s\n' "$DOCX_OUT" | tail -5 | sed 's/^/       /' ;;
