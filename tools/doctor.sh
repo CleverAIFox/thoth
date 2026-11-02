@@ -779,6 +779,24 @@ elif command -v gh >/dev/null 2>&1; then
   esac
 fi
 
+# ★ **워크플로가 기대는 GitHub 설정이 선언돼 있나**(seshat DECISIONS §331 · 이 저장소 §212). 위 두 `skip` 은
+#   「설정이다」 라고만 적고 어디서 재는지는 안 적는 자리였다 — 선언만 하고 영원히 안 재면 **못 쟀다가 없다와
+#   같아진다**(§59). 쓰임(`gh pr create` …)마다 선언 표에 줄이 있는지는 **망 없이** 볼 수 있어 `--repo` 도 돈다.
+#   실제 값을 읽는 쪽은 admin 이 필요하다 — **도구가 아니라 권한**이고 CI 의 `GITHUB_TOKEN` 은 admin 이 아니다.
+if [ "$SCOPE" = "--repo" ]; then
+  skip "GitHub 설정 실측 (권한이다 — GITHUB_TOKEN 은 admin 이 아니다)"
+  GHD_OUT="$(python3 tools/check_gh.py --static 2>&1)"; GHD_RC=$?
+  if [ "$GHD_RC" = 0 ]; then ok "워크플로가 기대는 GitHub 설정이 전부 선언돼 있다"
+  else no "워크플로가 기대는 GitHub 설정의 선언이 어긋났다"; printf '%s\n' "$GHD_OUT" | sed 's/^/       /'; fi
+else
+  GHS_OUT="$(python3 tools/check_gh.py 2>&1)"; GHS_RC=$?
+  case "$GHS_RC" in
+    0) ok "워크플로가 기대는 GitHub 설정이 선언돼 있고 실제 값이 맞다" ;;
+    1) no "워크플로가 기대는 GitHub 설정이 어긋났다"; printf '%s\n' "$GHS_OUT" | sed 's/^/       /' ;;
+    *) skip "GitHub 설정을 재지 못했다 — ${GHS_OUT}" ;;
+  esac
+fi
+
 
 echo "== 배포 =="
 # ★ **배포는 태그에서만 돈다**(`.github/workflows/deploy.yml` 의 `tags: ["v*"]`). 그런데
@@ -1027,8 +1045,8 @@ echo "== 어미 표 =="
 #   **코퍼스를 만든 엔진이 아닌 쪽**으로 본다 — `gen_endings.py` 가 Kiwi 로 만들었으므로
 #   Kiwi 로 채점하면 아무것도 안 잰다. mecab 을 증인으로 세우고 **둘이 같은 말을 할 때만**
 #   걷어 낸다. 어미 활용은 의견이 아니라 닫힌 규칙이라 다른 엔진이 같은 답을 낼 수 있다.
-# ★ **이 자는 판정하지 않는다 — 좁힌다.** `판정` 칸은 사람의 것이고 이 도구는
-#   아무것도 안 쓴다. 2026-10-19 실측 : 283줄 → 사람이 볼 줄 **22**.
+# ★ **이 자는 판정하지 않는다 — 좁힌다.** `판정` 칸은 밖(정답을 만든 분석기가 아닌 쪽, 현재 외부 LLM)의 것이고 이 도구는
+#   아무것도 안 쓴다. 2026-10-19 실측 : 283줄 → 밖이 볼 줄 **22**.
 # ★ **`--repo` 밖이다.** 분석기가 50MB 라 CI 가 판마다 받게 하지 않는다. 판정식은
 #   `worker/tests/test_endings_oracle.py` 가 **가짜 분석기로** 전부 본다 —
 #   **이 눈 밖** : CI 는 「실물 표 × 실물 분석기」 를 안 본다.

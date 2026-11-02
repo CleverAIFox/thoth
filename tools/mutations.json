@@ -2562,13 +2562,13 @@
   "돌연변이": [
    {
     "이름": "다음 번호를 이미 쓴 수로 내린다",
-    "전": "★ **다음 행 번호는 <!--plan:다음-->71 이다",
+    "전": "★ **다음 행 번호는 <!--plan:다음-->72 이다",
     "후": "★ **다음 행 번호는 <!--plan:다음-->69 이다"
    },
    {
     "이름": "다음 번호 표시를 지운다",
-    "전": "<!--plan:다음-->71 이다 — 닫힌 번호를 다시 쓰지 않는다",
-    "후": "71 이다 — 닫힌 번호를 다시 쓰지 않는다"
+    "전": "<!--plan:다음-->72 이다 — 닫힌 번호를 다시 쓰지 않는다",
+    "후": "72 이다 — 닫힌 번호를 다시 쓰지 않는다"
    }
   ]
  },
@@ -2906,6 +2906,98 @@
     "이름": "워커 판에 묶는다",
     "전": "  EN_OUT=\"$(uv run --quiet --no-project --python \"$MORPH_PY\" \\",
     "후": "  EN_OUT=\"$(uv run --quiet \\"
+   }
+  ]
+ },
+ "도장입자": {
+  "_왜": "봇이 주마다 바꾸는 해시·마이너는 안 문다 / 소유자와 메이저는 문다 / 잠금 파일은 봉인 밖이다(seshat DECISIONS §330 · 이 저장소 §212). **「조용히 전부 지우는」 쪽으로 가장 쉽게 깨지는 고침**이라 부정 단언이 아니라 긍정으로 문다 — 아래 일곱이 그 일곱 자리다.",
+  "파일": "tools/docseal_grain.py",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_docseal_grain.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "해시 접기를 끈다(봇 PR 마다 도장이 깨진다)",
+    "전": "        if _해시40.fullmatch(m[\"가리킴\"]):",
+    "후": "        if False:"
+   },
+   {
+    "이름": "소유자를 버린다(evil/checkout 이 통과한다)",
+    "전": "        out.append(f'{m[\"앞\"]}{m[\"이름\"]}@v{본.group(1)}' if 본 else 줄)",
+    "후": "        out.append(f'{m[\"앞\"]}@v{본.group(1)}' if 본 else 줄)"
+   },
+   {
+    "이름": "메이저를 버린다(v7 → v8 이 통과한다)",
+    "전": "        out.append(f'{m[\"앞\"]}{m[\"이름\"]}@v{본.group(1)}' if 본 else 줄)",
+    "후": "        out.append(f'{m[\"앞\"]}{m[\"이름\"]}@v' if 본 else 줄)"
+   },
+   {
+    "이름": "잠금 파일을 못 가려낸다",
+    "전": "    return [곳 for 곳, _ in 지목.findall(줄) if 곳.rsplit(\"/\", 1)[-1] in 잠금이름]",
+    "후": "    return []"
+   },
+   {
+    "이름": "잠금 파일을 들어도 안 죽는다(0 으로 끝난다)",
+    "전": "`pyproject.toml`)를 든다 (seshat DECISIONS §330)\", file=sys.stderr)\n        sys.exit(2)",
+    "후": "`pyproject.toml`)를 든다 (seshat DECISIONS §330)\", file=sys.stderr)\n        sys.exit(0)"
+   },
+   {
+    "이름": "잠금 이름 목록이 비었다(목록 자체를 문다)",
+    "전": "잠금이름 = frozenset({\"package-lock.json\", \"npm-shrinkwrap.json\",",
+    "후": "잠금이름 = frozenset({\"없는-이름.json\", \"npm-shrinkwrap.json\","
+   },
+   {
+    "이름": "워크플로에 접기를 안 건다",
+    "전": "    if 이름.endswith((\".yml\", \".yaml\")):\n        return _uses_입자(글)",
+    "후": "    if False:\n        return _uses_입자(글)"
+   },
+   {
+    "이름": "package.json 에 접기를 안 건다(범위 PR 마다 깨진다)",
+    "전": "    return _package_json_입자(글) if 이름 == \"package.json\" else 글",
+    "후": "    return 글"
+   },
+   {
+    "이름": "의존 범위를 안 접는다",
+    "전": "            데이터[칸] = {이름: \"\" for 이름 in 데이터[칸]}",
+    "후": "            데이터[칸] = 데이터[칸]"
+   },
+   {
+    "이름": "의존 이름까지 접는다(키를 지워도 안 깨진다)",
+    "전": "            데이터[칸] = {이름: \"\" for 이름 in 데이터[칸]}",
+    "후": "            데이터[칸] = {}"
+   }
+  ]
+ },
+ "GitHub설정선언": {
+  "_왜": "워크플로가 기대는 GitHub 설정을 선언으로 강제한다(seshat DECISIONS §331). 2026-11-02 설정 한 칸이 papers 를 죽였다.",
+  "파일": "tools/check_gh.py",
+  "시험": [
+   "bash",
+   "-c",
+   "cd worker && uv run pytest -qx tests/test_check_gh.py"
+  ],
+  "돌연변이": [
+   {
+    "이름": "True 와 1 을 같다고 한다",
+    "전": "            if 값[필드] != 기대 or type(값[필드]) is not type(기대):",
+    "후": "            if 값[필드] != 기대:"
+   },
+   {
+    "이름": "권한이 없는데 통과로 끝난다",
+    "전": "                return 3, [f\"못 쟀다 — {끝점}: {e}\"]",
+    "후": "                return 0, []"
+   },
+   {
+    "이름": "쓰임 없는 낡은 선언을 안 본다",
+    "전": "    for 자리, 쓰임 in sorted(set(표) - 본):",
+    "후": "    for 자리, 쓰임 in []:"
+   },
+   {
+    "이름": "주석에 적힌 쓰임도 센다",
+    "전": "    줄 = [x for x in 글.splitlines() if not x.lstrip().startswith(\"#\")]",
+    "후": "    줄 = [x for x in 글.splitlines()]"
    }
   ]
  }
