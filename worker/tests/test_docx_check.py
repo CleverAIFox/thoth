@@ -202,7 +202,10 @@ def test_doctor_가_3_을_받는다():
     블록 = 몸[몸.index("DOCX_OUT="):]
     블록 = 블록[:블록.index("esac")]
     assert "\n  3)" in 블록, "doctor 가 3 을 따로 안 받는다"
-    assert 'CI:-' in 블록, "CI 와 이 기계를 안 가른다"
+    # ★ 2026-11-02 이후 **CI 와 이 기계를 가르지 않는다**(DECISIONS §214) — 로컬 WARN · CI FAIL 이 main 을
+    #   빨갛게 했다. 같은 판정이 한 등급이다 : `$CI` 분기가 없고, rc 3 은 어디서나 `no` 다.
+    assert 'CI:-' not in 블록, "다시 CI 와 이 기계의 등급을 가른다 — 로컬 초록이 거짓일 수 있다"
+    assert '\n  3) no "' in 블록, "rc 3 을 FAIL 로 안 받는다"
 
 
 # ── 행 번호 참조(DECISIONS §129) ────────────────────────────────────────────

@@ -15158,3 +15158,50 @@ MASTER · PLAN 을 통째로 짚는 절이 많아서** 생긴 나머지다(`doct
 ★ **빈 표를 가진 관문도 값이 있다.** 값은 지금의 선언이 아니라 **다음 워크플로가 선언 없이 설정에 기대는 것을 막는 것**이다.
 
 강제자 — `tools/check_gh.py` · `worker/tests/test_check_gh.py` · `tools/doctor.sh` 의 `GHD_RC` · `GHS_RC` · `tools/check_skips.py` · `tools/check_static.py` 의 `SCOPE_BRANCHES`.
+
+## §214. 로컬 doctor 는 「이상 없음」 이었고 main CI 는 빨갰다 — 같은 판정이 두 등급이었다
+
+**2026-11-02** — `c71d77f`(§212 · §213)를 로컬 `doctor --repo` 「이상 없음」 으로 커밋하고 밀었더니 main 의 `ci` 가 빨갰다. 마지막 초록은 `a72d56a`(10-23)다. PR 7 · 8 · 9 가 전부 같은 한 줄로 빨갰다 :
+`기획서가 생성기보다 낡았다 — CI 는 넘어가지 않는다`. §194 가 「손에서만 터지는 셋」 이었다면 이것은 그 거울상 — **CI 에서만 터지는 것**이고 그 방향은 아무도 안 봤다.
+
+### 왜 갈렸나 — 재서 적는다
+
+- `tools/doctor.sh` 의 기획서 단계는 `docx_check.py` 가 rc 3(「지금은 통과, 배포는 막힌다」)을 내면 **`$CI` 가 `true` 면 FAIL, 아니면 WARN** 이었다. 이유 문장(§127)은 「다시 쓰는 중에 커밋을 막을 일이 아니다」.
+  `git show HEAD:tools/doctor.sh | grep` 로 세니 **`$CI` 에 기대는 분기는 이 한 곳(423 줄)뿐**이었다 — 임계가 다른 것도, 산출물이 로컬에만 있어 비교 대상이 달랐던 것도,
+  `--repo` 범위가 등급을 낮춘 것도 아니다(`--repo` 는 로컬 훅과 CI 가 같다). **등급을 가르는 분기 하나**였다.
+- 그 분기를 밟은 커밋 : T1(`4ee441a`)이 `figures/charts.py` 의 `LABEL` 에 2026-10-26 을 더했고, 내가 2026-11-02 를 더했다. 둘 다 `check_proposal` 이 날짜마다 요구하는 이름표인데
+  `charts.py` 는 자물쇠(`build.lock.json`)가 지문을 뜨는 생성기 파일이다. 로컬은 WARN 으로 지나갔다. 커밋 직전 훅이 도는 `doctor --repo` 도 `CI` 를 안 켜므로 **훅도 같은 이유로 못 봤다.**
+
+### 고친 것 — 느슨한 쪽을 조였다
+
+- 로컬도 FAIL 이다. 분기를 지웠다(`$CI` 의존 0). 다시 쓰는 중이면 `bash tools/build_proposal.sh`(이 기계에서 25초)로 굽고 커밋한다. 「다시 쓰는 중」 의 편의보다 **로컬 초록이 거짓일 때의 값**이 더 비쌌다.
+- 굽고 나서 **측정했다**(「이름표 한 줄만 다름」 은 추론이었다) :
+  | | 전 → 후 |
+  |---|---|
+  | (a) `docs/proposal/.build/fig/*.png` 22개 sha256 | **전부 같다** |
+  | (b) docx 에서 뽑은 본문 텍스트(`word/document.xml` 태그 제거) 129,170자 | **같다** |
+  | (c) `build.lock.json` | **한 줄** : `figures/charts.py` 지문 `7e2885960b6edd9b` → `634ec536a0d7a2ce` |
+  | `proposal.docx` · `site/proposal.html` | **굽고도 `git diff` 가 없다**(zip 이 결정적이다) |
+  그림 · 레이아웃이 같이 흔들리지 않았다. 바뀐 것은 자물쇠 한 줄이다.
+- **Pages 를 열어 확인했다** : `https://cleveraifox.github.io/thoth/proposal.docx` 의 sha256 `1a06170a…da1eb` 가 저장소의 `docs/proposal.docx` 와 **바이트까지 같다**. 이름표는 docx 본문에 안 보인다.
+  그리고 `proposal.yml` 의 푸시 경로(`docs/proposal.docx` · `site/**` · `tools/docx_check.py` · 자기 자신)에 **`build.lock.json` 이 없어 이 커밋은 Pages 를 재배포하지 않는다.**
+
+### §126 은 왜 이번에 못 잡았나
+
+§126 의 강제자(`docx_check.check_build_lock`)는 **잡았다** — 로컬 doctor 가 WARN 으로 찍었다. 못 한 것은 **그 판정이 막는 힘**이다 : 로컬 등급이 WARN 이라 커밋을 안 막았고, 막는 곳은 CI 뿐이라
+**main 에 닿은 뒤에야** 울었다. §126 은 「docx 가 생성기보다 뒤지면 배포가 멈춘다」 를 지켰지 「뒤진 채 main 에 닿는 것」 은 안 지켰다. 아무도 CI 모드를 로컬에서 돌려 보지 않았다.
+오늘은 위 분기를 없애 같은 판정이 한 등급이 됐다.
+
+### 못 쟀거나 사용자 몫인 것
+
+- PR #8 은 `astral-sh/setup-uv` **v7 → v10** 메이저를 담는다 : `ci.yml` 을 짚는 §55 · §125 · §193 · §194 가 무효다(정당하다). 그 절들은 PR 가지에서 찍지 않는다(그 봉인은 합쳐진 뒤 main 에서만 의미가 있다) —
+  seshat PR #5 에서는 가지에서 찍었고 그것은 잘못이었다(seshat §336). #8 은 합치지 않고 남겼다.
+- ★ 커밋 trailer : `c71d77f` 와 `4ee441a` 이후 이 판의 커밋들이 `Co-Authored-By: Claude Sonnet 5.5` 를 달았다. 그런 모델 이름은 없다는 지적을 받았다 — 하니스가 준 문구를 그대로 옮겼고 이름을 검증하지 않았다.
+  이력은 다시 쓰지 않는다. 다음 커밋부터 `Co-Authored-By: Claude <noreply@anthropic.com>` 로 적는다.
+
+### 배운 것
+
+★ **같은 판정을 두 등급으로 두면 느슨한 쪽이 거짓 초록을 낸다.** 「CI 만 FAIL」 은 로컬이 통과시킨 것을 CI 가 되돌리는 구조이고, 되돌려지는 곳이 main 이다.
+★ **「한 줄만 다름」 은 측정하기 전에는 추론이다.** 바이너리는 diff 가 안 보이니 산출물의 해시 · 추출 텍스트 · 자물쇠로 쟀다.
+
+강제자 — `tools/doctor.sh` 의 `DOCX_RC` · `tools/docx_check.py::check_build_lock` · `docs/proposal/build.lock.json` · `.github/workflows/proposal.yml`.
