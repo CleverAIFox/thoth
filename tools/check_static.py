@@ -264,7 +264,10 @@ def cache_rm(text: str) -> list[int]:
 #   엔진 둘이 50MB 넘어 **CI 가 판마다 받게 하지 않는다.** 판정식은 가짜 엔진으로
 #   `worker/tests/test_endings_oracle.py` 가 전부 보고, 「실물 표 × 실물 엔진」 을
 #   CI 가 안 본다는 것은 그 절이 **이 눈 밖**으로 적는다.
-SCOPE_BRANCHES = 9
+# ★ 9 → **10** (2026-11-02 · seshat DECISIONS §331 · 이 저장소 §212). `GitHub 설정 실측` 이 늘었다 — **도구가
+#   아니라 권한이다** : `actions/permissions/workflow` 는 admin 을 요구하고 CI 의 `GITHUB_TOKEN` 은 admin 이
+#   아니라 거기서는 영원히 못 잰다. 선언 전수(`check_gh.py --static`)는 망 없이 도니 `--repo` 가 돈다.
+SCOPE_BRANCHES = 10
 
 
 def scope_branches(text: str) -> list[int]:
