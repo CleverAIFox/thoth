@@ -76,7 +76,7 @@ FIXTURE = ROOT / "extension/tests/fixtures/cascade.html"
 
 # ★ **안쪽은 「어디서부터 지는가」 가 아니라 「질 수가 있는가」 다**(DECISIONS §169).
 #   `padding` · `border-radius` · `background` · `box-shadow` · `font-size` ·
-#   `line-height` · `color` — 박스를 박스로 보이게 하는 것들이다. 넉 달 동안
+#   `line-height` · `color` — 박스를 박스로 보이게 하는 것들이다. 그때까지
 #   **이것을 때리는 적수를 한 번도 세우지 않았다.** 재는 자가 안 보고 있었으므로
 #   세울 생각도 안 했다 — 그래서 지메일에서 박스가 싼티나게 깨져 있는데 표는
 #   초록이었다(§59 : 「못 쟀다」 를 「없다」 로 읽었다).
