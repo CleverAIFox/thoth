@@ -15205,3 +15205,60 @@ MASTER · PLAN 을 통째로 짚는 절이 많아서** 생긴 나머지다(`doct
 ★ **「한 줄만 다름」 은 측정하기 전에는 추론이다.** 바이너리는 diff 가 안 보이니 산출물의 해시 · 추출 텍스트 · 자물쇠로 쟀다.
 
 강제자 — `tools/doctor.sh` 의 `DOCX_RC` · `tools/docx_check.py::check_build_lock` · `docs/proposal/build.lock.json` · `.github/workflows/proposal.yml`.
+
+
+## §215. 액션 메이저를 올리는 봇 PR 은 가지에서 초록이 될 수 없다 — 입자 고침이 만든 구조적 교착
+
+**2026-11-03** — PR #8 (`setup-uv` 7→10 · `setup-python` 7.0→7.1 · `setup-node` 7.0→7.1)을 로컬에서 합치고 도장을 찍어 한 번에 밀었다.
+
+### 교착
+
+- 도장 §55 · §125 · §193 · §194 는 `ci.yml` 을 문다. 액션 범프는 `ci.yml` 의 `uses:` 줄을 바꾼다 → 그 PR 은 **도장 넷이 무효**가 되어 `doctor --repo` 가 FAIL 이다.
+- 도장은 PR 가지에서 찍지 않는다(그 봉인은 합쳐진 뒤 main 에서만 의미가 있다. seshat §336). 그러면 **가지는 영원히 빨갛고, 합치지 않으면 못 찍는다.**
+- §212 가 도장 입자를 고쳐 거짓 빨강(봇의 주간 일과에 울던 것)을 없앴다. 그 대신 **「ci.yml 을 짚는 봉인」 이 진짜 변경에만 울게 됐고, 진짜 변경인 액션 메이저 범프가 정확히 거기에 걸린다.** 거짓 빨강을 없앤 값이 구조적 교착 하나다.
+
+### 규약 — 다음 메이저 범프에서 다시 서지 않으려고 적는다
+
+★ **액션 메이저를 올리는 봇 PR 은 가지에서 초록을 기다리지 않는다. 로컬에서 합치고, 절을 읽고, 찍어서, 한 번에 민다.**
+1. `git fetch && git merge --no-ff origin/<봇 가지>` (로컬 main 에서).
+2. **같은 작업트리에서** `python3 tools/docseal.py` 가 낸 무효 절을 읽는다 : `git diff HEAD^1 HEAD -- .github` 로 **걸음 구조가 바뀌었는지**(`uses:` 줄만이면 아니다) 보고, 릴리스 노트의 breaking 을 **우리가 쓰는 입력**에 대 본다.
+   `python3 tools/docseal.py stamp --only N --read`.
+3. 합침 커밋과 도장 커밋을 **한 번에** 민다 — main 이 빨간 순간을 만들지 않는다.
+4. 가지에서 CI 증거는 gitleaks · smoke · pytest 로 **「도장 외 전부」** 를 본다. 도장 FAIL 넷과 `test_docseal` 하나는 이 교착의 정상 증상이다.
+5. PR 이 자동으로 안 닫히면 `gh pr close N --comment "main <sha> 로 합쳤다"`.
+
+### #8 의 증거와 판정
+
+- 측정(가지 `25e63aa`, run 41555841981) : **pytest 1213 passed · 1 failed**, 그 하나가 `test_docseal::test_저장소의_도장이_유효하다` 이고 도장 FAIL 넷과 같은 원인이다. gitleaks · smoke 초록. **v10 에서 나머지 1213 개가 전부 돌았다.**
+- uv 판본 : 전(main 의 run 41455902098) · 후 모두 **0.13.6** — `version` 을 안 적어 「latest 로 떨어진다」 는 로그도 같다. 판본 결정은 안 바뀌었다.
+- §125 (고정이 검사를 껐나) : 릴리스 노트 v8 · v9 · v10 의 breaking 은 `manifest-file` 형식 · 메이저/마이너 태그 중단 · `prune-cache` 기본값 · `pull_request_target`/`workflow_run`/`release` 에서 캐시 자동 끔이다.
+  이 저장소는 그 입력을 하나도 안 쓰고(grep 0), 그 트리거도 안 쓰며, 액션은 SHA 로 고정돼 태그 중단과 무관하다. `check_static` 통과. 캐시 키 접미사만 바뀌어(`pruned` 해제) 첫 실행이 캐시 미스일 수 있다 — 검사가 꺼진 것이 아니다.
+- §55 · §193 · §194 : `ci.yml` 걸음 구조가 그대로(`uses:` 7줄만 바뀜)라 그대로 참이다.
+
+### 같이 한 것
+
+- **certifi** (Dependabot #7, Critical, `worker/uv.lock` 전이 · emSign 루트 CA 건) : 일정을 안 기다리고 `uv lock --upgrade-package certifi` 로 2026.7.22 → **2026.10.23**(패치 버전 2026.10.18 이상). 로컬 uv(0.12.13)가 `revision = 5` 를 `3` 으로 내려 써서 되돌렸고 `uv lock --check` 로 확인했다. **경보 닫힘은 푸시 뒤 눈으로 본다**(아래 확인란).
+- **undici** 경보(#5)는 손대지 않고 기다렸고 닫혔다(Closed 6 — 사용자가 알려 준 화면 값이고 이 세션이 다시 읽지는 않았다). 기다린 것이 맞았다.
+- ★ 커밋 trailer : 하니스가 주는 문구는 `Co-Authored-By: Claude Sonnet 5.5` 이고, 이 세션의 모델 이름과 같다. §214 가 「그런 이름은 없다」 고 적었으나 **그 판정은 검증된 적이 없다** — 이름이 틀렸다는 근거를 못 냈다. 이 커밋부터 하니스 문구를 쓴다. 틀렸다고 확정되면 그때 고친다.
+
+### 로컬 uv 와 CI 의 uv 가 갈렸다 — 그 자체가 발견이다
+
+- 측정 : 로컬 `uv 0.12.13` · CI(run 41455902098 · 41555841981)는 **0.13.6**. `ci.yml` 에 uv 판본이 **없다** — `setup-uv` 에 `version` 을 안 적어 로그가 「uv.toml 이나 pyproject.toml 에서 판본을 못 정해 latest 로 떨어진다」 를 찍는다. `required-version` · `uv.toml` 도 없다(grep 0).
+- **「액션을 SHA 로 고정했다」 와 「도구가 고정됐다」 는 다른 말이다.** §125 의 주제(고정이 검사를 껐다)가 이 자리에서 그대로 선다 : 액션 SHA 는 박혔고 그 액션이 내려받는 uv 는 매번 latest 다. `check_pinned` 는 `uses:` 만 본다.
+- 이 갈림이 낸 일 : 로컬 0.12.13 으로 `uv lock --upgrade-package certifi` 를 돌리자 `uv.lock` 이 certifi 3 줄 외에 **`revision = 5 → 3`** 을 같이 내렸다. 어제 이것을 「무관한 변경」 이라 적은 것은 판정이었다.
+  측정 : 0.13.6(`uvx --from uv==0.13.6`)으로 같은 명령을 돌리면 **바뀌는 줄은 certifi 의 `version` · `sdist` · `wheel` 셋뿐이고 `revision` 은 5 그대로다.** 손으로 되돌린 파일과 **바이트까지 같다**(diff 없음). 다른 줄은 흔들리지 않았다.
+- 규약 : 잠금 파일은 **CI 가 쓰는 판본으로** 다시 만든다(`uvx --from uv==<CI 판본> uv lock …`). 숫자를 손으로 올리지 않는다.
+- 열린 것 : uv 판본을 고정할지(`setup-uv` 의 `version:` 이나 `required-version`)는 이 절에서 정하지 않았다 — 고정하면 CI 와 로컬이 같아지는 대신 판본을 사람이 올려야 한다. PLAN 에 열린 질문이다.
+
+### `build.lock.json` 이 `proposal.yml` 의 푸시 경로에 없다 — 안 넓혔다
+
+- 사실 : 경로는 `docs/proposal.docx` · `site/**` · `tools/docx_check.py` · `proposal.yml` 이고 `build.lock.json` 이 없다. 이 푸시의 재배포는 `proposal.yml` 이 `uses:` 로 바뀌어 **우연히** 일어난다.
+- 판단(추론이다) : 자물쇠만 바뀐 커밋은 docx 바이트가 같아(위 §214 측정) 새로 낼 것이 없다. 생성기를 바꾸고 docx 를 안 구운 경로는 `docx_check.check_build_lock` 이 로컬 · CI 모두 FAIL 로 막는다(§214). 그래서 경로를 넓히지 않았다. 넓히면 `proposal.yml` 의 도장도 같이 움직인다.
+  **이 판단을 틀렸다고 보면 경로에 한 줄을 더하면 된다.** 재발 경로가 닫혔다고 단정하지는 않는다.
+
+### 배운 것
+
+★ **거짓 빨강을 없애면 진짜 변경만 울게 된다 — 그 진짜 변경이 규칙적으로 오는 종류(봇의 액션 범프)면 교착이 된다.** 검사의 입자를 고칠 때는 「이제 무엇이 울게 되나」 를 같이 묻는다.
+★ **가지에서 초록을 못 만드는 변경은 가지의 CI 를 증거의 전부로 삼지 않는다.** 「도장 외 전부」 가 도는지를 본다.
+
+강제자 없음 — 사유 : 규약은 사람이 따르는 절차다(봇 PR 의 합침은 사람이 한다). 기계로 지킬 지점은 이미 있다 — 합친 뒤 main 의 `doctor --repo` 가 도장 무효를 FAIL 로 낸다(`tools/docseal.py` · `tools/doctor.sh`).

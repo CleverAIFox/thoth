@@ -251,7 +251,7 @@
  "125": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "e2366d983e3dd64f",
+  "지문": "9b9a1d8839e4e30a",
   "파일": [
    "tools/check_static.py::check_pinned",
    "worker/tests/test_check_static.py",
@@ -265,7 +265,7 @@
  "126": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "a672e0ee602881d6",
+  "지문": "b25d54eb36e6a87b",
   "파일": [
    "tools/docx_check.py::check_build_lock",
    "tools/docx_check.py::생성기지문",
@@ -303,7 +303,7 @@
  "129": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "3f61ad12d83ac754",
+  "지문": "5d334092409a9cc8",
   "파일": [
    "docs/proposal/part1.js",
    "docs/proposal/build.js",
@@ -1063,7 +1063,7 @@
  "193": {
   "날짜": "2026-10-14",
   "읽음": true,
-  "지문": "dde406b5042049ca",
+  "지문": "69d07d321781be2d",
   "파일": [
    "tools/doctor.sh",
    ".github/workflows/ci.yml",
@@ -1074,7 +1074,7 @@
  "194": {
   "날짜": "2026-10-15",
   "읽음": true,
-  "지문": "7872ca909de7671b",
+  "지문": "58fdd626bcee8b86",
   "파일": [
    "tools/ci_status.py",
    "tools/smoke.sh",
@@ -1318,12 +1318,21 @@
  "214": {
   "날짜": "2026-11-02",
   "읽음": true,
-  "지문": "535047b02a52f580",
+  "지문": "02c04fb9cfec11a0",
   "파일": [
    "tools/doctor.sh",
    "tools/docx_check.py::check_build_lock",
    "docs/proposal/build.lock.json",
    ".github/workflows/proposal.yml"
+  ]
+ },
+ "215": {
+  "날짜": "2026-11-03",
+  "읽음": true,
+  "지문": "6bec83ff9d729777",
+  "파일": [
+   "tools/docseal.py",
+   "tools/doctor.sh"
   ]
  },
  "22": {
@@ -1610,7 +1619,7 @@
  "55": {
   "날짜": "2026-09-14",
   "읽음": true,
-  "지문": "f458c1f7b15a85d6",
+  "지문": "c7c2abe942164850",
   "파일": [
    ".github/workflows/ci.yml",
    "tools/check_static.py"
