@@ -51,6 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with: { version: "0.13.6" }
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with: { python-version: "3.13" }
       # ★ **jsdom 이 없으면 확장 검사 25건이 건너뛰어진다.** 로컬에서는 WARN 으로
@@ -140,6 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with: { version: "0.13.6" }
       # ★ **루프가 실패를 삼켰다**(DECISIONS §125). 30초 안에 안 뜨면 마지막
       #   `sleep 1` 의 종료 코드 0 으로 단계가 **통과**했고, 실패는 다음
       #   `smoke.sh` 에서 「워커에 닿지 못했다」 로 나타났다 — 원인이 「기동

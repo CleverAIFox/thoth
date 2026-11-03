@@ -136,6 +136,33 @@ def test_주석_안의_uses_는_보지_않는다_고정():
     assert cs.unpinned_uses("      # uses: actions/checkout@v7 을 쓰던 자리\n") == []
 
 
+UV핀 = "      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3\n"
+
+
+def test_uv_판본을_안_적으면_잡는다():
+    # ★ SHA 로 고정한 액션도 `version` 이 없으면 uv 는 매번 latest 다(§215).
+    assert cs.unpinned_uv(UV핀 + "      - uses: actions/setup-python@x\n") == [1]
+
+
+def test_uv_판본을_세_자리로_적으면_통과한다():
+    assert cs.unpinned_uv(UV핀 + '        with: { version: "0.13.6" }\n') == []
+
+
+def test_uv_판본이_범위나_latest_면_잡는다():
+    for v in ('"latest"', '"0.13"', '">=0.13.6"'):
+        assert cs.unpinned_uv(UV핀 + f"        with: {{ version: {v} }}\n") == [1], v
+
+
+def test_uv_판본이_다음_걸음의_것이면_잡는다():
+    # 다른 걸음의 `version:` 을 이 걸음의 것으로 읽으면 안 된다.
+    다음 = "      - uses: actions/setup-node@x\n        with: { version: \"1.2.3\" }\n"
+    assert cs.unpinned_uv(UV핀 + 다음) == [1]
+
+
+def test_주석의_uv_판본은_세지_않는다():
+    assert cs.unpinned_uv(UV핀 + '        # with: { version: "0.13.6" }\n') == [1]
+
+
 def test_워크플로가_지금_전부_고정됐다():
     assert cs.check_pinned() == []
 

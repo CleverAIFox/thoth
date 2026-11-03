@@ -170,10 +170,42 @@ def unpinned_uses(text: str) -> list[tuple[int, str]]:
     return bad
 
 
+# ★ **액션을 SHA 로 고정해도 그 액션이 내려받는 도구는 고정이 아니다**(DECISIONS §215).
+#   `setup-uv` 에 `version` 을 안 적으면 매번 latest 다 — 2026-11-03 에 로컬 uv(0.12.13)와 CI(0.13.6)가
+#   갈려 `uv.lock` 의 `revision` 줄이 흔들렸고, 아무도 CI 의 uv 가 무엇인지 몰랐다.
+#   「낡은 고정」은 재서 들 수 있고, 안 고정한 도구는 어느 날 바뀌어도 아무도 모른다.
+#   **세 자리 정확한 판본만 받는다** — `latest` · `0.13` · `>=0.13` 은 고정이 아니다.
+UV_ACTION = re.compile(r"astral-sh/setup-uv@")
+UV_VERSION = re.compile(r"""\bversion:\s*["']?(\d+\.\d+\.\d+)["']?\s*(?:[,}]|$)""")
+
+
+def unpinned_uv(text: str) -> list[int]:
+    """`setup-uv` 걸음 중 `version:` 이 정확한 세 자리가 아닌 것의 줄 번호."""
+    줄들 = text.split("\n")
+    bad = []
+    for n, line in enumerate(줄들, 1):
+        code = line.split("#", 1)[0]
+        if not (USES_ANY.match(code) and UV_ACTION.search(code)):
+            continue
+        들여 = len(line) - len(line.lstrip())
+        몸 = []
+        for 다음 in 줄들[n:]:
+            c = 다음.split("#", 1)[0]
+            if c.strip() and (len(다음) - len(다음.lstrip())) <= 들여 and not c.lstrip().startswith(("with:", "version:")):
+                break                      # 다음 걸음 · 작업이 시작됐다
+            몸.append(c)
+        if not UV_VERSION.search("\n".join(몸)):
+            bad.append(n)
+    return bad
+
+
 def check_pinned() -> list[str]:
     return [f"{p.relative_to(ROOT)}:{n} `uses:` 가 SHA 로 안 고정됐다 — {ref}"
             for p in sorted(ROOT.glob(".github/workflows/*.yml"))
-            for n, ref in unpinned_uses(p.read_text(encoding="utf-8"))]
+            for n, ref in unpinned_uses(p.read_text(encoding="utf-8"))] + \
+           [f"{p.relative_to(ROOT)}:{n} `setup-uv` 에 `version:` 이 정확한 세 자리로 고정되지 않았다 — 안 적으면 매번 latest 다 (DECISIONS §215)"
+            for p in sorted(ROOT.glob(".github/workflows/*.yml"))
+            for n in unpinned_uv(p.read_text(encoding="utf-8"))]
 
 
 # ★ **작업마다 시간 상한을 적는다**(파이어레인 `tools/actionpin.py` · DECISIONS §126).

@@ -10,7 +10,7 @@
  "100": {
   "날짜": "2026-09-16",
   "읽음": true,
-  "지문": "86b60a16a5ebefb3",
+  "지문": "112909b414f4b129",
   "파일": [
    "tools/check_static.py",
    "tools/doctor.sh"
@@ -19,7 +19,7 @@
  "101": {
   "날짜": "2026-09-16",
   "읽음": true,
-  "지문": "2e9ad0245ce38cee",
+  "지문": "0230b8a1ffc7289c",
   "파일": [
    "tools/check_static.py"
   ]
@@ -251,7 +251,7 @@
  "125": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "9b9a1d8839e4e30a",
+  "지문": "228f13d0a6ef35cc",
   "파일": [
    "tools/check_static.py::check_pinned",
    "worker/tests/test_check_static.py",
@@ -279,7 +279,7 @@
  "127": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "0e16c3e3896e4718",
+  "지문": "e70bf61229e3475f",
   "파일": [
    "tools/docx_check.py::main",
    "tools/doctor.sh",
@@ -303,7 +303,7 @@
  "129": {
   "날짜": "2026-10-03",
   "읽음": true,
-  "지문": "5d334092409a9cc8",
+  "지문": "e62db22d2c737abe",
   "파일": [
    "docs/proposal/part1.js",
    "docs/proposal/build.js",
@@ -456,7 +456,7 @@
  "144": {
   "날짜": "2026-10-04",
   "읽음": true,
-  "지문": "0e8f362248bbdd0a",
+  "지문": "1df11c07a71b3cdc",
   "파일": [
    "docs/MASTER.md",
    "docs/PLAN.md"
@@ -649,7 +649,7 @@
  "162": {
   "날짜": "2026-10-05",
   "읽음": true,
-  "지문": "3b09adbd6f4630e8",
+  "지문": "20047b4afcf71082",
   "파일": [
    "tools/ci_status.py",
    "tools/doctor.sh",
@@ -661,7 +661,7 @@
  "163": {
   "날짜": "2026-10-05",
   "읽음": true,
-  "지문": "c256ce45c7af0795",
+  "지문": "5d02ca31277f4646",
   "파일": [
    "tools/docseal.py",
    "tools/doctor.sh",
@@ -672,7 +672,7 @@
  "164": {
   "날짜": "2026-10-05",
   "읽음": true,
-  "지문": "b913a70e12bca0e2",
+  "지문": "53e718d44daae5d4",
   "파일": [
    "tools/check_static.py",
    "tools/mutations.json",
@@ -853,8 +853,8 @@
  },
  "179": {
   "날짜": "2026-10-10",
-  "읽음": false,
-  "지문": "9317144f73eb7c50",
+  "읽음": true,
+  "지문": "c2dcc782f1949d65",
   "파일": [
    "tools/check_static.py",
    "worker/tests/test_check_static.py",
@@ -883,7 +883,7 @@
  "180": {
   "날짜": "2026-10-10",
   "읽음": true,
-  "지문": "9ab2bf3606af9136",
+  "지문": "adbd99a0febd06e0",
   "파일": [
    "tools/cost_check.py",
    "tools/cost.json",
@@ -901,7 +901,7 @@
  "181": {
   "날짜": "2026-10-11",
   "읽음": false,
-  "지문": "0f32ac10d46ba480",
+  "지문": "2e5c89b2ffb5d83d",
   "파일": [
    "tools/cost_check.py",
    "tools/cost.json",
@@ -916,7 +916,7 @@
  "182": {
   "날짜": "2026-10-11",
   "읽음": false,
-  "지문": "ea3d4d37377b3fb6",
+  "지문": "ee89c1aee4901a74",
   "파일": [
    "tools/cost_check.py",
    "tools/cost.json",
@@ -931,7 +931,7 @@
  "183": {
   "날짜": "2026-10-12",
   "읽음": false,
-  "지문": "992ee0350e03f320",
+  "지문": "a04b8972ce6210b5",
   "파일": [
    "extension/src/지문.js",
    "extension/src/broker.js",
@@ -946,7 +946,7 @@
  "184": {
   "날짜": "2026-10-12",
   "읽음": false,
-  "지문": "265830f78dfab377",
+  "지문": "de151798a8c775ca",
   "파일": [
    "extension/src/broker.js",
    "extension/tests/harness.js",
@@ -959,7 +959,7 @@
  "185": {
   "날짜": "2026-10-13",
   "읽음": false,
-  "지문": "ba49dbced913c39a",
+  "지문": "ac17fb1a9dde8f3c",
   "파일": [
    "tools/shot_stale.py",
    "tools/build_proposal.sh",
@@ -971,8 +971,8 @@
  },
  "186": {
   "날짜": "2026-10-13",
-  "읽음": false,
-  "지문": "627b374096b9bd50",
+  "읽음": true,
+  "지문": "35fb8b3daa15bfd5",
   "파일": [
    "tools/lib/infra.sh",
    "tools/tf.sh",
@@ -1063,7 +1063,7 @@
  "193": {
   "날짜": "2026-10-14",
   "읽음": true,
-  "지문": "69d07d321781be2d",
+  "지문": "7f63e6ddca99f27e",
   "파일": [
    "tools/doctor.sh",
    ".github/workflows/ci.yml",
@@ -1074,7 +1074,7 @@
  "194": {
   "날짜": "2026-10-15",
   "읽음": true,
-  "지문": "58fdd626bcee8b86",
+  "지문": "b46e454d96dfb1b1",
   "파일": [
    "tools/ci_status.py",
    "tools/smoke.sh",
@@ -1167,7 +1167,7 @@
  "201": {
   "날짜": "2026-10-20",
   "읽음": true,
-  "지문": "17512210feecb86e",
+  "지문": "88a09f75a747d911",
   "파일": [
    "tools/doctor.sh",
    "docs/MASTER.md",
@@ -1178,7 +1178,7 @@
  "202": {
   "날짜": "2026-10-20",
   "읽음": false,
-  "지문": "338f1c76cfb2bf1f",
+  "지문": "af73a0874391c799",
   "파일": [
    "tools/check_counts.py",
    "worker/tests/test_check_counts.py",
@@ -1202,7 +1202,7 @@
  "204": {
   "날짜": "2026-10-21",
   "읽음": false,
-  "지문": "9e0c8bc249da553f",
+  "지문": "3c3ba6d072ccbe82",
   "파일": [
    "tools/check_counts.py",
    "tools/doctor.sh",
@@ -1215,7 +1215,7 @@
  "205": {
   "날짜": "2026-10-21",
   "읽음": false,
-  "지문": "65d63abc0ba66088",
+  "지문": "8c66209d110d0bd9",
   "파일": [
    "worker/tests/test_bench_checks.py",
    "docs/bench/baseline.json",
@@ -1226,7 +1226,7 @@
  "206": {
   "날짜": "2026-10-21",
   "읽음": false,
-  "지문": "c6264b856e8fd365",
+  "지문": "9e6ba56acc05f539",
   "파일": [
    "tools/endings_oracle.py",
    "worker/tests/test_endings_oracle.py",
@@ -1271,7 +1271,7 @@
  "21": {
   "날짜": "2026-09-13",
   "읽음": true,
-  "지문": "4e6d7ead96bb7268",
+  "지문": "d1d487f29be1d675",
   "파일": [
    "tools/mutate_gate.py",
    "worker/tests/test_check_static.py"
@@ -1287,6 +1287,15 @@
    "docs/proposal/part2.js",
    "docs/proposal/part3.js",
    "worker/tests/test_docx_check.py"
+  ]
+ },
+ "211": {
+  "날짜": "2026-10-26",
+  "읽음": false,
+  "지문": "caa906ecf080c37b",
+  "파일": [
+   "tools/check_speech.py",
+   "tools/doctor.sh"
   ]
  },
  "212": {
@@ -1306,7 +1315,7 @@
  "213": {
   "날짜": "2026-11-02",
   "읽음": true,
-  "지문": "c6cf5496b1cfce1b",
+  "지문": "9939f78db2f41351",
   "파일": [
    "tools/check_gh.py",
    "worker/tests/test_check_gh.py",
@@ -1329,7 +1338,7 @@
  "215": {
   "날짜": "2026-11-03",
   "읽음": true,
-  "지문": "6bec83ff9d729777",
+  "지문": "b263b3a23d46f0f8",
   "파일": [
    "tools/docseal.py",
    "tools/doctor.sh"
@@ -1619,7 +1628,7 @@
  "55": {
   "날짜": "2026-09-14",
   "읽음": true,
-  "지문": "c7c2abe942164850",
+  "지문": "8d2d789990860a43",
   "파일": [
    ".github/workflows/ci.yml",
    "tools/check_static.py"
@@ -1869,7 +1878,7 @@
  "87": {
   "날짜": "2026-09-15",
   "읽음": true,
-  "지문": "143f9e7d8a85e04d",
+  "지문": "f0c38590d9cc8d74",
   "파일": [
    "tools/check_static.py",
    "worker/tests/test_check_static.py"
@@ -2030,7 +2039,7 @@
  "M11": {
   "날짜": "",
   "읽음": true,
-  "지문": "44623772c8c00150",
+  "지문": "003b0264c10dd136",
   "파일": [
    "tools/lib/env.sh",
    "tools/doctor.sh",
